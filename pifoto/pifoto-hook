@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+#
+# pifoto-hook - hook script that is called on every gphoto2 event
+#
+# arguments are passed in environment variables
+
+import os
+import subprocess
+import sys
+
+# configure your shutter snitch ipad app
+HOST='192.168.2.25'
+PORT=26000
+USER='snitch'
+PASS='snitch'
+
+def push_ftp(file):
+  #curl -T "$ARGUMENT" ftp://$HOST:$PORT --user $USER:$PASS
+  pass
+
+def download(file):
+  print("GOT FILE:",file)
+
+def main():
+  # check passed hook ACTION
+  if 'ACTION' not in os.environ:
+    print("No hook ACTION found!")
+    sys.exit(1)
+  ACTION=os.environ['ACTION']
+  valid_actions=('init','start','stop','download')
+  if ACTION not in valid_actions:
+    print("Invalid hook action",ACTION)
+    sys.exit(1)
+  
+  # show action
+  print(sys.argv[0],ACTION)
+  
+  # parse download action
+  if ACTION == 'download':
+    if 'ARGUMENT' not in os.environ:
+      print("No download ARGUMENT found!")
+      sys.exit(2)
+    ARGUMENT=os.environ['ARGUMENT']
+    download(ARGUMENT)
+  
+  sys.exit(0)
+
+if __name__ == '__main__':
+  main()

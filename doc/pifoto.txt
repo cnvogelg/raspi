@@ -1,0 +1,13 @@
+pifoto.txt - your pi as a camera companion
+
+1. Installation
+
+- Required Setup
+  - see install.txt to setup WLAN, remote access via ssh
+
+- Required Packets
+  # apt-get install gphoto2 dcraw
+
+
+
+

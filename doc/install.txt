@@ -1,0 +1,140 @@
+install.txt
+-----------
+
+1. basic raspberrypi board install
+
+- download raspbian image from raspberry.org
+   (current: 2012-09-18-wheezy-raspbian.zip)
+
+- unzip
+- attach fresh SD card
+- on Mac: unmount volume
+  > diskutil unmount /Volume/<Name>
+- find out _correct_ /dev/rdisk<n> device for SD Card
+  > diskutil list
+- write image to SD card
+  > sudo dd if=2012-09-18-wheezy-raspbian.img of=/dev/rdisk1 bs=2m
+  
+- wire raspi with power, monitor, keyboard, mouse
+- attach SD card and power on, boot
+
+2. setup menu
+
+- "expand fs"
+- "disable overscan"
+- "setup keyboard"
+  -> 105 intl keyboard -> more -> german -> eliminate dead keys
+  -> default key set -> keep 
+- "locale" -> de.UTF-8
+- "change timezone" -> Berlin
+- "memory split": 224/32
+- "enable ssh"
+- "boot behaviour" - no desktop at startup
+- "update"
+
+3. custom setup
+
+- full update
+  > sudo bash
+  # apt-get update
+  # apt-get upgrade
+  
+- set own host name
+  -> edit /etc/hostname and set "yourhost"
+  -> /etc/hosts add "yourhost" as 127.0.0.1
+
+** Ethernet
+
+  - set host name for Fritz!Box DHCP server
+    -> edit /etc/dhcp/dhclient.conf
+       interface "eth0" {
+	 	 send host-name = "yourhost-eth";
+		 send dhcp-client-identifier <mac:add>;
+	   }
+
+** Wifi (here Netgear Mini USB Dongle )
+
+  - check for adapter
+    # dmesg
+	# iwlist scan
+  - in /etc/network/interfaces
+       auto wlan0
+	   iface wlan0 inet dhcp
+	   wpa-conf /etc/wpa.conf
+  - create /etc/wpa.conf
+	   network={
+	   	ssid="<your_ssid>"
+	   	key_mgmt=WPA-PSK
+	   	psk="<your_passwd>"
+	   }
+  - add to /etc/dhcp/dhclient.conf
+      interface "eth0" {
+ 	    send host-name = "yourhost";
+	    send dhcp-client-identifier <mac:addr:wlan>;
+      }
+  # ifdownt wlan0
+  # ifup wlan0
+
+** System Config
+
+- /boot/config.txt
+  hdmi_group=1
+  hdmi_mode=19  # 720p for my monitor
+  
+- reboot  
+
+** NSF/Autofs 
+
+  # apt-get install autofs
+  
+  - edit /etc/auto.master, add:
+  /net	/etc/auto.net
+  
+  - create /etc/auto.net
+  download-home   -soft,intr,vers=3       ion:/home/download
+  storage1        -soft,intr,vers=3       ion:/disc/storage1
+  storage2        -soft,intr,vers=3       ion:/disc/storage2
+  storage3        -soft,intr,vers=3       ion:/disc/storage3
+  storage4        -soft,intr,vers=3       ion:/disc/storage4
+  storage5        -soft,intr,vers=3       ion:/disc/storage5
+  storage6        -soft,intr,vers=3       ion:/disc/storage6
+  
+  # /etc/init.d/autofs restart
+  
+** Add user "chris"
+
+  # adduser --uid 501 --gid 501 chris
+  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,netdev,i2c,input chris
+  
+  - link autofs shares for user chris (see below)
+  > cd $HOME
+  > mkdir net
+  > cd net ; ln -s /net/storage1/chris-data 
+  
+** SSH for "chris"
+
+- push SSH credentials from host machine
+  
+  > ssh-copy-id chris@<yourhost>
+
+** Make a script autorun on every boot with user "chris"
+
+  - edit /etc/inittab
+    2:23:respawn:/bin/login -f chris tty2 </dev/tty2 >/dev/tty2 2>&1
+
+  - in $HOME/.bashrc add:
+    if [ $(tty) == /dev/tty2 ]; then
+	  echo "AUTO-RUN"
+	  ./my_script
+	  sleep 5
+	  exit 0
+	fi
+	
+** Use Green LED for own stuff
+
+  - enable/disable LED mode
+    # echo none >/sys/class/leds/led0/trigger
+	# echo mmc0 >/sys/class/leds/led0/trigger
+  - toggle LED
+    # echo 1 >/sys/class/leds/led0/brightness
+    # echo 0 >/sys/class/leds/led0/brightness
