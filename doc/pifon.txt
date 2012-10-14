@@ -1,0 +1,51 @@
+pifon.txt - installation guide for your pifon setup
+
+1. Hardware
+
+   - UVC compatible USB WebCam with Audio
+
+2. Packages
+
+  # apt-get install uvccapture uvcdynctrl guvcview motion
+  # 
+
+3. Test Camera Video
+
+  - Make sure Webcam is found
+  pifon# dmesg
+  ...
+  [   15.193914] uvcvideo: Found UVC 1.00 device <unnamed> (046d:0819)
+  [   15.566165] input: UVC Camera (046d:0819) as /devices/platform/bcm2708_usb/usb1/1-1/1-1.3/1-1.3.2/1-1.3.2:1.0/input/input0
+  [   15.756263] usbcore: registered new interface driver uvcvideo
+  [   15.850629] USB Video Class driver (1.1.1)
+  [   16.629132] uvcvideo: Failed to query (GET_DEF) UVC control 2 on unit 2: -110 (exp. 2).
+  [   16.674854] usbcore: registered new interface driver snd-usb-audio
+  
+  - ssh with X11 support on target
+  host> ssh -Y chris@pifon
+  
+  - run "guvcview" to find valid camera parameters
+    my Logitech cam uses:
+    - brightness: 128
+    - contrast:   32
+    - saturation: 32
+    - AWB:        on
+    - Gain:       0
+    - Sharpness:  53
+    - Exposure:   Aperture Priority Mode
+
+  - take a snapshot image (download snap.jpg and see)
+  pifon> uvccapture
+
+4. Test Camera Audio
+
+  - Check if ALSA has recognized USB WebCam audio
+  pifon> arecord -l
+    Karte 1: U0x46d0x819 [USB Device 0x46d:0x819], Gerät 0: USB Audio [USB Audio]
+      Sub-Geräte: 1/1
+      Sub-Gerät #0: subdevice #0
+  
+  - Adjust the recording level on the command line
+  pifon> amixer -c 1 sset 'Mic' <value>
+  
+  

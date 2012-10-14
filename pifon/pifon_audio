@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+#
+# pifon_audio
+#
+# detect intervals ouf loudness and generate events
+# uses SoX' rec tool with ALSA driver for USB WebCam audio
+#
+
+import subprocess
+import os
+import time
+
+# ---------- config ----------
+rec_bin = '/usr/bin/rec'
+channels = 1
+rate = 16000
+bits = 8
+cmd = [rec_bin, '-q', '-c', str(channels), '-r', str(rate), '-b', str(bits), '-e', 'unsigned-integer', '-t', 'raw', '-']
+
+env = dict(os.environ)
+env['AUDIODRIVER'] = 'alsa'
+env['AUDIODEV'] = 'plughw:1'
+
+# ----- parameters -----
+# this level is used to detect a loud event
+loud_level = 32
+# duration in ms after a loudness event to return to silence mode
+silence_after_loud_ms = 5000
+# update interval in ms
+update_interval = 500
+
+# ---------- functions ----------
+
+def record(handler):
+  """run the audio recording tool in a seperate process and receive its samples
+     via stdout pipe.
+     the passed handler will be called for each received sample buffer
+  """
+  bufsize = 1024
+  p = subprocess.Popen(cmd, shell=False, bufsize=bufsize, stdout=subprocess.PIPE, env=env)
+  try:
+    while p.returncode == None:
+      data = p.stdout.read(bufsize)
+      if len(data) > 0:
+        handler.handle_buffer(data)
+    p.poll()
+  except KeyboardInterrupt:
+    # on ctrl-c kill the record process
+    p.kill()
+
+# ----- Detector -----
+
+class Detector:
+  def __init__(self, event_handler, loud_level=32, silence_after_loud_ms=5000, update_interval=250):
+    self.event_handler = event_handler
+    self.loud_level = loud_level
+    self.silence_after_loud_ms = silence_after_loud_ms
+    self.update_interval = update_interval
+    # state
+    self.in_loudness = False
+    self.last_silence_time = 0
+    self.last_event_time = 0
+    
+  def get_peak_value(self, data):
+    """get the loudest value in the buffer of 8-bit unsigned samples
+       return peak_value
+    """
+    peak = 0
+    for d in data:
+      v = abs(d - 128)
+      if v > peak:
+        peak = v
+    return peak
+
+  def handle_buffer(self, data):
+    """check incoming audio buffer and derive loudness state
+       pass the state changes to the passed event handler
+       the event_handler is called with .begin(), .end(), .update()
+    """
+    t = time.time()
+    peak = self.get_peak_value(data)
+    if self.in_loudness:
+      do_update = True
+      # check for quiet
+      if peak < self.loud_level:
+        # first silence phase
+        if self.last_silence_time == None:
+          self.last_silence_time = t
+        else:
+          # still silent
+          delta = (t - self.last_silence_time) * 1000
+          if delta >= self.silence_after_loud_ms:
+            # silence was long enough -> leave loudness
+            self.in_loudness = False
+            self.event_handler.end(peak)
+            do_update = False
+      else:
+        # still loud -> reset quiet interval
+        self.last_silence_time = None
+      # update peak?
+      if do_update:
+        delta = (t - self.last_event_time) * 1000
+        if delta >= self.update_interval:
+          self.event_handler.update(peak)
+          self.last_event_time = t
+    else:
+      # check four loud
+      if peak > self.loud_level:
+        self.in_loudness = True
+        self.last_silence_time = None
+        self.last_event_time = t
+        self.event_handler.begin(peak)
+
+# ----- Event Handler -----
+
+class EventHandler:
+  def begin(self, peak):
+    print("begin,%d" % peak)
+  def end(self,peak):
+    print("end,%d" % peak)
+  def update(self,peak):
+    print("update,%d" % peak)
+  
+# ---------- main ----------
+
+def main():
+  ev = EventHandler()
+  d = Detector(ev, loud_level, silence_after_loud_ms, update_interval)
+  record(d)
+
+if __name__ == '__main__':
+  main()
