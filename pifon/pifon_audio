@@ -9,6 +9,7 @@
 import subprocess
 import os
 import time
+import sys
 
 # ---------- config ----------
 rec_bin = '/usr/bin/rec'
@@ -115,11 +116,14 @@ class Detector:
 
 class EventHandler:
   def begin(self, peak):
-    print("begin,%d" % peak)
+    self.p("begin,%d" % peak)
   def end(self,peak):
-    print("end,%d" % peak)
+    self.p("end,%d" % peak)
   def update(self,peak):
-    print("update,%d" % peak)
+    self.p("update,%d" % peak)
+  def p(self,s):
+    print(s)
+    sys.stdout.flush()
   
 # ---------- main ----------
 

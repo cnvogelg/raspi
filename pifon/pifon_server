@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+#
+# pifon_server
+#
+# the master server process of pifon
+#
+
+import socket
+import threading
+import socketserver
+import select
+import queue
+import time
+import subprocess
+import argparse
+
+# ----- globals -----
+dispatcher = None
+
+# ----- Server -----
+
+class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
+  def setup(self):
+    print("client connect:",self.client_address)
+    self.queue = queue.Queue(100)
+    dispatcher.add_handler(self)
+    self.server.register(self)
+  
+  def finish(self):
+    print("client disconnect:",self.client_address)
+    dispatcher.remove_handler(self)
+    self.server.unregister(self)
+
+  def handle(self):
+    stay = True
+    r = self.request
+    # main server loop
+    while stay:
+      try:
+        # first check queue
+        try:
+          event = self.queue.get(False)
+          if event != None:
+            self.send_event(r,event)
+        except queue.Empty:
+          pass
+        # check for incoming data
+        sel = select.select([r],[],[],0.1)
+        if len(sel[0]) > 0:
+          data = r.recv(1024)
+          if len(data) > 0:
+            self.parse_input(r, data)
+          else:
+            print("client eof:",self.client_address)
+            stay = False
+      except socket.error as e:
+        print("client error:",self.client_address,e)
+        stay = False
+
+  def put_event(self, event):
+    print("client in event:",self.client_address,event)
+    self.queue.put(event)
+  
+  def send_event(self, request, event):
+    s = event + "\n"
+    d = s.encode()
+    print("client out event:",self.client_address,event)
+    request.sendall(d)
+    
+  def parse_input(self, request, data):
+    e = data.decode()
+    print("client input:",self.client_address,e)
+
+  def shutdown(self):
+    """client shutdown when server shuts down"""
+    self.request.shutdown(socket.SHUT_RDWR)
+    
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+  def __init__(self, addr, handler):
+    socketserver.ThreadingMixIn.__init__(self)
+    socketserver.TCPServer.__init__(self, addr, handler)
+    self.handlers = []
+    self.lock = threading.Lock()
+
+  def register(self, handler):
+    self.lock.acquire()
+    self.handlers.append(handler)
+    self.lock.release()
+    
+  def unregister(self, handler):
+    self.lock.acquire()
+    self.handlers.remove(handler)
+    self.lock.release()
+    
+  def shutdown(self):
+    print("server shutdown")
+    socketserver.TCPServer.shutdown(self)
+    self.lock.acquire()
+    for handler in self.handlers:
+      handler.shutdown()
+    self.lock.release()
+
+class Server:
+  def __init__(self, host, port):
+    self.host = host
+    self.port = port
+    self.server = None
+
+  def start(self):
+    self.server = ThreadedTCPServer((self.host, self.port), ThreadedTCPRequestHandler)
+    ip, port = self.server.server_address
+    print("Server started",ip,port)
+    server_thread = threading.Thread(target=self.server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
+  def stop(self):
+    self.server.shutdown()
+
+# ----- Dispatcher -----
+
+class Dispatcher(threading.Thread):
+  def __init__(self):
+    threading.Thread.__init__(self)
+    self.handlers = []
+    self.lock = threading.Lock()
+    self.event_queue = queue.Queue(100)
+  
+  def add_handler(self, handler):
+    self.lock.acquire()
+    self.handlers.append(handler)
+    self.lock.release()
+    
+  def remove_handler(self, handler):
+    self.lock.acquire()
+    self.handlers.remove(handler)
+    self.lock.release()
+  
+  def dispatch(self, event):
+    self.lock.acquire()
+    for h in self.handlers:
+      h.put_event(event)
+    self.lock.release()
+      
+  def post_event(self, event):
+    self.event_queue.put(event)
+  
+  def run(self):
+    print("dispatcher: waiting")
+    self.run = True
+    while self.run:
+      try:
+        # get next event
+        event = self.event_queue.get(timeout=1)
+        if event != None:
+          # dispatch event to all handlers
+          self.dispatch(event)
+      except queue.Empty:
+        pass
+    print("dispatcher: shutting down")
+  
+  def stop(self):
+    self.run = False
+    self.join()
+
+# ----- Source -----
+
+class Source:
+  def __init__(self, name, cmd, fake=False):
+    self.name = name
+    self.cmd = cmd
+    self.fake = fake
+    self.p = None
+    if fake:
+      self.cmd[0] += "_fake"
+    
+  def start(self):
+    bufsize = 1024
+    print("Source '%s': %s" % (self.name,self.cmd))
+    self.p = subprocess.Popen(self.cmd, shell=False, bufsize=bufsize, stdout=subprocess.PIPE)
+    
+  def get_stdout(self):
+    return self.p.stdout
+  
+  def handle_stdout(self):
+    data = self.p.stdout.readline()
+    s = data.decode().strip()
+    print(self.name,":",s)
+    dispatcher.post_event(s)
+  
+  def get_returncode(self):
+    self.p.poll()
+    return self.p.returncode
+  
+  def stop(self):
+    self.p.poll()
+    if self.p.returncode == None:
+      self.p.kill()
+
+def handle_sources(srcs):
+  global dispatcher
+  
+  # setup sources
+  fds = []
+  src_map = {}
+  for src in srcs:
+    src.start()
+    stdout = src.get_stdout()
+    fds.append(stdout)
+    src_map[stdout] = src
+    
+  # wait until user aborts
+  timeout = 5
+  try:
+    while True:
+      # select 
+      sel = select.select(fds, [], [], timeout)
+      if len(sel[0]) > 0:
+        for fd in sel[0]:
+          src = src_map[fd]
+          src.handle_stdout()
+      else:
+        dispatcher.post_event("alive\n")
+  except KeyboardInterrupt:
+    print("User abort! shutting down...")
+    
+  # shutdown sources
+  for src in srcs:
+    src.stop()
+
+# ----- main -----
+
+def main():
+  global dispatcher
+  
+  # parse args
+  parser = argparse.ArgumentParser(description="pifon server")
+  parser.add_argument("-p", dest='port', default=6510, type=int, help="listening port")
+  parser.add_argument("-H", dest='host', default='', help="hostname to bind")
+  parser.add_argument("-f", dest='fake', default=False, action='store_true', help="use fake sources")
+  args = parser.parse_args()
+  
+  # start dispatcher
+  d = Dispatcher()
+  dispatcher = d
+  d.start()
+  # start server
+  s = Server(args.host, args.port)
+  s.start()
+  
+  # setup sources
+  src = Source("audio", ["./pifon_audio"], fake=args.fake)
+  srcs = [src]
+  
+  # main loop in main thread: handle sources
+  handle_sources(srcs)
+  
+  # clean up
+  s.stop()
+  d.stop()
+
+if __name__ == '__main__':
+  main()

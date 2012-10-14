@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+#
+# pifon_audio_fake
+#
+
+import time
+import random
+import sys
+
+def p(s):
+  print(s)
+  sys.stdout.flush()
+
+rnd = random.randint
+while True:
+  w = rnd(0,5)
+  time.sleep(w)
+  p("begin,127")
+  for i in range(rnd(0,10)):
+    time.sleep(0.5)
+    p("update,%d" % rnd(0,128))
+  p("end,0")
