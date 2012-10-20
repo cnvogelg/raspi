@@ -20,7 +20,7 @@ cmd = [rec_bin, '-q', '-c', str(channels), '-r', str(rate), '-b', str(bits), '-e
 
 env = dict(os.environ)
 env['AUDIODRIVER'] = 'alsa'
-env['AUDIODEV'] = 'plughw:1'
+env['AUDIODEV'] = 'mixin'
 
 # ----- parameters -----
 # this level is used to detect a loud event

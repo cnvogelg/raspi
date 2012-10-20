@@ -172,9 +172,58 @@ pifon.txt - installation guide for your pifon setup
    * Autorun DarkIce in system
      -> see install.txt how to place darkice into tty2 as root
 
-3.2 Audio Sensor
+4. Instant Messaging via XMPP
 
+4.1 Server
+
+  * Install prosody
+    # apt-get install prosody
   
+  * Config prosody
+    # vi /etc/prosody/conf.d/pifon.cfg.lua
+    
+    ----- schnipp -----
+    VirtualHost "pifon.local"
 
-   
+    	enabled = true
+    	allow_registration = true
+    	disallow_s2s = true
+
+    Component "muc.pifon.local" "muc"
+    ----- schnipp -----
+  
+  * Restart prosody
+    # /etc/init.d/prosody restart
+  
+  * Watch the server log
+    # tail -f /var/log/prosody/prosody.log
+
+  * Add users
+    # prosodyctl adduser audio@pifon.local
+    ; use "audio" as a password
+
+4.2 Host Client
+
+  * Setup your host Mac client to join the new server
+    -> I use Adium http://adium.im
+    - add a new XMPP user account <user>@pifon.local with own <pass>
+      and register at server
+    - In the new account tab select "Show Services..."
+      -> double click on the "muc" service
+       -> select room "pifon"
+        -> a new chat called 'pifon@muc.pifon.local' is opened
+
+4.3 Raspi Client
+
+  * Download sleekxmpp 1.0 library
+    -> http://sleekxmpp.com/index.html
+
+  * Install in Python3
+    # sudo python3 setup.py install
+    
+  * Test with example "muc.py"
+    > python3 muc.py -j audio@pifon.local -p audio -r pifon@muc.pifon.local -n audio
+    --> a new user "audio" should appear in your Adium
+    --> talk to audio by mentioning "audio" ;)
+
    
