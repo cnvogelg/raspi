@@ -4,12 +4,12 @@ pifon.txt - installation guide for your pifon setup
 
    - UVC compatible USB WebCam with Audio
 
-2. Packages
+2. Video (via WebCam, experimental)
 
-  # apt-get install uvccapture uvcdynctrl guvcview motion
-  # 
+  * Packages
+    # apt-get install uvccapture uvcdynctrl guvcview motion
 
-3. Test Camera Video
+  * Test Camera Video
 
   - Make sure Webcam is found
   pifon# dmesg
@@ -37,7 +37,9 @@ pifon.txt - installation guide for your pifon setup
   - take a snapshot image (download snap.jpg and see)
   pifon> uvccapture
 
-4. Test Camera Audio
+3. Audio (via WebCam)
+
+  * Test
 
   - Check if ALSA has recognized USB WebCam audio
   pifon> arecord -l
@@ -47,5 +49,132 @@ pifon.txt - installation guide for your pifon setup
   
   - Adjust the recording level on the command line
   pifon> amixer -c 1 sset 'Mic' <value>
+
+3.1. Install Audio Streaming Server
+   
+   [Source: http://www.t3node.com/blog/live-streaming-mp3-audio-with-darkice-and-icecast2-on-raspberry-pi/]
   
+   * Use the following programs
+     - Icecast2: streaming server
+     - DarkIce: capture audio from WebCam and stream to Icecast2
+     
+   * Compile own DarkIce package as Debian package lacks mp3 support
+
+     # sh -c "echo 'deb-src http://mirrordirector.raspbian.org/raspbian/ wheezy main contrib non-free rpi' >> /etc/apt/sources.list"
+     # apt-get update
+     # apt-get --no-install-recommends install build-essential devscripts autotools-dev fakeroot dpkg-dev debhelper autotools-dev dh-make quilt ccache libsamplerate0-dev libpulse-dev libaudio-dev lame libjack-jackd2-dev libasound2-dev libtwolame-dev libfaad-dev libflac-dev libmp4v2-dev libshout3-dev libmp3lame-dev
+     > mkdir src && cd src
+     > apt-get source darkice
+     > cd darkice-1.0/
+     > vi debian/rules
+     
+     ---- schnipp ----
+     #!/usr/bin/make -f
+
+     %:
+         dh $@
+
+     .PHONY: override_dh_auto_configure
+     override_dh_auto_configure:
+         ln -s /usr/share/misc/config.guess .
+         ln -s /usr/share/misc/config.sub .
+         dh_auto_configure -- --prefix=/usr --sysconfdir=/usr/share/doc/darkice/examples --with-vorbis-prefix=/usr/lib/arm-linux-gnueabihf/ --with-jack-prefix=/usr/lib/arm-linux-gnueabihf/ --with-alsa-prefix=/usr/lib/arm-linux-gnueabihf/ --with-faac-prefix=/usr/lib/arm-linux-gnueabihf/ --with-aacplus-prefix=/usr/lib/arm-linux-gnueabihf/ --with-samplerate-prefix=/usr/lib/arm-linux-gnueabihf/ --with-lame-prefix=/usr/lib/arm-linux-gnueabihf/ CFLAGS='-march=armv6 -mfpu=vfp -mfloat-abi=hard'
+     ---- schnipp ----
+     
+     > $ debchange -v 1.0-999~mp3+1
+     
+     ---- schnipp ----
+     darkice (1.0-999~mp3+1) UNRELEASED; urgency=low
+
+       * New build with mp3 support
+
+       --  <pi@raspberrypi>  Sat, 11 Aug 2012 13:35:06 +0000
+     ---- schnipp ----
+     
+     > dpkg-buildpackage -rfakeroot -uc -b
+     # dpkg -i ../darkice_1.0-999~mp3+1_armhf.deb
   
+   * Setup ALSA config
+   
+     # vi /etc/asound.conf
+     
+     ----- schnipp -----
+     pcm.mixin {
+             type dsnoop
+             ipc_key 12345
+             slave {
+                     pcm "hw:1,0"
+                     channels 1
+                     rate 16000
+             }
+     }
+     ----- schnipp -----
+     
+     this create a new device "mixin" that allows to share the
+     microphone input on "hw:1,0" in different apps
+  
+   * Configure DarkIce
+   
+     # vi /etc/darkice.cfg
+     
+     ----- schnipp -----
+     [general]
+     duration        = 0        # duration of encoding, in seconds. 0 means forever
+     bufferSecs      = 1        # size of internal slip buffer, in seconds
+     reconnect       = yes      # reconnect to the server(s) if disconnected
+
+     # this section describes the audio input that will be streamed
+     [input]
+     device          = mixin     # use my ALSA device
+     sampleRate      = 16000     # sample rate in Hz. try 11025, 22050 or 44100
+     bitsPerSample   = 16        # bits per sample. try 16
+     channel         = 1         # channels. 1 = mono, 2 = stereo
+
+     # this section describes a streaming connection to an IceCast2 server
+     # there may be up to 8 of these sections, named [icecast2-0] ... [icecast2-7]
+     # these can be mixed with [icecast-x] and [shoutcast-x] sections
+     [icecast2-0]
+     bitrateMode     = vbr
+     format          = mp3
+     quality         = 0.6
+     server          = localhost
+     port            = 8000
+     password        = secert
+     mountPoint      = pifon
+     name            = baby@pifon
+     description     = The live stream from baby's room
+     url             = http://pifon.local:80/
+     genre           = baby
+     public          = no
+     ----- schnipp -----
+     
+   * Install Icecast2
+   
+      # apt-get install icecast2
+  
+   * Configure Icecast2
+   
+      # vi /etc/icecast2/icecast.xml
+      
+      ----- schnipp -----
+      <burst-on-connect>0</burst-on-connect>
+      <!-- <burst-size>65535</burst-size> -->
+      ----- schnipp -----
+      
+   * Run DarkIce
+   
+      > sudo darkice
+      
+   * Listen on your Mac with VLC (http://www.videolan.org/vlc/)
+     - open web browser on: http://pifon.local:8000
+     - in VLC open: http://pifon.local:8000/pifon.m3u
+     
+   * Autorun DarkIce in system
+     -> see install.txt how to place darkice into tty2 as root
+
+3.2 Audio Sensor
+
+  
+
+   
+   
