@@ -38,6 +38,21 @@ install.txt
   > sudo bash
   # apt-get update
   # apt-get upgrade
+
+** rpi-update
+
+- install see https://github.com/Hexxeh/rpi-update/
+  # apt-get install git-core
+  # rpi-update
+
+** System Config
+
+- /boot/config.txt
+  hdmi_group=1
+  hdmi_mode=19  # 720p for my monitor
+  gpu_mem=16    # new: ARM/GPU split 
+
+** Hostname
   
 - set own host name
   -> edit /etc/hostname and set "yourhost"
@@ -74,12 +89,6 @@ install.txt
       }
   # ifdownt wlan0
   # ifup wlan0
-
-** System Config
-
-- /boot/config.txt
-  hdmi_group=1
-  hdmi_mode=19  # 720p for my monitor
   
 - reboot  
 
@@ -91,13 +100,7 @@ install.txt
   /net	/etc/auto.net
   
   - create /etc/auto.net
-  download-home   -soft,intr,vers=3       ion:/home/download
-  storage1        -soft,intr,vers=3       ion:/disc/storage1
-  storage2        -soft,intr,vers=3       ion:/disc/storage2
-  storage3        -soft,intr,vers=3       ion:/disc/storage3
-  storage4        -soft,intr,vers=3       ion:/disc/storage4
-  storage5        -soft,intr,vers=3       ion:/disc/storage5
-  storage6        -soft,intr,vers=3       ion:/disc/storage6
+  nfs-share   -soft,intr,vers=3       ion:/disc/storage4/nfs-share
   
   - int /etc/default/nfs-commons:
   NEED_STATD=yes
@@ -125,6 +128,8 @@ install.txt
 - push SSH credentials from host machine
   
   > ssh-copy-id chris@<yourhost>
+
+----- Add Ons -----
 
 ** Make a script autorun on every boot with user "chris"
 
