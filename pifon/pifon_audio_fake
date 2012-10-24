@@ -6,10 +6,20 @@
 import time
 import random
 import sys
+import threading
 
 def p(s):
   print(s)
   sys.stdout.flush()
+
+class Reader(threading.Thread):
+  def run(self):
+    while True:
+      l = sys.stdin.readline()
+      p("got," + l)
+
+r = Reader()
+r.start()
 
 rnd = random.randint
 while True:
