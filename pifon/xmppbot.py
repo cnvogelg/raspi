@@ -2,16 +2,17 @@
 # -*- coding: utf-8 -*-
 
 """
-  procbot - attach a process as bot XMPP client
+  xmppbot - attach a process as bot XMPP client
   
   stdin of process is fed with incoming messages adressed with <name>: 
   stdout of process is received and print as messages
 """
 
 import sys
+import os
 import logging
-import getpass
-from optparse import OptionParser
+import argparse
+import configparser
 import time
 
 import sleekxmpp
@@ -20,57 +21,53 @@ import queue
 import subprocess
 import select
 
+# ----- ProcRunner -----
+
 class ProcRunner(threading.Thread):
   def __init__(self, cmd, output):
-    threading.Thread.__init__(self)
+    threading.Thread.__init__(self, name="proc_runner")
     self.cmd = cmd
     self.in_queue = queue.Queue()
-    self.stop = False
+    self.stop_flag = False
     self.output = output
-  
+    
   def put(self, line):
     self.in_queue.put(line)
     
-  def get_output(self, block=True):
-    try:
-      return self.out_queue.get(block)
-    except query.Empty:
-      return None
-  
   def stop(self):
-    self.stop = True
+    self.proc.poll()
+    if self.proc.returncode == None:
+      self.proc.terminate()
     self.join()
   
   def run(self):
-    proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
-    stdout = proc.stdout
-    stdin  = proc.stdin
-    while proc.returncode == None:      
-      # update return code
-      proc.poll()
-      # send a terminate to the process
-      if self.stop:
-        proc.terminate()
-        break
-      # check for input/output
-      (r,w,x) = select.select([stdout],[stdin],[],0.1)
-      print(r,w)
-      if stdout in r:
-        # something to write to stdout?
-        try:
-          line = self.in_queue.get(False)
-          print("in: ",line)
-          line += '\n'
-          data = line.encode()
-          stdin.write(data)
-        except queue.Empty:
-          pass
-      if stdin in w:
-        # something to read from stdin
-        data = stdout.readline().strip()
-        line = data.decode()
-        self.output.put(line)
-        print("out:",line)
+    try:
+      self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
+      stdout = self.proc.stdout
+      stdin  = self.proc.stdin
+      while self.proc.returncode == None:      
+        # update return code
+        self.proc.poll()
+        # check for input/output
+        (r,w,x) = select.select([stdout],[stdin],[],0.1)
+        if stdout in r:
+          # something to write to stdout?
+          try:
+            line = self.in_queue.get(False)
+            line += '\n'
+            data = line.encode()
+            stdin.write(data)
+          except queue.Empty:
+            pass
+        if stdin in w:
+          # something to read from stdin
+          data = stdout.readline().strip()
+          line = data.decode()
+          self.output.put(line)
+    except KeyboardInterrupt:
+      print("bork!")
+
+# ----- XMPP Bot -----
 
 class ProcBot(sleekxmpp.ClientXMPP):
   def __init__(self, jid, password, room, nick):
@@ -113,14 +110,9 @@ class ProcBot(sleekxmpp.ClientXMPP):
         self.output.put(cmd)
         
   def muc_online(self, presence):
-    if presence['muc']['nick'] != self.nick:
-      self.send_message(mto=presence['from'].bare,
-                        mbody="Hello, %s %s" % (presence['muc']['role'],
-                                                  presence['muc']['nick']),
-                        mtype='groupchat')
-    else:
+    if presence['muc']['nick'] == self.nick:
       self.in_room = True
-      print("in room")
+      logging.info("bot: enter room")
       # empty queue
       try:
         while True:
@@ -132,6 +124,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
   def muc_offline(self, presence):
     if presence['muc']['nick'] == self.nick:
       self.in_room = False
+      logging.info("bot: left room")
   
   def put(self, msg):
     if self.in_room:
@@ -139,60 +132,75 @@ class ProcBot(sleekxmpp.ClientXMPP):
     else:
       self.queue.put(msg)
 
+# ----- main -----
+
+def parse_args():
+  parser = argparse.ArgumentParser(description="XMPP bot for external programs")
+  parser.add_argument('cmd', nargs='+', help="command with optional arguments to launch")
+  parser.add_argument('-v', '--verbose', action='store_true', default=False, help="be more verbos")
+  parser.add_argument('-d', '--debug', action='store_true', default=False, help="show debug output")
+  parser.add_argument('-c', '--config-file', action='store', default=None, help="name of config file")
+  args = parser.parse_args()
+  return args
+  
+def parse_config(file_name):
+  parser = configparser.SafeConfigParser()
+  parser.read([file_name])
+  if parser.has_section('xmppbot'):
+    cfg = dict(parser.items('xmppbot'))
+    req = ('nick','password','jid','room')
+    for r in req:
+      if r not in cfg:
+        raise ValueError(r + " is missing in config")
+    return cfg
+  else:
+    raise ValueError("section 'xmppbot' missing in config")
+  
 if __name__ == '__main__':
-  # Setup the command line arguments.
-  optp = OptionParser()
-
-  # Output verbosity options.
-  optp.add_option('-q', '--quiet', help='set logging to ERROR',
-                  action='store_const', dest='loglevel',
-                  const=logging.ERROR, default=logging.INFO)
-  optp.add_option('-d', '--debug', help='set logging to DEBUG',
-                  action='store_const', dest='loglevel',
-                  const=logging.DEBUG, default=logging.INFO)
-  optp.add_option('-v', '--verbose', help='set logging to COMM',
-                  action='store_const', dest='loglevel',
-                  const=5, default=logging.INFO)
-
-  # JID and password options.
-  optp.add_option("-j", "--jid", dest="jid",
-                  help="JID to use")
-  optp.add_option("-p", "--password", dest="password",
-                  help="password to use")
-  optp.add_option("-r", "--room", dest="room",
-                  help="MUC room to join")
-  optp.add_option("-n", "--nick", dest="nick",
-                  help="MUC nickname")
-
-  opts, args = optp.parse_args()
-
-  # Setup logging.
-  logging.basicConfig(level=opts.loglevel,
+  # parse command line arguments
+  args = parse_args()
+  cmd = args.cmd
+  
+  # load config for parameters
+  config_file = args.config_file
+  if config_file == None:
+    config_file = cmd[0] + '.cfg'  
+  if not os.path.exists(config_file):
+    print("no config file:",config_file,file=sys.stderr)
+    sys.exit(1)
+  cfg = parse_config(config_file)
+  
+  # setup logging
+  log=logging.ERROR
+  if args.verbose:
+    log=logging.INFO
+  if args.debug:
+    log=logging.DEBUG
+  logging.basicConfig(level=log,
                       format='%(levelname)-8s %(message)s')
 
-  if opts.jid is None:
-    opts.jid = "audio@pifon.local"
-  if opts.password is None:
-    opts.password = "audio"
-  if opts.room is None:
-    opts.room = "felix@muc.pifon.local"
-  if opts.nick is None:
-    opts.nick = "audio"
+  # check cmd
+  if not os.path.exists(cmd[0]):
+    print("command not found:",cmd[0],file=sys.stderr)
+    sys.exit(2)
 
-  bot = ProcBot(opts.jid, opts.password, opts.room, opts.nick)
-  cmd = ['./pifon_audio_fake']
+  # setup proc bot
+  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'])
   pr = ProcRunner(cmd, bot)
   bot.set_output(pr)
 
+  # try to start process
   pr.start()
 
-  print("Connecting")
+  # main loop
+  logging.info("bot: connecting...")
   if bot.connect():
-    print("Connected")
+    logging.info("bot: connected")
     bot.process(block=True)
-    print("Disconnect")
+    logging.info("bot: disconnect")
   else:
-    print("Unable to connect.")
+    print("Unable to connect!",file=sys.stderr)
 
+  logging.info("bot: stop proc runner")
   pr.stop()
-  print("Done")
+  logging.info("bot: done")

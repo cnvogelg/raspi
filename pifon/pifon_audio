@@ -10,13 +10,15 @@ import subprocess
 import os
 import time
 import sys
+import threading
+import select
 
 # ---------- config ----------
 rec_bin = '/usr/bin/rec'
 channels = 1
 rate = 16000
-bits = 8
-cmd = [rec_bin, '-q', '-c', str(channels), '-r', str(rate), '-b', str(bits), '-e', 'unsigned-integer', '-t', 'raw', '-']
+bits = 16
+cmd = [rec_bin, '-q', '-c', str(channels), '-r', str(rate), '-b', str(bits), '-t', 'raw', '-']
 
 env = dict(os.environ)
 env['AUDIODRIVER'] = 'alsa'
@@ -24,7 +26,7 @@ env['AUDIODEV'] = 'mixin'
 
 # ----- parameters -----
 # this level is used to detect a loud event
-loud_level = 32
+loud_level = 10
 # duration in ms after a loudness event to return to silence mode
 silence_after_loud_ms = 5000
 # update interval in ms
@@ -44,11 +46,13 @@ def record(handler):
       data = p.stdout.read(bufsize)
       if len(data) > 0:
         handler.handle_buffer(data)
-    p.poll()
+      p.poll()
   except KeyboardInterrupt:
     # on ctrl-c kill the record process
-    p.kill()
-
+    p.poll()
+    if p.returncode == None:
+      p.terminate()
+    
 # ----- Detector -----
 
 class Detector:
@@ -61,16 +65,23 @@ class Detector:
     self.in_loudness = False
     self.last_silence_time = 0
     self.last_event_time = 0
+    self.max_peak = 0
     
   def get_peak_value(self, data):
     """get the loudest value in the buffer of 8-bit unsigned samples
        return peak_value
     """
     peak = 0
-    for d in data:
-      v = abs(d - 128)
+    n = int(len(data) / 2)
+    o = 0
+    for i in range(n):
+      v = data[o] + data[o+1] * 256
+      if v > 32767:
+        v = 65536 - v
       if v > peak:
         peak = v
+      o += 2
+    peak = int(peak / 256)
     return peak
 
   def handle_buffer(self, data):
@@ -80,6 +91,7 @@ class Detector:
     """
     t = time.time()
     peak = self.get_peak_value(data)
+    # in loudness phase?
     if self.in_loudness:
       do_update = True
       # check for quiet
@@ -100,10 +112,14 @@ class Detector:
         self.last_silence_time = None
       # update peak?
       if do_update:
+        if peak > self.max_peak:
+          self.max_peak = peak
+        # long enough for update
         delta = (t - self.last_event_time) * 1000
         if delta >= self.update_interval:
-          self.event_handler.update(peak)
+          self.event_handler.update(self.max_peak)
           self.last_event_time = t
+          self.max_peak = 0
     else:
       # check four loud
       if peak > self.loud_level:
@@ -111,26 +127,50 @@ class Detector:
         self.last_silence_time = None
         self.last_event_time = t
         self.event_handler.begin(peak)
+        self.max_peak = 0
 
 # ----- Event Handler -----
 
 class EventHandler:
   def begin(self, peak):
-    self.p("begin,%d" % peak)
+    self.p("client: audio_begin,%d" % peak)
   def end(self,peak):
-    self.p("end,%d" % peak)
+    self.p("client: audio_end,%d" % peak)
   def update(self,peak):
-    self.p("update,%d" % peak)
+    self.p("client: audio_update,%d" % peak)
   def p(self,s):
     print(s)
     sys.stdout.flush()
-  
+
+# ----- Command Input -----
+
+class Reader(threading.Thread):
+  def run(self):
+    self.stay = True
+    try:
+      while self.stay:
+        (r,w,x) = select.select([sys.stdin],[],[], 1.0)
+        if sys.stdin in r:
+          l = sys.stdin.readline()
+          print("command:",l)
+    except KeyboardInterrupt:
+      pass
+
+  def stop(self):
+    self.stay = False
+    self.join()
+
 # ---------- main ----------
 
 def main():
+  r = Reader()
+  r.start()
+
   ev = EventHandler()
   d = Detector(ev, loud_level, silence_after_loud_ms, update_interval)
   record(d)
+  
+  r.stop()
 
 if __name__ == '__main__':
   main()
