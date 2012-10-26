@@ -49,21 +49,21 @@ class ProcRunner(threading.Thread):
         # update return code
         self.proc.poll()
         # check for input/output
-        (r,w,x) = select.select([stdout],[stdin],[],0.1)
+        (r,w,x) = select.select([stdout],[],[],0.1)
         if stdout in r:
-          # something to write to stdout?
-          try:
-            line = self.in_queue.get(False)
-            line += '\n'
-            data = line.encode()
-            stdin.write(data)
-          except queue.Empty:
-            pass
-        if stdin in w:
           # something to read from stdin
           data = stdout.readline().strip()
           line = data.decode()
           self.output.put(line)
+        # something to write to stdout?
+        try:
+          line = self.in_queue.get(False)
+          line += '\n'
+          data = line.encode()
+          stdin.write(data)
+          stdin.flush()
+        except queue.Empty:
+          pass
     except KeyboardInterrupt:
       print("bork!")
 
@@ -106,7 +106,6 @@ class ProcBot(sleekxmpp.ClientXMPP):
       prefix = self.nick + ':'
       if body.startswith(prefix):
         cmd = body[len(prefix):]
-        print("got:",cmd)
         self.output.put(cmd)
         
   def muc_online(self, presence):

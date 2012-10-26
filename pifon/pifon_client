@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+#
+# pifon_client
+#
+
+import sys
+
+try:
+  while True:
+    line = sys.stdin.readline().strip()
+    print(line,file=sys.stderr)
+    sys.stderr.flush()
+except KeyboardInterrupt:
+  pass
