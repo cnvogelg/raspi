@@ -1,0 +1,7 @@
+softWrap = false
+softTabs = true
+tabSize = 2
+
+[ pifon_* ]
+fileType = 'source.python'
+
