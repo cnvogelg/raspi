@@ -23,31 +23,20 @@ if [ "$COMMAND" = "" ]; then
   exit 3
 fi
 
+# make sure tmux is installed
 TMUX=/usr/bin/tmux
-SU=/bin/su
 if [ ! -x "$TMUX" ]; then
   echo "tmux not installed!"
   exit 4
 fi
 
-# check if su is required
-if [ "$USER" != "$RUN_USER" ]; then
-  run() {
-    $SU -l $RUN_USER -c '"$@"' >/dev/null 2>&1
-  }
-else
-  run() {
-    "$@" >/dev/null 2>&1
-  }
-fi
-
 # check for tmux session and stop old one first
-run $TMUX has-session -t $SESSION_NAME
+$TMUX has-session -t $SESSION_NAME
 if [ $? -eq 0 ]; then
   # send a Ctrl-C in session to stop it
   echo "stopping tmux session '$SESSION_NAME' user '$RUN_USER' command '$COMMAND'"
-  run $TMUX send-keys -t $SESSION_NAME C-c
+  $TMUX send-keys -t $SESSION_NAME C-c
 fi
 # start new tmux session
 echo "starting tmux session '$SESSION_NAME' user '$RUN_USER' command '$COMMAND'"
-run $TMUX new-session -s $SESSION_NAME -d "$COMMAND"
+$TMUX new-session -s $SESSION_NAME -d "$COMMAND"
