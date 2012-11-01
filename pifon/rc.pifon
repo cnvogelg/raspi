@@ -1,0 +1,35 @@
+#!/bin/sh -e
+#
+# rc.pifon <action>
+#
+# pifon launcher script
+# action: start|status|stop
+#
+# typically you run this script in your /etc/rc.local:
+#
+# su -l chris -c /path/to/here/rc.pifon start
+#
+
+DARKICE=/usr/bin/darkice
+
+# find this directory
+SCRIPT_DIR=$(dirname $0)
+
+# check action
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 start|status|stop"
+fi
+ACTION="$1"
+
+# enter directory
+cd $SCRIPT_DIR
+
+# run darkice
+if [ -x $DARKICE ]; then
+   ../tools/tmux_run darkice $ACTION "../tools/looper $DARKICE"
+fi
+
+# run pifon_audio
+../tools/tmux_run audio $ACTION "../tools/looper ../tools/xmppbot.py pifon_audio"
+
+exit 0
