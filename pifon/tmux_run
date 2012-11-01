@@ -1,0 +1,53 @@
+#!/bin/sh
+# run a script as a given user in a tmux session:
+#
+# run_tmux <user> <session> <command>
+
+RUN_USER="$1"
+SESSION_NAME="$2"
+COMMAND="$3"
+if [ $# -ne 3 ]; then
+  echo "Usage: $0 <user> <session> <command>"
+  exit 1
+fi
+if [ "$RUN_USER" = "" ]; then
+  echo "No user given!"
+  exit 1
+fi
+if [ "$SESSION_NAME" = "" ]; then
+  echo "No session given!"
+  exit 2
+fi
+if [ "$COMMAND" = "" ]; then
+  echo "No command given!"
+  exit 3
+fi
+
+TMUX=/usr/bin/tmux
+SU=/bin/su
+if [ ! -x "$TMUX" ]; then
+  echo "tmux not installed!"
+  exit 4
+fi
+
+# check if su is required
+if [ "$USER" != "$RUN_USER" ]; then
+  run() {
+    $SU -l $RUN_USER -c '"$@"' >/dev/null 2>&1
+  }
+else
+  run() {
+    "$@" >/dev/null 2>&1
+  }
+fi
+
+# check for tmux session and stop old one first
+run $TMUX has-session -t $SESSION_NAME
+if [ $? -eq 0 ]; then
+  # send a Ctrl-C in session to stop it
+  echo "stopping tmux session '$SESSION_NAME' user '$RUN_USER' command '$COMMAND'"
+  run $TMUX send-keys -t $SESSION_NAME C-c
+fi
+# start new tmux session
+echo "starting tmux session '$SESSION_NAME' user '$RUN_USER' command '$COMMAND'"
+run $TMUX new-session -s $SESSION_NAME -d "$COMMAND"

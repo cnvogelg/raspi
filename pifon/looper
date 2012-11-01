@@ -1,0 +1,8 @@
+#!/bin/sh
+while /bin/true ; do
+  echo "----- LOOPER BEGIN -----"
+  echo "run: $@"
+  "$@"
+  echo "----- LOOPER END -----"
+  sleep 5
+done
