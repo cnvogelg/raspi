@@ -4,16 +4,16 @@
 # copy to /etc and make sure its executable
 #
 
-PIFON_USER=chris
-PIFON_HOME=/home/chris/pifon
+RASPI_USER=chris
+RASPI_HOME=/home/chris/raspi
 DARKICE=/usr/bin/darkice
 
 # run darkice
 if [ -x $DARKICE ]; then
-   (cd $PIFON_HOME ; ./tmux_run $PIFON_USER darkice "./looper $DARKICE")
+   (cd $RASPI_HOME ; ./tools/tmux_run $RASPI_USER darkice "./tools/looper $DARKICE")
 fi
 
 # run pifon_audio
-(cd $PIFON_HOME ; ./tmux_run $PIFON_USER audio "./looper ./xmppbot.py ./pifon_audio") 
+(cd $RASPI_HOME ; ./tools/tmux_run $RASPI_USER audio "./tools/looper ./tools/xmppbot.py ./pifon/pifon_audio") 
 
 exit 0
