@@ -7,7 +7,7 @@
 #
 # typically you run this script in your /etc/rc.local:
 #
-# su -l chris -c /path/to/here/rc.pifon start
+# su -l chris -c '/path/to/here/rc.pifon start'
 #
 
 DARKICE=/usr/bin/darkice
@@ -30,6 +30,6 @@ if [ -x $DARKICE ]; then
 fi
 
 # run pifon_audio
-../tools/tmux_run audio $ACTION "../tools/looper ../tools/xmppbot.py pifon_audio"
+../tools/tmux_run audio $ACTION "../tools/looper ../tools/xmppbot.py ./pifon_audio"
 
 exit 0
