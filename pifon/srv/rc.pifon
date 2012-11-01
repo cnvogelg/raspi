@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 #
 # rc.pifon <action>
 #
@@ -14,10 +14,15 @@ DARKICE=/usr/bin/darkice
 
 # find this directory
 SCRIPT_DIR=$(dirname $0)
+TOOLS_DIR=../../tools
+TMUX_RUN=$TOOLS_DIR/tmux_run
+LOOPER=$TOOLS_DIR/looper
+XMPPBOT=$TOOLS_DIR/xmppbot.py
 
 # check action
 if [ $# -lt 1 ]; then
   echo "Usage: $0 start|status|stop"
+  exit 1
 fi
 ACTION="$1"
 
@@ -26,10 +31,10 @@ cd $SCRIPT_DIR
 
 # run darkice
 if [ -x $DARKICE ]; then
-   ../tools/tmux_run darkice $ACTION "../tools/looper $DARKICE"
+  $TMUX_RUN darkice $ACTION "$LOOPER $DARKICE"
 fi
 
 # run pifon_audio
-../tools/tmux_run audio $ACTION "../tools/looper ../tools/xmppbot.py ./pifon_audio"
+$TMUX_RUN audio $ACTION "$LOOPER $XMPPBOT ./pifon_audio"
 
 exit 0
