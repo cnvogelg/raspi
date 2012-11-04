@@ -131,7 +131,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
         self.output.put(body)
         
   def muc_online(self, presence):
-    if presence['muc']['nick'] == self.nick:
+    if presence['muc']['nick'] == self.nick_host:
       self.in_room = True
       logging.info("bot: enter room")
       # empty queue
@@ -143,7 +143,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
         pass
   
   def muc_offline(self, presence):
-    if presence['muc']['nick'] == self.nick:
+    if presence['muc']['nick'] == self.nick_host:
       self.in_room = False
       logging.info("bot: left room")
   
