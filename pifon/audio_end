@@ -1,4 +1,0 @@
-#!/bin/sh
-echo "audio_end"
-aplay /usr/share/sounds/sound-icons/finish >/dev/null
-/usr/bin/mpc stop

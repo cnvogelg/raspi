@@ -133,11 +133,11 @@ class Detector:
 
 class EventHandler:
   def begin(self, peak):
-    self.p("client: audio_begin,%d" % peak)
+    self.p("mon: audio_begin %d" % peak)
   def end(self,peak):
-    self.p("client: audio_end,%d" % peak)
+    self.p("mon: audio_end %d" % peak)
   def update(self,peak):
-    self.p("client: audio_update,%d" % peak)
+    self.p("mon: audio_update %d" % peak)
   def p(self,s):
     print(s)
     sys.stdout.flush()

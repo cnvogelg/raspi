@@ -21,6 +21,8 @@ import queue
 import subprocess
 import select
 
+import socket
+
 # ----- ProcRunner -----
 
 class ProcRunner(threading.Thread):

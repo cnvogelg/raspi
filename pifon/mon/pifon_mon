@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+#
+# pifon_mon
+#
+# monitor tool to listen for pifon events and performs actions like
+#
+
+import sys
+import os
+import select
+import configparser
+import subprocess
+
+# default config
+cfg = {
+  'audio' : {
+    'url':None,
+    'init':None,
+    'start':None,
+    'stop':None,
+    'player':None,
+    'start_sound':None,
+    'stop_sound':None
+  }
+}
+
+# state
+is_playing = False
+is_muted = False
+
+def run_command(cmd):
+  print("running:",cmd,file=sys.stderr)
+  result=subprocess.call(cmd,shell=True,stdout=open('/dev/null','w'))
+  if result != 0:
+    print("Error running:",cmd,"->",result,file=sys.stderr)
+
+# audio commands
+
+def audio_init():
+  cmd = cfg['audio']['init']
+  if cmd != None:
+    cmd=cmd.replace('$u',cfg['audio']['url'])
+    run_command(cmd)
+
+def audio_start():
+  global is_playing
+  if is_playing:
+    return
+  is_playing = True
+  # play sound?
+  player = cfg['audio']['player']
+  sound = cfg['audio']['start_sound']
+  if player and sound:
+    run_command(player + " " + sound)
+  # start streaming
+  start = cfg['audio']['start']
+  if start:
+    run_command(start)
+
+def audio_stop():
+  global is_playing
+  if not is_playing:
+    return
+  is_playing = False
+  # stop streaming
+  stop = cfg['audio']['stop']
+  if stop:
+    run_command(stop)
+  # play sound?
+  player = cfg['audio']['player']
+  sound = cfg['audio']['stop_sound']
+  if player and sound:
+    run_command(player + " " + sound)
+
+# ----- Callbacks -----
+
+def audio_begin(*args):
+  global is_muted
+  print("audio_begin:",args,file=sys.stderr)
+  if not is_muted:
+    audio_start()
+
+def audio_update(*args):
+  global is_muted, is_playing
+  print("audio_update:",args,file=sys.stderr)
+  if not is_muted and not is_playing:
+    audio_start()
+
+def audio_end(*args):
+  global is_muted
+  print("audio_end:",args,file=sys.stderr)
+  if not is_muted:
+    audio_stop()
+    
+def mute(*args):
+  global is_muted, is_playing
+  print("mute:",args,file=sys.stderr)
+  is_muted = True
+  if is_playing:
+    audio_stop()
+
+def unmute(*args):
+  global is_muted
+  print("unmute:",args,file=sys.stderr)
+  is_muted = False
+
+# list of valid commands
+valid_commands = {
+  'audio_begin' : audio_begin,
+  'audio_update' : audio_update,
+  'audio_end' : audio_end,
+  'mute' : mute,
+  'unmute' : unmute
+}
+
+def read_config(cfg):
+  cfg_file = os.path.join(os.path.dirname(sys.argv[0]),'pifon_mon.cfg')
+  parser = configparser.SafeConfigParser()
+  parser.read([cfg_file])
+  if parser.has_section('audio'):
+    for i in parser.items('audio'):
+      cfg['audio'][i[0]] = i[1]
+
+def handle_command(args):
+  cmd = args[0]
+  if cmd in valid_commands:
+    func = valid_commands[cmd]
+    if len(args)>1:
+      args = args[1:]
+    else:
+      args = ()
+    func(*args)
+  else:
+    print("invalid command:",cmd,file=sys.stderr)
+
+# ---------- main ----------
+
+def main():
+  read_config(cfg)
+  audio_init()
+  print("pifon_mon started",file=sys.stderr)
+  try:
+    while True:
+      (r,w,x) = select.select([sys.stdin],[],[], 1.0)
+      if sys.stdin in r:
+        l = sys.stdin.readline()
+        line = l.strip()
+        args = line.split(' ')
+        if len(args) > 0:
+          cmd = args[0]
+          # strip address in local mode
+          if cmd == 'mon:':
+            if len(args) > 1:
+              handle_command(args[1:])
+          else:
+            handle_command(args)
+  except KeyboardInterrupt:
+    print("shutting down")
+  
+if __name__ == '__main__':
+  main()

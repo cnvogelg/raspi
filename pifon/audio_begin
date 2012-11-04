@@ -1,4 +1,0 @@
-#!/bin/sh
-echo "audio_begin"
-aplay /usr/share/sounds/sound-icons/prompt >/dev/null
-/usr/bin/mpc play

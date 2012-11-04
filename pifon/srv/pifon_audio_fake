@@ -9,7 +9,7 @@ import sys
 import threading
 
 def p(s):
-  print("client: "+s)
+  print("mon: "+s)
   sys.stdout.flush()
 
 class Reader(threading.Thread):
@@ -26,10 +26,10 @@ try:
   while True:
     w = rnd(0,5)
     time.sleep(w)
-    p("audio_begin,127")
+    p("audio_begin 127")
     for i in range(rnd(0,10)):
       time.sleep(0.5)
-      p("audio_update,%d" % rnd(0,128))
-    p("audio_end,0")
+      p("audio_update %d" % rnd(0,128))
+    p("audio_end 0")
 except KeyboardInterrupt:
   pass
