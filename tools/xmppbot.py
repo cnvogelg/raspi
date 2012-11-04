@@ -185,8 +185,16 @@ if __name__ == '__main__':
     print("command not found:",cmd[0],file=sys.stderr)
     sys.exit(2)
 
+  # add hostname to nick automatically
+  nick = cfg['nick']
+  host = socket.gethostname()
+  pos = host.find('.')
+  if pos != -1:
+    host = host[0:pos]
+  nick += "@" + host
+
   # setup proc bot
-  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'])
+  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], nick)
   pr = ProcRunner(cmd, bot)
   bot.set_output(pr)
 
