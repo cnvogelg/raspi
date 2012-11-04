@@ -80,6 +80,13 @@ class ProcBot(sleekxmpp.ClientXMPP):
     self.nick = nick
     self.queue = queue.Queue()
 
+    # add hostname to nick automatically
+    host = socket.gethostname()
+    pos = host.find('.')
+    if pos != -1:
+      host = host[0:pos]
+    self.nick_host = nick + "@" + host
+
     self.add_event_handler("session_start", self.start)
     self.add_event_handler("groupchat_message", self.muc_message)
     self.add_event_handler("muc::%s::got_online" % self.room,
@@ -98,17 +105,30 @@ class ProcBot(sleekxmpp.ClientXMPP):
     self.getRoster()
     self.sendPresence()
     self.plugin['xep_0045'].joinMUC(self.room,
-                                    self.nick,
+                                    self.nick_host,
                                     # password=the_room_password,
                                     wait=True)
 
   def muc_message(self, msg):
-    if msg['mucnick'] != self.nick:
+    if msg['mucnick'] != self.nick_host:
       body = msg['body']
-      prefix = self.nick + ':'
-      if body.startswith(prefix):
-        cmd = body[len(prefix):]
-        self.output.put(cmd)
+      # check for addressing <addr>[,<addr>]:<msg> and <addr> = <nick>|<nick>@<host>
+      valid = False
+      pos = body.find(':')
+      if pos != -1 and pos != len(body) - 1:
+        addrs = body[0:pos].split(',')
+        body = body[pos+1:]
+        for addr in addrs:
+          # check addr
+          if addr == self.nick:
+            valid = True
+          elif addr == self.nick_host:
+            valid = True
+      else:
+        valid = True
+      # post message to stdout
+      if valid:
+        self.output.put(body)
         
   def muc_online(self, presence):
     if presence['muc']['nick'] == self.nick:
@@ -185,16 +205,8 @@ if __name__ == '__main__':
     print("command not found:",cmd[0],file=sys.stderr)
     sys.exit(2)
 
-  # add hostname to nick automatically
-  nick = cfg['nick']
-  host = socket.gethostname()
-  pos = host.find('.')
-  if pos != -1:
-    host = host[0:pos]
-  nick += "@" + host
-
   # setup proc bot
-  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], nick)
+  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'])
   pr = ProcRunner(cmd, bot)
   bot.set_output(pr)
 
