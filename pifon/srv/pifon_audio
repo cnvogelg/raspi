@@ -31,6 +31,8 @@ loud_level = 10
 silence_after_loud_ms = 5000
 # update interval in ms
 update_interval = 500
+# trace peak level
+trace_peak = False
 
 # ---------- functions ----------
 
@@ -66,6 +68,9 @@ class Detector:
     self.last_silence_time = 0
     self.last_event_time = 0
     self.max_peak = 0
+    self.trace_min = 32768
+    self.trace_max = 0
+    self.trace_time = 0
     
   def get_peak_value(self, data):
     """get the loudest value in the buffer of 8-bit unsigned samples
@@ -91,6 +96,19 @@ class Detector:
     """
     t = time.time()
     peak = self.get_peak_value(data)
+    
+    # report a trace of the peak level if desired
+    if peak < self.trace_min:
+      self.trace_min = peak
+    if peak > self.trace_max:
+      self.trace_max = peak
+    delta = (t - self.trace_time) * 1000
+    if delta > self.update_interval:
+      self.event_handler.trace(self.trace_min, self.trace_max)
+      self.trace_min = 32768
+      self.trace_max = 0
+      self.trace_time = t
+    
     # in loudness phase?
     if self.in_loudness:
       do_update = True
@@ -131,16 +149,21 @@ class Detector:
 
 # ----- Event Handler -----
 
+def say(s):
+  print(s)
+  sys.stdout.flush()
+
 class EventHandler:
   def begin(self, peak):
-    self.p("mon: audio_begin %d" % peak)
+    say("audio_begin %d" % peak)
   def end(self,peak):
-    self.p("mon: audio_end %d" % peak)
+    say("audio_end %d" % peak)
   def update(self,peak):
-    self.p("mon: audio_update %d" % peak)
-  def p(self,s):
-    print(s)
-    sys.stdout.flush()
+    say("audio_update %d" % peak)
+  def trace(self, pmin, pmax):
+    global trace_peak
+    if trace_peak:
+      say("audio_trace %d %d" % (pmin, pmax))
 
 # ----- Command Input -----
 
@@ -152,13 +175,39 @@ class Reader(threading.Thread):
         (r,w,x) = select.select([sys.stdin],[],[], 1.0)
         if sys.stdin in r:
           l = sys.stdin.readline()
-          print("command:",l)
+          l = l.strip()
+          args = l.split(' ')
+          if len(args)>0:
+            self.handle_command(args)          
     except KeyboardInterrupt:
       pass
 
   def stop(self):
     self.stay = False
     self.join()
+
+  def handle_command(self, args):
+    global trace_peak, loud_level, update_interval, silence_after_loud_ms
+    cmd = args[0]
+    if cmd == 'set_audio_trace':
+      if len(args) == 1:
+        trace_peak = not trace_peak
+      else:
+        trace_peak = bool(args[1])
+    elif cmd == 'set_audio_level':
+      if len(args) > 1:
+        loud_level = int(args[1])
+      say("audio_level %d" % loud_level)
+    elif cmd == 'set_audio_update':
+      if len(args) > 1:
+        update_interval = int(args[1])
+      say("audio_update %d" % update_interval)
+    elif cmd == 'set_audio_silence':
+      if len(args) > 1:
+        silence_after_loud_ms = int(args[1])
+      say("audio_silence %d" % silence_after_loud_ms)
+    elif cmd == 'audio_help':
+      say("audio_level [n]\naudio_update [n] (ms)\naudio_silence [n] (ms)")
 
 # ---------- main ----------
 
