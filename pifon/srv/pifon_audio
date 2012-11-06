@@ -58,11 +58,12 @@ def record(handler):
 # ----- Detector -----
 
 class Detector:
-  def __init__(self, event_handler, loud_level=32, silence_after_loud_ms=5000, update_interval=250):
+  def __init__(self, event_handler, loud_level=32, silence_after_loud_ms=5000, update_interval=250, trace_peak=False):
     self.event_handler = event_handler
     self.loud_level = loud_level
     self.silence_after_loud_ms = silence_after_loud_ms
     self.update_interval = update_interval
+    self.trace_peak = trace_peak
     # state
     self.in_loudness = False
     self.last_silence_time = 0
@@ -102,12 +103,13 @@ class Detector:
       self.trace_min = peak
     if peak > self.trace_max:
       self.trace_max = peak
-    delta = (t - self.trace_time) * 1000
-    if delta > self.update_interval:
-      self.event_handler.trace(self.trace_min, self.trace_max)
-      self.trace_min = 32768
-      self.trace_max = 0
-      self.trace_time = t
+    if self.trace_peak:
+      delta = (t - self.trace_time) * 1000
+      if delta > self.update_interval:
+        self.event_handler.trace(self.trace_min, self.trace_max)
+        self.trace_min = 32768
+        self.trace_max = 0
+        self.trace_time = t
     
     # in loudness phase?
     if self.in_loudness:
@@ -161,13 +163,15 @@ class EventHandler:
   def update(self,peak):
     say("audio_update %d" % peak)
   def trace(self, pmin, pmax):
-    global trace_peak
-    if trace_peak:
-      say("audio_trace %d %d" % (pmin, pmax))
+    say("audio_trace %d %d" % (pmin, pmax))
 
 # ----- Command Input -----
 
 class Reader(threading.Thread):
+  def __init__(self, d):
+    threading.Thread.__init__(self)
+    self.detector = d
+  
   def run(self):
     self.stay = True
     try:
@@ -187,36 +191,35 @@ class Reader(threading.Thread):
     self.join()
 
   def handle_command(self, args):
-    global trace_peak, loud_level, update_interval, silence_after_loud_ms
     cmd = args[0]
     if cmd == 'set_audio_trace':
       if len(args) == 1:
-        trace_peak = not trace_peak
+        self.detector.trace_peak = not self.detector.trace_peak
       else:
-        trace_peak = bool(args[1])
+        self.detector.trace_peak = bool(args[1])
     elif cmd == 'set_audio_level':
       if len(args) > 1:
-        loud_level = int(args[1])
-      say("audio_level %d" % loud_level)
+        self.detector.loud_level = int(args[1])
+      say("audio_level %d" % self.detector.loud_level)
     elif cmd == 'set_audio_update':
       if len(args) > 1:
-        update_interval = int(args[1])
-      say("audio_update %d" % update_interval)
+        self.detector.update_interval = int(args[1])
+      say("audio_update %d" % self.detector.update_interval)
     elif cmd == 'set_audio_silence':
       if len(args) > 1:
-        silence_after_loud_ms = int(args[1])
-      say("audio_silence %d" % silence_after_loud_ms)
+        self.detector.silence_after_loud_ms = int(args[1])
+      say("audio_silence %d" % self.detector.silence_after_loud_ms)
     elif cmd == 'audio_help':
       say("audio_level [n]\naudio_update [n] (ms)\naudio_silence [n] (ms)")
 
 # ---------- main ----------
 
 def main():
-  r = Reader()
+  ev = EventHandler()
+  d = Detector(ev, loud_level, silence_after_loud_ms, update_interval, trace_peak)
+  r = Reader(d)
   r.start()
 
-  ev = EventHandler()
-  d = Detector(ev, loud_level, silence_after_loud_ms, update_interval)
   record(d)
   
   r.stop()
