@@ -170,7 +170,22 @@ pifon.txt - installation guide for your pifon setup
      - in VLC open: http://pifon.local:8000/pifon.m3u
      
    * Autorun DarkIce in system
-     -> see install.txt how to place darkice into tty2 as root
+     -> see pifon/rc.pifon
+
+3.2 Audio Receiver
+
+   * Make sure your audio device is set up correctly
+     - check levels
+       > alsamixer
+     - play some sounds:
+       > aplay /usr/share/sounds/alsa/*
+
+   * Install MPD music player daemon
+     # apt-get install mpd mpc (ncmpcpp = curses player)
+
+   * Install nice sounds for events
+     # apt-get install sound-icons
+
 
 4. Instant Messaging via XMPP
 
@@ -202,7 +217,7 @@ pifon.txt - installation guide for your pifon setup
     # prosodyctl adduser audio@pifon.local
     ; use "audio" as a password
 
-4.2 Host Client
+4.2 Host Client (for Debugging and Command Line Access)
 
   * Setup your host Mac client to join the new server
     -> I use Adium http://adium.im
