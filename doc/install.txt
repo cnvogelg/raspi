@@ -18,31 +18,38 @@ install.txt
 - wire raspi with power, monitor, keyboard, mouse
 - attach SD card and power on, boot
 
-2. setup menu
+2. setup in "raspi-config" tool
 
 - "expand fs"
 - "disable overscan"
 - "setup keyboard"
   -> 105 intl keyboard -> more -> german -> eliminate dead keys
   -> default key set -> keep 
-- "locale" -> de.UTF-8
-- "change timezone" -> Berlin
-- "memory split": 224/32
+- "locale" -> de.UTF-8  (disable en_GB*) -> default locale: de.UTF-8
+- "change timezone" -> Europe -> Berlin
+- "memory split": GPU -> non-gfx: 16
+- (optional) "overclock": Turbo 1000 MHz  (seems to work only on 512 KiB models)
 - "enable ssh"
 - "boot behaviour" - no desktop at startup
 - "update"
 
+  # reboot   (perform sd card resize)
+
 3. custom setup
 
+  (I usually perform these steps already in a ssh sesson - cut & paste from here :)
+  host> ssh pi@<your_raspi_ip>
+
 - full update
-  > sudo bash
+  > sudo -s
   # apt-get update
-  # apt-get upgrade
+  # apt-get dist-upgrade
 
 ** rpi-update
 
-- install see https://github.com/Hexxeh/rpi-update/
+- install (see https://github.com/Hexxeh/rpi-update/)
   # apt-get install git-core
+  # wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && sudo chmod +x /usr/bin/rpi-update
   # rpi-update
 
 ** System Config
@@ -50,7 +57,6 @@ install.txt
 - /boot/config.txt
   hdmi_group=1
   hdmi_mode=19  # 720p for my monitor
-  gpu_mem=16    # new: ARM/GPU split 
 
 ** Hostname
   
@@ -60,14 +66,17 @@ install.txt
 
 ** Ethernet
 
+  > ifconfig | grep eth0 -> hw address 
   - set host name for Fritz!Box DHCP server
     -> edit /etc/dhcp/dhclient.conf
        interface "eth0" {
 	 	 send host-name = "yourhost-eth";
 		 send dhcp-client-identifier <mac:add>;
 	   }
+     
+  (you need the interface block only if you have additional wlan)
 
-** Wifi (here Netgear Mini USB Dongle )
+** (Optional) Wifi (here Netgear Mini USB Dongle )
 
   - check for adapter
     # dmesg
@@ -113,6 +122,9 @@ install.txt
   # update-rc.d rpcbind defaults
   # update-rc.d nfs-common defaults
   
+  # /etc/init.d/rpcbind restart
+  # /etc/init.d/nfs-common restart
+  
 ** Add user "chris"
 
   # adduser --uid 501 chris
@@ -121,13 +133,19 @@ install.txt
   - link autofs shares for user chris (see below)
   > cd $HOME
   > mkdir net
-  > cd net ; ln -s /net/storage1/chris-data 
+  > cd net ; ln -s /net/nfs-share share
   
 ** SSH for "chris"
 
 - push SSH credentials from host machine
   
-  > ssh-copy-id chris@<yourhost>
+  host> ssh-copy-id chris@<yourpi>
+  host> scp -r ~/.ssh yourpi:
+
+** Stream-line MOTD
+
+  # vi /etc/motd
+  --> hostname <--
 
 ----- Add Ons -----
 
