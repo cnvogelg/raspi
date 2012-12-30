@@ -1,13 +1,13 @@
 #!/bin/sh
 #
-# rc.pifon <action>
+# rc.pifon_fon <action>
 #
-# pifon launcher script
+# pifon 'fon' launcher script
 # action: start|status|stop
 #
 # typically you run this script in your /etc/rc.local:
 #
-# su -l chris -c '/path/to/here/rc.pifon start'
+# su -l <user> -c '/path/to/here/rc.pifon_fon start'
 #
 
 DARKICE=/usr/bin/darkice

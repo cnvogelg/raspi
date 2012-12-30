@@ -1,16 +1,14 @@
 #!/bin/sh
 #
-# rc.pifon <action>
+# rc.pifon_mon <action>
 #
-# pifon launcher script
+# pifon 'mon' launcher script
 # action: start|status|stop
 #
 # typically you run this script in your /etc/rc.local:
 #
-# su -l chris -c '/path/to/here/rc.pifon start'
+# su -l <user> -c '/path/to/here/rc.pifon_mon start'
 #
-
-DARKICE=/usr/bin/darkice
 
 # find this directory
 SCRIPT_DIR=$(dirname $0)
