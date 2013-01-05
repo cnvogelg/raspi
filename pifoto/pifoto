@@ -8,8 +8,6 @@ import time
 import sys
 import os
 
-filename = os.path.join(os.environ['HOME'],"img%04n.%C")
-
 def cam_autodetect():
   out = subprocess.check_output(['gphoto2','--auto-detect'])
   s = out.decode("utf-8")
@@ -55,9 +53,9 @@ def run_tool(name,args):
     p.kill()
     return None
 
-def run_capture_tethered(port,filename):
+def run_capture_tethered(port):
   print("Running Capture Tethered")
-  args = ['gphoto2','--port',port,'--capture-tethered','--hook-script','pifoto-hook','--filename',filename]
+  args = ['gphoto2','--port',port,'--capture-tethered','--hook-script','pifoto-hook']
   rc = run_tool("Capture:",args)
 
 def main():
@@ -66,7 +64,7 @@ def main():
     while True:
       port = find_cam()
       print("Found camera on port",port)
-      run_capture_tethered(port,filename)
+      run_capture_tethered(port)
       print("Retrying in 5s... Ctrl-C now to exit!")
       time.sleep(5)
   except KeyboardInterrupt:

@@ -5,8 +5,13 @@
 # arguments are passed in environment variables
 
 import os
+import os.path
 import subprocess
 import sys
+import shutil
+
+# download dir
+DOWNLOAD_DIR=os.path.join(os.environ['HOME'],"fotos")
 
 # configure your shutter snitch ipad app
 HOST='192.168.2.25'
@@ -14,12 +19,61 @@ PORT=26000
 USER='snitch'
 PASS='snitch'
 
+def run_tool(name,args):
+  p = subprocess.Popen(args, \
+          stdout=subprocess.PIPE, stderr=subprocess.PIPE, \
+          shell=False, bufsize=1)
+  try:
+    pipe = p.stdout
+    p.poll()
+    while p.returncode == None:
+      line = pipe.readline().decode("utf-8").strip()
+      if line != None and len(line)>0:
+        print(name,line)
+      p.poll()
+    rc = p.returncode
+    print(name,"exited with code",rc)
+    return rc
+  except KeyboardInterrupt:
+    print("Aborting",name)
+    p.kill()
+    return None
+
 def push_ftp(file):
-  #curl -T "$ARGUMENT" ftp://$HOST:$PORT --user $USER:$PASS
-  pass
+  print("push_ftp:",file)
+  args = ['curl','-T',file,"ftp://%s:%d" % (HOST,PORT),"--user","%s:%s" % (USER,PASS)]
+  rc = run_tool("curl:",args)
+  print("push_ftp:",rc)
+
+def find_next_img_name(ext):
+  files = os.listdir(DOWNLOAD_DIR)
+  max_num = 0
+  for f in files:
+    if f.startswith("img_"):
+      num = int(f[4:8])
+      if num > max_num:
+        max_num = num
+  return "img_%04d.%s" % (max_num + 1, ext)
+
+def store_img(file):
+  pos = file.rfind('.')
+  if pos != -1:
+    ext = file[pos+1:]
+  else:
+    ext = ""
+  tgt_name = os.path.join(DOWNLOAD_DIR,find_next_img_name(ext))
+  print("store: '%s' -> '%s'" % (file,tgt_name))
+  shutil.copy(file,tgt_name)
+  return tgt_name
 
 def download(file):
-  print("GOT FILE:",file)
+  if os.path.exists(file):
+    print("GOT FILE:",file)
+    tgt_name = store_img(file)
+    push_ftp(tgt_name)
+    os.unlink(file)
+  else:
+    print("FILE NOT FOUND:",file)
 
 def main():
   # check passed hook ACTION
