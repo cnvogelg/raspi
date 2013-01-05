@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# rc.pifoto <action>
+#
+# pifoto launcher script
+# action: start|status|stop
+#
+# typically you run this script in your /etc/rc.local:
+#
+# su -l chris -c '/path/to/here/rc.pifoto start'
+#
+
+# find this directory
+SCRIPT=pifoto
+SCRIPT_DIR=$(dirname $0)
+TOOLS_DIR=../tools
+TMUX_RUN=$TOOLS_DIR/tmux_run
+LOOPER=$TOOLS_DIR/looper
+
+# check action
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 start|status|stop"
+  exit 1
+fi
+ACTION="$1"
+
+# enter directory
+cd $SCRIPT_DIR
+
+# run script in looper
+if [ -x ./$SCRIPT ]; then
+  $TMUX_RUN pifoto $ACTION "$LOOPER ./$SCRIPT"
+else
+  echo "rc.pifoto: script $SCRIPT not found! ignoring."
+fi
+
+exit 0
