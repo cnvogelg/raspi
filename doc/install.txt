@@ -134,7 +134,7 @@ install.txt
 ** Add user "chris"
 
   # adduser --uid 501 chris
-  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,netdev,i2c,input chris
+  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,netdev,input chris
   
   - link autofs shares for user chris (see below)
   > cd $HOME
@@ -153,7 +153,50 @@ install.txt
   # vi /etc/motd
   --> hostname <--
 
+----- Stripped Down Server Install -----
+
+  # aptitude
+  <u>  update sources
+  
+  
+
 ----- Add Ons -----
+
+** real vim
+
+  # apt-get install vim-nox
+
+** enable I2C for users
+
+  - in /etc/modprobe.d/raspi-blacklist.conf: comment out # i2c entry
+  - in /etc/modules add:
+
+    i2c-dev
+
+  - create /etc/udev/rules.d/10-local_i2c_group.rules
+  
+    KERNEL=="i2c-[0-9]*", GROUP="i2c"
+
+  # apt-get install i2c-tools python-smbus
+  # usermod -a -G i2c chris
+  # i2c-detect -y 0 
+
+** tmux setup (window title)
+
+  - create $HOME/.tmuxconf:
+
+set-option -g set-titles on
+set-option -g set-titles-string "#T"
+unbind C-b
+set -g prefix C-a
+set -g history-limit 10000
+
+  - in $HOME/.bashrc modify and at 'screen' terminal:
+
+...
+case "$TERM" in
+xterm*|rxvt*|screen)
+...
 
 ** auto-start tmux session on remote ssh
 
@@ -175,3 +218,10 @@ fi
   - toggle LED
     # echo 1 >/sys/class/leds/led0/brightness
     # echo 0 >/sys/class/leds/led0/brightness
+
+----- HowTo -----
+
+** size of installed packages
+
+  # dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n
+

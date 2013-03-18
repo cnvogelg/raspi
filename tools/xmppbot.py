@@ -205,6 +205,9 @@ if __name__ == '__main__':
     print("command not found:",cmd[0],file=sys.stderr)
     sys.exit(2)
 
+  # show config
+  print("config: ",cfg,file=sys.stderr)
+
   # setup proc bot
   bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'])
   pr = ProcRunner(cmd, bot)

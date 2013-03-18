@@ -1,15 +1,20 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # pifon_mon
 #
 # monitor tool to listen for pifon events and performs actions like
 #
 
+from __future__ import print_function
+
 import sys
 import os
 import select
-import configparser
+import ConfigParser
 import subprocess
+
+import lcdui
+import control
 
 # default config
 cfg = {
@@ -23,6 +28,14 @@ cfg = {
     'stop_sound':None
   }
 }
+
+def say(cmd):
+  sys.stdout.write(cmd+"\n")
+  sys.stdout.flush()
+
+# setup control
+lcdui = lcdui.LCDUI()
+ctrl = control.Control(lcdui,say)
 
 # state
 is_playing = False
@@ -74,48 +87,49 @@ def audio_stop():
 
 # ----- Callbacks -----
 
-def audio_begin(*args):
+def cb_audio_begin(*args):
   global is_muted
   print("audio_begin:",args,file=sys.stderr)
   if not is_muted:
     audio_start()
 
-def audio_update(*args):
-  global is_muted, is_playing
+def cb_audio_update(*args):
+  global is_muted, is_playing, ctrl
   print("audio_update:",args,file=sys.stderr)
   if not is_muted and not is_playing:
     audio_start()
+  ctrl.set_current_level(args[0])
 
-def audio_end(*args):
+def cb_audio_end(*args):
   global is_muted
   print("audio_end:",args,file=sys.stderr)
   if not is_muted:
     audio_stop()
     
-def mute(*args):
+def cb_mute(*args):
   global is_muted, is_playing
   print("mute:",args,file=sys.stderr)
   is_muted = True
   if is_playing:
     audio_stop()
 
-def unmute(*args):
+def cb_unmute(*args):
   global is_muted
   print("unmute:",args,file=sys.stderr)
   is_muted = False
 
 # list of valid commands
 valid_commands = {
-  'audio_begin' : audio_begin,
-  'audio_update' : audio_update,
-  'audio_end' : audio_end,
-  'mute' : mute,
-  'unmute' : unmute
+  'audio_begin' : cb_audio_begin,
+  'audio_update' : cb_audio_update,
+  'audio_end' : cb_audio_end,
+  'mute' : cb_mute,
+  'unmute' : cb_unmute
 }
 
 def read_config(cfg):
   cfg_file = os.path.join(os.path.dirname(sys.argv[0]),'pifon_mon.cfg')
-  parser = configparser.SafeConfigParser()
+  parser = ConfigParser.SafeConfigParser()
   parser.read([cfg_file])
   if parser.has_section('audio'):
     for i in parser.items('audio'):
@@ -139,9 +153,10 @@ def main():
   read_config(cfg)
   audio_init()
   print("pifon_mon started",file=sys.stderr)
+  say("query_audio")
   try:
     while True:
-      (r,w,x) = select.select([sys.stdin],[],[], 1.0)
+      (r,w,x) = select.select([sys.stdin],[],[], 0.1)
       if sys.stdin in r:
         l = sys.stdin.readline()
         line = l.strip()
@@ -154,6 +169,8 @@ def main():
               handle_command(args[1:])
           else:
             handle_command(args)
+      # handle control
+      ctrl.handle_events()
   except KeyboardInterrupt:
     print("shutting down")
   

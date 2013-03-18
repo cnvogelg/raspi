@@ -197,6 +197,11 @@ class Reader(threading.Thread):
         self.detector.trace_peak = not self.detector.trace_peak
       else:
         self.detector.trace_peak = bool(args[1])
+      if self.detector.trace_peak:
+        v = 1
+      else:
+        v = 0
+      say("audio_trace %d" % v)
     elif cmd == 'set_audio_level':
       if len(args) > 1:
         self.detector.loud_level = int(args[1])
@@ -211,6 +216,16 @@ class Reader(threading.Thread):
       say("audio_silence %d" % self.detector.silence_after_loud_ms)
     elif cmd == 'audio_help':
       say("audio_level [n]\naudio_update [n] (ms)\naudio_silence [n] (ms)")
+    elif cmd == 'query_audio':
+      if self.detector.trace_peak:
+        v = 1
+      else:
+        v = 0
+      say("audio_trace %d" % v)
+      say("audio_level %d" % self.detector.loud_level)
+      say("audio_update %d" % self.detector.update_interval)
+      say("audio_silence %d" % self.detector.silence_after_loud_ms)
+      
 
 # ---------- main ----------
 
@@ -219,9 +234,11 @@ def main():
   d = Detector(ev, loud_level, silence_after_loud_ms, update_interval, trace_peak)
   r = Reader(d)
   r.start()
+  print("start audio",file=sys.stderr);
 
   record(d)
   
+  print("stop audio",file=sys.stderr);
   r.stop()
 
 if __name__ == '__main__':
