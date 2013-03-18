@@ -55,8 +55,14 @@ install.txt
 ** System Config
 
 - /boot/config.txt
+
+  # 720p HDMI ready monitor
   hdmi_group=1
-  hdmi_mode=19  # 720p for my monitor
+  hdmi_mode=19
+
+  # 800x600
+  hdmi_group=2
+  hdmi_mode=9    # @60Hz
 
 ** Hostname
   
@@ -149,18 +155,17 @@ install.txt
 
 ----- Add Ons -----
 
-** Make a script autorun on every boot with user "chris"
+** auto-start tmux session on remote ssh
 
-  - edit /etc/inittab
-    2:23:respawn:/bin/login -f chris tty2 </dev/tty2 >/dev/tty2 2>&1
+  in $HOME/.bashrc:
 
-  - in $HOME/.bashrc add:
-    if [ $(tty) == /dev/tty2 ]; then
-	  echo "AUTO-RUN"
-	  ./my_script
-	  sleep 5
-	  exit 0
-	fi
+if [ "$PS1" != "" -a "${STARTED_TMUX:-x}" = x -a "${SSH_TTY:-x}" != x ]
+then
+        STARTED_TMUX=1; export STARTED_TMUX
+        sleep 1
+        ( (tmux has-session -t remote && tmux attach-session -t remote) || (tmux new-session -s remote) ) && exit 0
+        echo "tmux failed to start"
+fi
 	
 ** Use Green LED for own stuff
 
