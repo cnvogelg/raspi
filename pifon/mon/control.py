@@ -5,13 +5,11 @@ class Control:
   """control the monitor from a ui"""
   
   # menu items
-  mute_item = menu.BoolMenuItem("mute",False)
-  level_item = menu.IntMenuItem("audio", 10, 1, 255)
-  update_item = menu.IntMenuItem("update", 2, 1, 100) # in 100ms
-  silence_item = menu.IntMenuItem("silence", 5, 1, 100) # in 100ms
+  level_item = menu.IntMenuItem("level", 0, 1, 255)
+  update_item = menu.IntMenuItem("update", 0, 1, 100) # in 100ms
+  silence_item = menu.IntMenuItem("silence", 0, 1, 100) # in 100ms
   trace_item = menu.BoolMenuItem("trace",False)
   items = [
-    mute_item,
     level_item,
     update_item,
     silence_item,
@@ -19,28 +17,63 @@ class Control:
   ]
   update_rate = 250
   
-  def __init__(self, ui, say=None):
+  def __init__(self, ui, state):
     self.ui = ui
-    self.say = say
+    self.state = state
     self.menu = menu.Menu(ui, self.items)
     self.in_menu = False
-    self.last_muted = False
-    self.last_active = False
-    self.last_error = None
-    self.last_level = 0
+    self.last_level = None
     self.last_level_ts = 0
+    self.last_error = None
+    # state
+    self.is_connected = False
+    self.is_audio_active = False
+    self.is_audio_muted = False
+    self.is_audio_playing = False
+    self._print_state()
+    self._print_title()
+    self._print_value()
+  
+  def shutdown(self):
+    self.ui.shutdown()
+  
+  # ----- update state calls -----
+  
+  def update_connected(self, is_connected):
+    self.is_connected = is_connected
+    self._print_title()
+    
+  def _print_title(self):
+    if self.is_connected:
+      self.ui.update_title("PiFon:)")
+    else:
+      self.ui.update_title("pifon:(")
+    self._update_back()
+      
+  def _update_back(self):
+    if self.is_connected:
+      if self.is_audio_active:
+        if self.is_audio_playing:
+          back = self.ui.BACK_GREEN
+        else:
+          back = self.ui.BACK_RED
+      else:
+        back = self.ui.BACK_WHITE
+    else:
+      back = self.ui.BACK_BLUE
+    self.ui.update_background(back)
+  
+  def update_audio_active(self, is_audio_active):
+    self.is_audio_active = is_audio_active
+    self._print_state()
+    
+  def update_audio_mute(self, is_audio_muted):
+    self.is_audio_muted = is_audio_muted
     self._print_state()
   
-  def set_muted(self, muted):
-    self.muti.item.value = muted
-    if self.last_muted != muted:
-      self.last_muted = muted
-      self._print_state()
-  
-  def set_active(self, active):
-    if self.last_active != active:
-      self.last_active = active
-      self._print_state()
+  def update_audio_play(self, is_audio_playing):
+    self.is_audio_playing = is_audio_playing
+    self._print_state()
   
   def set_error(self, error):
     if self.last_error != error:
@@ -50,27 +83,38 @@ class Control:
   def _print_state(self):
     if self.in_menu:
       return
-    if self.last_muted:
-      txt = "MUTE "
+    # audio state
+    if self.is_audio_active:
+      txt = "A:"
     else:
-      txt = "     "
-    if self.last_active:
-      txt += "ACTIVE "
+      txt = "a:"
+    if self.is_audio_playing:
+      txt += "PLAY"
     else:
-      txt += "------ "
+      txt += "stop"
+    if self.is_audio_muted:
+      txt += ":x "
+    else:
+      txt += "   "
+    # error
     if self.last_error != None:
       txt += "E%03x" % self.last_error
     self.ui.update_message(txt)
+    self._update_back()
   
-  def set_current_level(self, level):
+  def update_audio_value(self, level):
+    """audio level changed"""
     if level != self.last_level:
       self.last_level = level
       ts = time.time()
       delta = (ts - self.last_level_ts) * 1000
       if delta > self.update_rate:
-        self.ui.update_status(level)
+        self._print_value()
         self.last_level_ts = ts
-      
+  
+  def _print_value(self):
+    self.ui.update_status(self.last_level)
+  
   def _leave_menu(self):
     self.in_menu = False
     self.menu.hide()
@@ -85,29 +129,42 @@ class Control:
   def handle_events(self):
     # inside menu
     if self.in_menu:
-      ev = self.menu.handle_next_event()
-      if ev == False:
+      item = self.menu.handle_next_event()
+      if item == False:
         self._leave_menu()
-      elif ev != None:
-        val = ev.get_value()
-        if ev == self.mute_item:
-          if val:
-            self.say("mute")
-          else:
-            self.say("unmute")
-        elif ev == self.level_item:
-          self.say("set_audio_level %d" % val)
-        elif ev == self.update_item:
-          self.say("set_audio_update %d" % val)
-        elif ev == self.silence_item:
-          self.say("set_audio_silence %d" % val)
-        elif ev == self.trace_item:
-          self.say("set_audio_trace %d" % val)
+      elif item != None:
+        self._handle_menu_item(item)
     # outside menu
     else:
       ev = self.ui.get_next_event()
-      if ev & self.ui.EVENT_PICK:
+      if ev != None:
+        self._handle_direct_key(ev)
+
+  def update_audio_option(self, key, value):
+    """set an audio option from bot"""
+    item = None
+    if key == 'level':
+      self.level_item.set_value(value)
+      item = self.level_item
+    # is currently shown?
+    if self.in_menu and item == self.menu.get_current_item():
+      self.menu.update_current_item()
+  
+  def _handle_menu_item(self, item):
+    """set an audio option from menu"""
+    if item == self.level_item:
+      self.state.set_audio_option('level', self.level_item.get_value(), False)
+  
+  def _handle_direct_key(self, ev):
+    """some key outside of menu was pressed"""
+    if ev & self.ui.EVENT_PICK:
+      # enter menu if connected
+      if self.is_connected:
         self._enter_menu()
+    elif ev & self.ui.EVENT_NEXT:
+      # toggle mute
+      on = not self.state.is_audio_muted
+      self.state.execute_audio_mute(on, False)
 
 # ----- test -----
 if __name__ == '__main__':

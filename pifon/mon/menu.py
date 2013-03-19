@@ -51,7 +51,10 @@ class IntMenuItem(MenuItem):
       
   def get_value(self):
     return self.value
-    
+  
+  def set_value(self, value):
+    self.value = value
+  
   def __str__(self):
     return "[Int:%s:%d]" % (self.name, self.value)
     
@@ -83,6 +86,9 @@ class BoolMenuItem(MenuItem):
     else:
       return "off"
 
+  def set_value(self, value):
+    self.value = value
+  
   def __str__(self):
     return "[Bool:%s:%d]" % (self.name, self.value)
 
@@ -93,6 +99,9 @@ class Menu:
     self.current_item = None
     self.pos = 0
     self.shown = False
+  
+  def get_current_item(self):
+    return self.current_item
   
   def show(self):
     """show menu and begin handling events for menu"""
@@ -105,6 +114,11 @@ class Menu:
     """hide menu and end handling events for menu"""
     self.current_item.hide(self.ui)
     self.shown = False
+    self.current_item = None
+    
+  def update_current_item(self):
+    if self.current_item != None:
+      self.current_item.show(self.ui)
   
   def handle_next_event(self):
     """handle input events and return menu item if something has changed. 

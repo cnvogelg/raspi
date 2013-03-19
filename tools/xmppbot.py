@@ -141,11 +141,15 @@ class ProcBot(sleekxmpp.ClientXMPP):
           self.put(msg)
       except queue.Empty:
         pass
+      # write a 'connected' message to output
+      self.output.put("connected")
   
   def muc_offline(self, presence):
     if presence['muc']['nick'] == self.nick_host:
       self.in_room = False
       logging.info("bot: left room")
+      # write a 'disconnected' message to output
+      self.output.put("disconnected")
   
   def put(self, msg):
     if self.in_room:

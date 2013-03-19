@@ -7,6 +7,16 @@ class UI:
   EVENT_DEC  = 8
   EVENT_PICK = 16
   
+  BACK_OFF = 0
+  BACK_WHITE = 1
+  BACK_RED = 2
+  BACK_GREEN = 3
+  BACK_BLUE = 4
+  
+  def shutdown(self):
+    """shutdown all"""
+    pass
+  
   def get_next_event(self):
     """return the next event or 0 if no event occurred"""
     pass
@@ -22,8 +32,16 @@ class UI:
     """update a value change in the menu"""
     pass
 
+  def update_title(self, title):
+    """update the title message"""
+    pass
+
   def update_status(self, status):
     """update the status bar"""
+    pass
+
+  def update_background(self, back):
+    """update background"""
     pass
 
   def show_message(self, msg):

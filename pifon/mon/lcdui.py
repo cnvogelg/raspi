@@ -16,7 +16,6 @@ class LCDUI(UI):
     self.lcd = Adafruit_CharLCDPlate()
     self.lcd.begin(16, 2)
     self.lcd.clear()
-    self.lcd.message("pifon")
     # init state
     self.last_mask = 0
     self.num_buttons = 5
@@ -28,6 +27,7 @@ class LCDUI(UI):
     self.last_value_len = 0
     self.last_status_len = 0
     self.last_msg_len = 0
+    self.last_back = self.BACK_OFF
     for i in xrange(self.num_buttons):
       self.last_repeat.append([0])
       self.first_flag.append(True)
@@ -39,6 +39,26 @@ class LCDUI(UI):
       self.lcd.BUTTON_DOWN   : self.EVENT_NEXT,
       self.lcd.BUTTON_UP     : self.EVENT_PREV
     }
+    # map background
+    self.map_back = {
+      self.BACK_OFF : self.lcd.OFF,
+      self.BACK_WHITE : self.lcd.WHITE,
+      self.BACK_RED : self.lcd.RED,
+      self.BACK_GREEN : self.lcd.GREEN,
+      self.BACK_BLUE : self.lcd.BLUE
+    }
+
+  def shutdown(self):
+    self.lcd.clear()
+    self.lcd.noDisplay()
+    self.lcd.backlight(self.lcd.OFF)
+
+  def update_background(self, back):
+    """update background"""
+    if back != self.last_back:
+      self.last_back = back
+      mapped_back = self.map_back[back]
+      self.lcd.backlight(mapped_back)
       
   def show_menu(self, title):
     """start showing a menu"""
@@ -75,6 +95,11 @@ class LCDUI(UI):
     (txt, pos, self.last_value_len) = self._update_value(value, self.last_value_len, 4)
     self.lcd.setCursor(pos + 12,1)
     self.lcd.message(txt)
+
+  def update_title(self, title):
+    """update the title message"""
+    self.lcd.setCursor(0,0)
+    self.lcd.message(title)
 
   def update_status(self, status):
     """update the status bar"""
