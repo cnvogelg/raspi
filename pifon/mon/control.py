@@ -3,23 +3,12 @@ import menu
 
 class Control:
   """control the monitor from a ui"""
-  
-  # menu items
-  level_item = menu.IntMenuItem("level", 0, 1, 255)
-  update_item = menu.IntMenuItem("update", 0, 1, 100) # in 100ms
-  silence_item = menu.IntMenuItem("silence", 0, 1, 100) # in 100ms
-  trace_item = menu.BoolMenuItem("trace",False)
-  items = [
-    level_item,
-    update_item,
-    silence_item,
-    trace_item
-  ]
   update_rate = 250
   
-  def __init__(self, ui, state):
+  def __init__(self, ui, state, opts, desc):
     self.ui = ui
     self.state = state
+    self.items = self._create_menu(opts, desc)
     self.menu = menu.Menu(ui, self.items)
     self.in_menu = False
     self.last_level = None
@@ -33,6 +22,19 @@ class Control:
     self._print_state()
     self._print_title()
     self._print_value()
+  
+  def _create_menu(self, opts, desc):
+    result = []
+    for key in opts:
+      value = opts[key]
+      t = type(value)
+      if t == int:
+        d = desc[key]
+        m = menu.IntMenuItem(key, value, d[1], d[2])
+      elif t == bool:
+        m = menu.BoolMenuItem(key, value)
+      result.append(m)
+    return result  
   
   def shutdown(self):
     self.ui.shutdown()
@@ -143,24 +145,23 @@ class Control:
   def update_audio_option(self, key, value):
     """set an audio option from bot"""
     item = None
-    if key == 'level':
-      self.level_item.set_value(value)
-      item = self.level_item
+    for i in self.items:
+      if i.name == key:
+        i.set_value(value)
+        item = i
     # is currently shown?
     if self.in_menu and item == self.menu.get_current_item():
       self.menu.update_current_item()
   
   def _handle_menu_item(self, item):
     """set an audio option from menu"""
-    if item == self.level_item:
-      self.state.set_audio_option('level', self.level_item.get_value(), False)
+    self.state.set_audio_option(item.name, item.get_value(), False)
   
   def _handle_direct_key(self, ev):
     """some key outside of menu was pressed"""
     if ev & self.ui.EVENT_PICK:
-      # enter menu if connected
-      if self.is_connected:
-        self._enter_menu()
+      # enter menu
+      self._enter_menu()
     elif ev & self.ui.EVENT_NEXT:
       # toggle mute
       on = not self.state.is_audio_muted

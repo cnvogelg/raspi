@@ -9,10 +9,23 @@ from __future__ import print_function
 import os
 import sys
 import ConfigParser
+import inspect
+
+# add ../../tools and ../common to python path
+my_dir = os.path.split(inspect.getfile( inspect.currentframe() ))[0]
+tools_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","..","tools")))
+if tools_dir not in sys.path:
+  sys.path.insert(0, tools_dir)
+commons_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","common")))
+if commons_dir not in sys.path:
+  sys.path.insert(0, commons_dir)
+
+import botio
+import botopts
+import pifon_opts
 
 import lcdui
 import control
-import botio
 import audioplay
 import parser
 import writer
@@ -31,15 +44,25 @@ def read_config(audio_play):
 # ---------- main ----------
 
 def main():
+  # setup bot
+  opts = pifon_opts.audio_opts
+  desc = pifon_opts.audio_desc
   bio = botio.BotIO('mon')  
+  bopts = botopts.BotOpts(bio,'audio',opts,False)
+  
   ap = audioplay.AudioPlay()
   w = writer.Writer(bio)
   s = state.State(w)
   p = parser.Parser(s)
   ui = lcdui.LCDUI()
-  ctrl = control.Control(ui,s)
+  ctrl = control.Control(ui,s,opts,desc)
   s.set_control(ctrl)
   s.set_player(ap)
+  
+  # update state with incoming options
+  def update_state(key, value):
+    s.set_audio_option(key, value, True)
+  bopts.set_notifier(update_state)
   
   # read configs and setup audio
   read_config(ap)
@@ -56,7 +79,8 @@ def main():
       # read args from stdin with timeout
       args = bio.read_args(timeout)
       if args != None:
-        p.dispatch(args)
+        if not bopts.parse_command(args):
+          p.dispatch(args)
       # handle control events
       ctrl.handle_events()
   except KeyboardInterrupt:

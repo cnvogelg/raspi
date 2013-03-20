@@ -5,7 +5,7 @@ class Writer:
     self.bio = bio
   
   def send_query_audio(self):
-    self.bio.write_line('query_audio')
+    self.bio.write_line('get audio *')
   
   def send_audio_mute(self, on):
     if on:
@@ -14,5 +14,5 @@ class Writer:
       self.bio.write_line('unmute')
   
   def send_audio_option(self, key, val):
-    args = [ "set_audio_" + key , str(val) ]
+    args = [ "set","audio", key , str(val) ]
     self.bio.write_args(args)

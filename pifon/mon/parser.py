@@ -54,14 +54,6 @@ class Parser:
     else:
       self._warn(args)
   
-  def audio_option(self,*args):
-    if len(args) == 2:
-      key = args[0][6:]
-      val = int(args[1])
-      self.state.set_audio_option(key, val, True)
-    else:
-      self._warn(args)
-  
   valid_commands = {
     'audio_begin' : audio_begin,
     'audio_update' : audio_update,
@@ -69,12 +61,7 @@ class Parser:
     'mute' : mute,
     'unmute' : unmute,
     'connected' : connected,
-    'disconnected' : disconnected,
-    # options
-    'audio_trace' : audio_option,
-    'audio_level' : audio_option,
-    'audio_update' : audio_option,
-    'audio_silence' : audio_option,
+    'disconnected' : disconnected
   }
   
   def dispatch(self, args):
