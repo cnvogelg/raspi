@@ -41,6 +41,18 @@ class Parser:
       self.state.execute_audio_mute(False,True)
     else:
       self._warn(args)
+
+  def force(self,*args):
+    if len(args) == 1:
+      self.state.execute_audio_force(True,True)
+    else:
+      self._warn(args)
+  
+  def unforce(self,*args):
+    if len(args) == 1:
+      self.state.execute_audio_force(False,True)
+    else:
+      self._warn(args)
   
   def connected(self,*args):
     if len(args) == 1:
@@ -60,6 +72,8 @@ class Parser:
     'audio_end' : audio_end,
     'mute' : mute,
     'unmute' : unmute,
+    'force' : force,
+    'unforce' : unforce,
     'connected' : connected,
     'disconnected' : disconnected
   }

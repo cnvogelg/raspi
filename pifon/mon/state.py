@@ -18,7 +18,9 @@ class State:
     self.is_connected = False
     self.is_audio_active = False
     self.is_audio_muted = False
+    self.is_audio_forced = False
     self.is_playing = False
+    self.use_signals = False
   
   def set_control(self, control):
     self.control = control
@@ -51,7 +53,7 @@ class State:
     self._log("report_audio_begin",value)
     self.is_audio_active = True
     self.control.update_audio_active(True)
-    self._update_play_state(not self.is_audio_muted)
+    self._update_play_state()
     self.control.update_audio_value(value)
     
   def report_audio_update(self, value):
@@ -60,7 +62,7 @@ class State:
     if not self.is_audio_active:
       self.is_audio_active = True
       self.control.update_audio_active(True)
-      self._update_play_state(not self.is_audio_muted)
+      self._update_play_state()
     self.control.update_audio_value(value)
   
   def report_audio_end(self, value):
@@ -69,7 +71,7 @@ class State:
     self.control.update_audio_value(None)
     self.is_audio_active = False
     self.control.update_audio_active(False)
-    self._update_play_state(False)
+    self._update_play_state()
   
   def execute_audio_mute(self, on, from_bot):
     """execute mute/unmute either from bot or via control"""
@@ -78,11 +80,20 @@ class State:
       self.writer.send_audio_mute(on)
     self.is_audio_muted = on
     if on:
-      shall_play = False
-    else:
-      shall_play = self.is_audio_active
-    self._update_play_state(shall_play)
-    self.control.update_audio_mute(on)
+      self.is_audio_forced = False
+    self._update_play_state()
+    self.control.update_audio_override(self.is_audio_muted, self.is_audio_forced)
+  
+  def execute_audio_force(self, on, from_bot):
+    """execute force/unforce audio from bot or via control"""
+    self._log("execute_force",on,from_bot)
+    if not from_bot:
+      self.writer.send_audio_force(on)
+    if on:
+      self.is_audio_muted = False
+    self.is_audio_forced = on
+    self._update_play_state()
+    self.control.update_audio_override(self.is_audio_muted, self.is_audio_forced)
   
   def set_audio_option(self, key, value, from_bot):
     """set an audio option either from bot or via control"""
@@ -94,16 +105,22 @@ class State:
       else:
         self.writer.send_audio_option(key, value)
 
-  def _update_play_state(self, shall_play):
+  def _update_play_state(self):
     """check player state"""
+    shall_play = self.is_audio_active
+    if self.is_audio_muted:
+      shall_play = False
+    if self.is_audio_forced:
+      shall_play = True
     self._log("play state: is=",self.is_playing," shall=",shall_play)
     if self.is_playing != shall_play:
       if self.is_playing:
         # stop player
         self.is_playing = False
-        self.player.stop()
+        self.player.stop(self.use_signals)
       else:
         # start player
         self.is_playing = True
-        self.player.start()
+        self.use_signals = self.is_audio_active
+        self.player.start(self.use_signals)
       self.control.update_audio_play(self.is_playing)

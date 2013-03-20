@@ -19,6 +19,7 @@ class Control:
     self.is_audio_active = False
     self.is_audio_muted = False
     self.is_audio_playing = False
+    self.is_audio_forced = False
     self._print_state()
     self._print_title()
     self._print_value()
@@ -69,8 +70,9 @@ class Control:
     self.is_audio_active = is_audio_active
     self._print_state()
     
-  def update_audio_mute(self, is_audio_muted):
+  def update_audio_override(self, is_audio_muted, is_audio_forced):
     self.is_audio_muted = is_audio_muted
+    self.is_audio_forced = is_audio_forced
     self._print_state()
   
   def update_audio_play(self, is_audio_playing):
@@ -96,6 +98,8 @@ class Control:
       txt += "stop"
     if self.is_audio_muted:
       txt += ":x "
+    elif self.is_audio_forced:
+      txt += "!! "
     else:
       txt += "   "
     # error
@@ -166,6 +170,10 @@ class Control:
       # toggle mute
       on = not self.state.is_audio_muted
       self.state.execute_audio_mute(on, False)
+    elif ev & self.ui.EVENT_PREV:
+      # toggle force
+      on = not self.state.is_audio_forced
+      self.state.execute_audio_force(on, False)
 
 # ----- test -----
 if __name__ == '__main__':

@@ -12,6 +12,12 @@ class Writer:
       self.bio.write_line('mute')
     else:
       self.bio.write_line('unmute')
+
+  def send_audio_force(self, on):
+    if on:
+      self.bio.write_line('force')
+    else:
+      self.bio.write_line('unforce')
   
   def send_audio_option(self, key, val):
     args = [ "set","audio", key , str(val) ]
