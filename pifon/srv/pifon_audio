@@ -29,15 +29,13 @@ import recorder
     
 # ----- Event Handler -----
 
-class EventHandler:
+class DetectorEventHandler:
   def __init__(self, botio):
     self.botio = botio  
-  def state(self, state, peak):
-    self.botio.write_line("audio_%s %d" % (state, peak))
-  def update(self,peak):
-    self.botio.write_line("audio_update %d" % peak)
-  def trace(self, pmin, pmax):
-    self.botio.write_line("audio_trace %d %d" % (pmin, pmax))      
+  def state(self, state):
+    self.botio.write_line("audio_state %s" % state)
+  def level(self, lmin, lmax):
+    self.botio.write_line("audio_level %d %d" % (lmin, lmax))
 
 # ---------- main ----------
 
@@ -51,7 +49,7 @@ def main():
   bopts.send_all()
   
   # setup audio
-  ev = EventHandler(bio)
+  ev = DetectorEventHandler(bio)
   d = detector.Detector(ev, opts)
   rec = recorder.Recorder()
   
@@ -71,7 +69,10 @@ def main():
     # check for bot command
     args = bio.read_args(timeout=0.0)
     if args != None:
-      bopts.parse_command(args)
+      if not bopts.parse_command(args):
+        # answer pings
+        if args[0] == 'audio_ping':
+          bio.write_line('audio_pong')
 
   print("stop audio",file=sys.stderr);
 

@@ -11,15 +11,15 @@ class Control:
     self.items = self._create_menu(opts, desc)
     self.menu = menu.Menu(ui, self.items)
     self.in_menu = False
-    self.last_level = None
+    self.last_level = ""
     self.last_level_ts = 0
-    self.last_error = None
+    self.state_str = ""
     # state
     self.is_connected = False
     self.is_audio_active = False
     self.is_audio_muted = False
     self.is_audio_playing = False
-    self.is_audio_forced = False
+    self.is_audio_listen = False
     self._print_state()
     self._print_title()
     self._print_value()
@@ -42,15 +42,8 @@ class Control:
   
   # ----- update state calls -----
   
-  def update_connected(self, is_connected):
-    self.is_connected = is_connected
-    self._print_title()
-    
   def _print_title(self):
-    if self.is_connected:
-      self.ui.update_title("PiFon:)")
-    else:
-      self.ui.update_title("pifon:(")
+    self.ui.update_title("pifon")
     self._update_back()
       
   def _update_back(self):
@@ -66,50 +59,42 @@ class Control:
       back = self.ui.BACK_BLUE
     self.ui.update_background(back)
   
-  def update_audio_active(self, is_audio_active):
+  def update_audio_state(self, state_str, is_audio_active, is_connected):
+    self.state_str = state_str
     self.is_audio_active = is_audio_active
+    self.is_connected = is_connected
     self._print_state()
     
-  def update_audio_override(self, is_audio_muted, is_audio_forced):
+  def update_audio_override(self, is_audio_muted, is_audio_listen):
     self.is_audio_muted = is_audio_muted
-    self.is_audio_forced = is_audio_forced
+    self.is_audio_listen = is_audio_listen
     self._print_state()
   
   def update_audio_play(self, is_audio_playing):
     self.is_audio_playing = is_audio_playing
     self._print_state()
   
-  def set_error(self, error):
-    if self.last_error != error:
-      self.last_error = error
-      self._print_state()
-  
   def _print_state(self):
     if self.in_menu:
       return
     # audio state
-    if self.is_audio_active:
-      txt = "A:"
-    else:
-      txt = "a:"
+    txt = "%7s " % self.state_str
+    # play state
     if self.is_audio_playing:
       txt += "PLAY"
     else:
       txt += "stop"
+    # modifiers
     if self.is_audio_muted:
-      txt += ":x "
-    elif self.is_audio_forced:
-      txt += "!! "
-    else:
-      txt += "   "
-    # error
-    if self.last_error != None:
-      txt += "E%03x" % self.last_error
+      txt += " MUT"
+    elif self.is_audio_listen:
+      txt += " LIS"
     self.ui.update_message(txt)
     self._update_back()
   
-  def update_audio_value(self, level):
+  def update_audio_level(self, lmin, lmax):
     """audio level changed"""
+    level = "%03d %03d" % (lmin, lmax)
     if level != self.last_level:
       self.last_level = level
       ts = time.time()
@@ -172,8 +157,8 @@ class Control:
       self.state.execute_audio_mute(on, False)
     elif ev & self.ui.EVENT_PREV:
       # toggle force
-      on = not self.state.is_audio_forced
-      self.state.execute_audio_force(on, False)
+      on = not self.state.is_audio_listen
+      self.state.execute_audio_listen(on, False)
 
 # ----- test -----
 if __name__ == '__main__':

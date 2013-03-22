@@ -9,24 +9,27 @@ class Parser:
   def _warn(self, *args):
     print("parser?:",*args,file=sys.stderr)
     
-  def audio_begin(self,*args):
+  def audio_state(self,*args):
     if len(args) == 2:
-      value = int(args[1])
-      self.state.report_audio_begin(value)
+      state = args[1]
+      self.state.report_audio_state(state)
     else:
       self._warn(args);
     
-  def audio_update(self,*args):
-    if len(args) == 2:
-      value = int(args[1])
-      self.state.report_audio_update(value)
+  def audio_level(self,*args):
+    if len(args) == 3:
+      try:
+        vmin = int(args[1])
+        vmax = int(args[2])
+        self.state.report_audio_level(vmin, vmax)
+      except ValueError:
+        self._warn(args)
     else:
       self._warn(args)
     
-  def audio_end(self,*args):
-    if len(args) == 2:
-      value = int(args[1])
-      self.state.report_audio_end(value)
+  def audio_pong(self,*args):
+    if len(args) == 1:
+      self.state.report_audio_pong()
     else:
       self._warn(args)
     
@@ -42,15 +45,15 @@ class Parser:
     else:
       self._warn(args)
 
-  def force(self,*args):
+  def listen(self,*args):
     if len(args) == 1:
-      self.state.execute_audio_force(True,True)
+      self.state.execute_audio_listen(True,True)
     else:
       self._warn(args)
   
-  def unforce(self,*args):
+  def unlisten(self,*args):
     if len(args) == 1:
-      self.state.execute_audio_force(False,True)
+      self.state.execute_audio_listen(False,True)
     else:
       self._warn(args)
   
@@ -67,13 +70,13 @@ class Parser:
       self._warn(args)
   
   valid_commands = {
-    'audio_begin' : audio_begin,
-    'audio_update' : audio_update,
-    'audio_end' : audio_end,
+    'audio_state' : audio_state,
+    'audio_level' : audio_level,
+    'audio_pong' : audio_pong,
     'mute' : mute,
     'unmute' : unmute,
-    'force' : force,
-    'unforce' : unforce,
+    'listen' : listen,
+    'unlisten' : unlisten,
     'connected' : connected,
     'disconnected' : disconnected
   }

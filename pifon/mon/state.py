@@ -18,7 +18,7 @@ class State:
     self.is_connected = False
     self.is_audio_active = False
     self.is_audio_muted = False
-    self.is_audio_forced = False
+    self.is_audio_listen = False
     self.is_playing = False
     self.use_signals = False
   
@@ -35,43 +35,35 @@ class State:
     """setup stat by querying state via bot"""
     self._log("setup")
     self.writer.send_query_audio()
+    self.control.update_audio_state('offline', False, False)
   
   def connected(self):
     """connected event from bot"""
     self._log("connected")
     self.is_connected = True
-    self.control.update_connected(True)
+    self.control.update_audio_state('online', False, True)
     
   def disconnected(self):
     """disconnected event from bot"""
     self._log("disconnected")
     self.is_connected = False
-    self.control.update_connected(False)
+    self.control.update_audio_state('offline', False, False)
     
-  def report_audio_begin(self, value):
-    """incoming audio begin event from bot"""
-    self._log("report_audio_begin",value)
-    self.is_audio_active = True
-    self.control.update_audio_active(True)
+  def report_audio_state(self, state):
+    """incoming audio state update from bot"""
+    self._log("report_audio_state",state)
+    self.is_audio_active = (state in ('active', 'sustain'))
+    self.control.update_audio_state(state, self.is_audio_active, self.is_connected)
     self._update_play_state()
-    self.control.update_audio_value(value)
     
-  def report_audio_update(self, value):
-    """incoming audio update event from bot"""
-    self._log("report_audio_update",value)
-    if not self.is_audio_active:
-      self.is_audio_active = True
-      self.control.update_audio_active(True)
-      self._update_play_state()
-    self.control.update_audio_value(value)
+  def report_audio_level(self, lmin, lmax):
+    """incoming audio level from bot"""
+    self._log("report_audio_level",lmin,lmax)
+    self.control.update_audio_level(lmin,lmax)
   
-  def report_audio_end(self, value):
-    """incoming audio end event from bot"""
-    self._log("report_audio_end",value)
-    self.control.update_audio_value(None)
-    self.is_audio_active = False
-    self.control.update_audio_active(False)
-    self._update_play_state()
+  def report_audio_pong(self):
+    """incoming audio pong reply for ping request"""
+    self._log("report_audio_pong",value)
   
   def execute_audio_mute(self, on, from_bot):
     """execute mute/unmute either from bot or via control"""
@@ -80,20 +72,20 @@ class State:
       self.writer.send_audio_mute(on)
     self.is_audio_muted = on
     if on:
-      self.is_audio_forced = False
+      self.is_audio_listen = False
     self._update_play_state()
-    self.control.update_audio_override(self.is_audio_muted, self.is_audio_forced)
+    self.control.update_audio_override(self.is_audio_muted, self.is_audio_listen)
   
-  def execute_audio_force(self, on, from_bot):
-    """execute force/unforce audio from bot or via control"""
+  def execute_audio_listen(self, on, from_bot):
+    """execute listen/unlisten audio from bot or via control"""
     self._log("execute_force",on,from_bot)
     if not from_bot:
-      self.writer.send_audio_force(on)
+      self.writer.send_audio_listen(on)
     if on:
       self.is_audio_muted = False
-    self.is_audio_forced = on
+    self.is_audio_listen = on
     self._update_play_state()
-    self.control.update_audio_override(self.is_audio_muted, self.is_audio_forced)
+    self.control.update_audio_override(self.is_audio_muted, self.is_audio_listen)
   
   def set_audio_option(self, key, value, from_bot):
     """set an audio option either from bot or via control"""
@@ -110,7 +102,7 @@ class State:
     shall_play = self.is_audio_active
     if self.is_audio_muted:
       shall_play = False
-    if self.is_audio_forced:
+    if self.is_audio_listen:
       shall_play = True
     self._log("play state: is=",self.is_playing," shall=",shall_play)
     if self.is_playing != shall_play:
