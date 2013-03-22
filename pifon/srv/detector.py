@@ -88,14 +88,15 @@ class Detector:
     """determine new state of detector"""
 
     # get parameters
-    level = self.opts['level']
+    alevel = self.opts['alevel']
+    slevel = self.opts['slevel']
     
     old_state = self.state
     
     # ----- IDLE -----
     if self.state == self.STATE_IDLE:
       # start attack?
-      if peak >= level:
+      if peak >= alevel:
         self.attack_begin_time = t
         self.state = self.STATE_ATTACK
         # reset max level
@@ -104,7 +105,7 @@ class Detector:
     # ----- ATTACK -----
     elif self.state == self.STATE_ATTACK:
       # long enough?
-      if peak >= level:
+      if peak >= alevel:
         attack = self.opts['attack'] * 1000 # in ms
         delta = (t - self.attack_begin_time) * 1000
         if delta >= attack:
@@ -116,14 +117,14 @@ class Detector:
     # ----- ACTIVE -----
     elif self.state == self.STATE_ACTIVE:
       # sustain
-      if peak < level:
+      if peak < slevel:
         self.sustain_begin_time = t
         self.state = self.STATE_SUSTAIN
     
     # ----- SUSTAIN -----
     elif self.state == self.STATE_SUSTAIN:
       # long enough?
-      if peak < level:
+      if peak < slevel:
         sustain = self.opts['sustain'] * 1000 # in ms
         delta = (t - self.sustain_begin_time) * 1000
         if delta >= sustain:
