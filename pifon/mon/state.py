@@ -23,7 +23,9 @@ class State:
     self.is_audio_muted = False
     self.is_audio_listen = False
     self.is_playing = False
-    self.use_signals = False
+    self.allow_chime = True
+    self.allow_blank = True
+    self.last_chime = False
   
   def set_control(self, control):
     self.control = control
@@ -115,8 +117,12 @@ class State:
   
   def report_audio_pong(self):
     """incoming audio pong reply for ping request"""
-    self._log("report_audio_pong")
     self.pong_arrived = True
+  
+  def _update_my_state(self):
+    self.control.update_mon_state(
+      self.is_audio_muted, self.is_audio_listen,
+      self.allow_chime, self.allow_blank)    
   
   def execute_audio_mute(self, on, from_bot):
     """execute mute/unmute either from bot or via control"""
@@ -127,18 +133,34 @@ class State:
     if on:
       self.is_audio_listen = False
     self._update_play_state()
-    self.control.update_audio_override(self.is_audio_muted, self.is_audio_listen)
+    self._update_my_state()
   
   def execute_audio_listen(self, on, from_bot):
     """execute listen/unlisten audio from bot or via control"""
-    self._log("execute_force",on,from_bot)
+    self._log("execute_listen",on,from_bot)
     if not from_bot:
       self.writer.send_audio_listen(on)
     if on:
       self.is_audio_muted = False
     self.is_audio_listen = on
     self._update_play_state()
-    self.control.update_audio_override(self.is_audio_muted, self.is_audio_listen)
+    self._update_my_state()
+  
+  def execute_audio_chime(self, on, from_bot):
+    """execute chime/unchime audio from bot or via control"""
+    self._log("execute_chime",on,from_bot)
+    if not from_bot:
+      self.writer.send_audio_chime(on)
+    self.allow_chime = on
+    self._update_my_state()
+  
+  def execute_blank(self, on, from_bot):
+    """execute chime/unchime audio from bot or via control"""
+    self._log("execute_chime",on,from_bot)
+    if not from_bot:
+      self.writer.send_blank(on)
+    self.allow_blank = on
+    self._update_my_state()
   
   def set_audio_option(self, key, value, from_bot):
     """set an audio option either from bot or via control"""
@@ -162,10 +184,10 @@ class State:
       if self.is_playing:
         # stop player
         self.is_playing = False
-        self.player.stop(self.use_signals)
+        self.player.stop(self.last_chime)
       else:
         # start player
         self.is_playing = True
-        self.use_signals = self.is_audio_active
-        self.player.start(self.use_signals)
+        self.last_chime = self.is_audio_active and self.allow_chime
+        self.player.start(self.last_chime)
       self.control.update_audio_play(self.is_playing)

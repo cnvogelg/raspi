@@ -21,7 +21,8 @@ class Control:
     self.last_button_ts = None
     self.is_blanking = False
     self.last_backlight = self.ui.BACK_OFF
-    self.force_no_blank = False
+    self.allow_blank = True
+    self.allow_chime = True
     self.ping_state = None
     self.ping_step = 0
     # state
@@ -69,7 +70,7 @@ class Control:
       back = self.ui.BACK_OFF
     else:
       # yellow if force no blank
-      if self.force_no_blank:
+      if not self.allow_blank:
         back = self.ui.BACK_YELLOW
       # white is default color
       else:
@@ -101,10 +102,13 @@ class Control:
     self._print_state()
     self._update_blanking()
     
-  def update_audio_override(self, is_audio_muted, is_audio_listen):
+  def update_mon_state(self, is_audio_muted, is_audio_listen, allow_chime, allow_blank):
     self.is_audio_muted = is_audio_muted
     self.is_audio_listen = is_audio_listen
+    self.allow_chime = allow_chime
+    self.allow_blank = allow_blank
     self._print_state()
+    self._update_blanking()
   
   def update_audio_play(self, is_audio_playing):
     self.is_audio_playing = is_audio_playing
@@ -120,11 +124,19 @@ class Control:
       txt += "PLAY"
     else:
       txt += "stop"
-    # modifiers
+    # mon state
     if self.is_audio_muted:
-      txt += " MUT"
-    elif self.is_audio_listen:
-      txt += " LIS"
+      txt += " M"
+    else:
+      txt += "  "
+    if self.is_audio_listen:
+      txt += "L"
+    else:
+      txt += " "
+    if self.allow_chime:
+      txt += "*"
+    else:
+      txt += " "
     self.ui.update_message(txt)
     self._update_back()
   
@@ -209,9 +221,13 @@ class Control:
       on = not self.state.is_audio_listen
       self.state.execute_audio_listen(on, False)
     elif ev & self.ui.EVENT_DEC:
-      # toggle no blank force
-      self.force_no_blank = not self.force_no_blank
-      self._update_back()
+      # toggle no/blank
+      on = not self.allow_blank
+      self.state.execute_blank(on, False)
+    elif ev & self.ui.EVENT_INC:
+      # toggle no/chime
+      on = not self.allow_chime
+      self.state.execute_audio_chime(on, False)
       
   def _update_blanking(self, any_key=None):
     """check if blanking state has changed"""
@@ -239,7 +255,7 @@ class Control:
       new_blanking = False
       
     # blanking not allowed by user
-    if self.force_no_blank:
+    if not self.allow_blank:
       new_blanking = False
     
     # changed blanking?

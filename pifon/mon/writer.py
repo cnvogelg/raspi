@@ -19,6 +19,18 @@ class Writer:
     else:
       self.bio.write_line('unlisten')
   
+  def send_audio_chime(self, on):
+    if on:
+      self.bio.write_line('chime')
+    else:
+      self.bio.write_line('nochime')
+      
+  def send_blank(self, on):
+    if on:
+      self.bio.write_line('blank')
+    else:
+      self.bio.write_line('noblank')
+  
   def send_audio_option(self, key, val):
     args = [ "set","audio", key , str(val) ]
     self.bio.write_args(args)

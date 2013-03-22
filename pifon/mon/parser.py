@@ -56,6 +56,30 @@ class Parser:
       self.state.execute_audio_listen(False,True)
     else:
       self._warn(args)
+
+  def chime(self,*args):
+    if len(args) == 1:
+      self.state.execute_audio_chime(True,True)
+    else:
+      self._warn(args)
+  
+  def nochime(self,*args):
+    if len(args) == 1:
+      self.state.execute_audio_chime(False,True)
+    else:
+      self._warn(args)
+
+  def blank(self,*args):
+    if len(args) == 1:
+      self.state.execute_blank(True,True)
+    else:
+      self._warn(args)
+  
+  def noblank(self,*args):
+    if len(args) == 1:
+      self.state.execute_blank(False,True)
+    else:
+      self._warn(args)
   
   def connected(self,*args):
     if len(args) == 1:
@@ -78,7 +102,11 @@ class Parser:
     'listen' : listen,
     'unlisten' : unlisten,
     'connected' : connected,
-    'disconnected' : disconnected
+    'disconnected' : disconnected,
+    'chime' : chime,
+    'nochime' : nochime,
+    'blank' : blank,
+    'noblank' : noblank
   }
   
   def dispatch(self, args):
