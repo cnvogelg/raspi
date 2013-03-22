@@ -19,9 +19,9 @@ class Parser:
   def audio_level(self,*args):
     if len(args) == 3:
       try:
-        vmin = int(args[1])
-        vmax = int(args[2])
-        self.state.report_audio_level(vmin, vmax)
+        max_level = int(args[1])
+        cur_level = int(args[2])
+        self.state.report_audio_level(max_level, cur_level)
       except ValueError:
         self._warn(args)
     else:

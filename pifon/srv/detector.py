@@ -26,7 +26,7 @@ class Detector:
     self.attack_begin_time = None
     self.sustain_begin_time = 0
     self.in_respite = False
-    self.min_level = 100
+    self.cur_level = 0
     self.max_level = 0
     self.state = self.STATE_IDLE
     
@@ -53,36 +53,36 @@ class Detector:
     t = time.time()
     
     # determine current RMS value of audio buffer
-    cur_level = int(self.get_rms(data) * 100)
+    level = int(self.get_rms(data) * 100)
     
     # options
     update = self.opts['update'] * 100 # in ms
 
-    # determine min/max or RMS
-    if cur_level < self.min_level:
-      self.min_level = cur_level
-    if cur_level > self.max_level:
-      self.max_level = cur_level
+    # determine max current RMS level
+    if level > self.cur_level:
+      self.cur_level = level
+    if level > self.max_level:
+      self.max_level = level
       
     # process levels?
     delta = (t - self.last_update_time) * 1000
     if delta >= update:
-      self.process_levels(t, self.min_level, self.max_level)
+      self.process_levels(t, self.max_level, self.cur_level)
       self.last_update_time = t
-      self.max_level = 0
-      self.min_level = 100
+      # reset current level for next block
+      self.cur_level = 0
       
-  def process_levels(self, t, lmin, lmax):
+  def process_levels(self, t, max_level, cur_level):
     # trace flag
     trace = self.opts['trace']
 
     # show level?
     show_level = trace or self.state != self.STATE_IDLE    
     if show_level:
-      self.event_handler.level(self.min_level, self.max_level)
+      self.event_handler.level(max_level, cur_level)
     
     # update state with current peak
-    self.state_update(t, self.max_level)
+    self.state_update(t, cur_level)
   
   def state_update(self, t, peak):
     """determine new state of detector"""
@@ -98,6 +98,8 @@ class Detector:
       if peak >= level:
         self.attack_begin_time = t
         self.state = self.STATE_ATTACK
+        # reset max level
+        self.max_level = 0
     
     # ----- ATTACK -----
     elif self.state == self.STATE_ATTACK:

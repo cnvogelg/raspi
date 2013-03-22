@@ -56,10 +56,10 @@ class State:
     self.control.update_audio_state(state, self.is_audio_active, self.is_connected)
     self._update_play_state()
     
-  def report_audio_level(self, lmin, lmax):
+  def report_audio_level(self, max_level, cur_level):
     """incoming audio level from bot"""
-    self._log("report_audio_level",lmin,lmax)
-    self.control.update_audio_level(lmin,lmax)
+    self._log("report_audio_level",max_level,cur_level)
+    self.control.update_audio_level(max_level,cur_level)
   
   def report_audio_pong(self):
     """incoming audio pong reply for ping request"""

@@ -112,9 +112,9 @@ class Control:
     self.ui.update_message(txt)
     self._update_back()
   
-  def update_audio_level(self, lmin, lmax):
+  def update_audio_level(self, max_level, cur_level):
     """audio level changed"""
-    level = "%03d %03d" % (lmin, lmax)
+    level = "%03d %03d" % (max_level, cur_level)
     if level != self.last_level:
       self.last_level = level
       ts = time.time()
