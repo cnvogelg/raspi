@@ -83,6 +83,7 @@ def main():
           p.dispatch(args)
       # handle control events
       ctrl.handle_events()
+      s.handle()
   except KeyboardInterrupt:
     print("\npfon_mon: break -> shutting down",file=sys.stderr)
   

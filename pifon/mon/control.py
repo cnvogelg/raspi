@@ -6,7 +6,7 @@ import sys
 class Control:
   """control the monitor from a ui"""
   update_rate = 250 # in ms
-  blank_delay = 10 # s 
+  blank_delay = 10 # s
   
   def __init__(self, ui, state, opts, desc):
     self.ui = ui
@@ -21,6 +21,8 @@ class Control:
     self.is_blanking = False
     self.last_backlight = self.ui.BACK_OFF
     self.force_no_blank = False
+    self.ping_state = None
+    self.ping_step = 0
     # state
     self.is_connected = False
     self.is_audio_active = False
@@ -50,7 +52,15 @@ class Control:
   # ----- update state calls -----
   
   def _print_title(self):
-    self.ui.update_title("pifon")
+    txt = "pifon "
+    # ping state
+    if self.ping_state == None:
+      txt += " "
+    elif self.ping_state == False:
+      txt += "!"
+    else:
+      txt += "."
+    self.ui.update_title(txt)
     self._update_back()
       
   def _update_back(self):
@@ -77,6 +87,11 @@ class Control:
     if back != self.last_backlight:
       self.last_backlight = back
       self.ui.update_background(back)
+  
+  def update_audio_ping(self, ping_state):
+    """state of pinging the audio server: None=send ping, True=does ping, False=no ping"""
+    self.ping_state = ping_state
+    self._print_title()
   
   def update_audio_state(self, audio_state, is_audio_active, is_connected):
     self.audio_state = audio_state

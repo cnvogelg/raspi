@@ -22,3 +22,6 @@ class Writer:
   def send_audio_option(self, key, val):
     args = [ "set","audio", key , str(val) ]
     self.bio.write_args(args)
+
+  def send_audio_ping(self):
+    self.bio.write_line('audio_ping')

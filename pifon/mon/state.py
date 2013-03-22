@@ -1,8 +1,10 @@
 from __future__ import print_function
 import sys
+import time
 
 class State:
   """manage pifon mon application state"""
+  ping_delay = 5 # in s
   
   def __init__(self, writer):
     self.writer = writer
@@ -16,6 +18,7 @@ class State:
       'silence' : 0
     }
     self.is_connected = False
+    self.is_pinging = False
     self.is_audio_active = False
     self.is_audio_muted = False
     self.is_audio_listen = False
@@ -37,16 +40,63 @@ class State:
     self.writer.send_query_audio()
     self.control.update_audio_state('offline', False, False)
   
+  def _init_ping(self):
+    self.last_ping_ts = 0
+    self.ping_flag = False
+    self.ping_complete = True
+    self.pong_arrived = False
+  
+  def _handle_ping(self,t):
+    if self.ping_complete:
+      # check time for next ping
+      delay = t - self.last_ping_ts
+      if delay >= self.ping_delay:
+        # send a new ping
+        print("-> ping",file=sys.stderr)
+        self.control.update_audio_ping(None)
+        self.writer.send_audio_ping()
+        self.ping_complete = False
+        self.pong_arrived = False
+        self.last_ping_ts = t
+    else:
+      # wait for ping
+      delta = t - self.last_ping_ts
+      if self.pong_arrived:
+        self.ping_complete = True
+        self.control.update_audio_ping(True)
+        print("<- pong",delta,file=sys.stderr)
+        if not self.is_pinging:
+          self.is_pinging = True
+          self.control.update_audio_state('online', False, True)
+      else:
+        # timeout ?
+        if delta >= self.ping_delay:
+          self.ping_complete = True
+          self.control.update_audio_ping(False)
+          print("?? pong",file=sys.stderr)
+          if self.is_pinging:
+            self.is_pinging = False
+            self.control.update_audio_state('no ping', False, False)
+  
+  def handle(self):
+    """do periodic tasks"""
+    if self.is_connected:
+      t = time.time()
+      self._handle_ping(t)
+        
   def connected(self):
     """connected event from bot"""
     self._log("connected")
     self.is_connected = True
-    self.control.update_audio_state('online', False, True)
+    self.is_pinging = False
+    self.control.update_audio_state('connect', False, False)
+    self._init_ping()
     
   def disconnected(self):
     """disconnected event from bot"""
     self._log("disconnected")
     self.is_connected = False
+    self.is_pinging = False
     self.control.update_audio_state('offline', False, False)
     
   def report_audio_state(self, state):
@@ -63,7 +113,8 @@ class State:
   
   def report_audio_pong(self):
     """incoming audio pong reply for ping request"""
-    self._log("report_audio_pong",value)
+    self._log("report_audio_pong")
+    self.pong_arrived = True
   
   def execute_audio_mute(self, on, from_bot):
     """execute mute/unmute either from bot or via control"""
