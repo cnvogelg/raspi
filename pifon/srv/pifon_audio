@@ -74,6 +74,8 @@ def main():
           # answer pings
           if args[0] == 'audio_ping':
             bio.write_line('audio_pong')
+          elif args[0] == 'audio_state':
+            bio.write_line('audio_state '+ d.get_state_name())
   except KeyboardInterrupt:
     print("\nbreak -> stopping audio",file=sys.stderr);
 

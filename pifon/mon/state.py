@@ -37,7 +37,9 @@ class State:
   def setup(self):
     """setup stat by querying state via bot"""
     self._log("setup")
+    # query options and current state
     self.writer.send_query_audio()
+    self.writer.send_audio_state()
     self.control.update_audio_state('offline', False, False)
   
   def _init_ping(self):

@@ -29,7 +29,10 @@ class Detector:
     self.cur_level = 0
     self.max_level = 0
     self.state = self.STATE_IDLE
-    
+  
+  def get_state_name(self):
+    return self.state_names[self.state]
+  
   def get_rms(self, data):
     """get root mean square of all samples"""
     n = int(len(data) / 2)
@@ -99,8 +102,6 @@ class Detector:
       if peak >= alevel:
         self.attack_begin_time = t
         self.state = self.STATE_ATTACK
-        # reset max level
-        self.max_level = 0
     
     # ----- ATTACK -----
     elif self.state == self.STATE_ATTACK:
@@ -142,6 +143,8 @@ class Detector:
       if delta >= respite:
         # return to idle
         self.state = self.STATE_IDLE
+        # reset max level
+        self.max_level = 0
     
     # post a state update?
     if old_state != self.state:

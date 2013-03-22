@@ -25,3 +25,6 @@ class Writer:
 
   def send_audio_ping(self):
     self.bio.write_line('audio_ping')
+    
+  def send_audio_state(self):
+    self.bio.write_line('audio_state')

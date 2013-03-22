@@ -7,6 +7,7 @@ class Control:
   """control the monitor from a ui"""
   update_rate = 250 # in ms
   blank_delay = 10 # s
+  autohide_delay = 5000 # in ms
   
   def __init__(self, ui, state, opts, desc):
     self.ui = ui
@@ -130,11 +131,20 @@ class Control:
   def update_audio_level(self, max_level, cur_level):
     """audio level changed"""
     level = "%03d %03d" % (max_level, cur_level)
+    ts = time.time()
     if level != self.last_level:
       self.last_level = level
-      ts = time.time()
       delta = (ts - self.last_level_ts) * 1000
       if delta > self.update_rate:
+        self._print_value()
+    self.last_level_ts = ts
+  
+  def _autohide_levels(self):
+    if self.last_level != "":
+      ts = time.time()
+      delta = (ts -self.last_level_ts) * 1000
+      if  delta > self.autohide_delay:
+        self.last_level = ""
         self._print_value()
         self.last_level_ts = ts
   
@@ -154,6 +164,7 @@ class Control:
     self.menu.show()
     
   def handle_events(self):
+    self._autohide_levels()
     # inside menu
     if self.in_menu:
       item = self.menu.handle_next_event()

@@ -86,6 +86,10 @@ def main():
       s.handle()
   except KeyboardInterrupt:
     print("\npfon_mon: break -> shutting down",file=sys.stderr)
+  except Exception as e:
+    ui.show_message("FATAL CRASH!")
+    ui.update_background(ui.BACK_RED)
+    raise
   
   ctrl.shutdown()
   
