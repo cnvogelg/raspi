@@ -12,6 +12,9 @@ class UI:
   BACK_RED = 2
   BACK_GREEN = 3
   BACK_BLUE = 4
+  BACK_YELLOW = 5
+  BACK_TEAL = 6
+  BACK_VIOLET = 7
   
   def shutdown(self):
     """shutdown all"""

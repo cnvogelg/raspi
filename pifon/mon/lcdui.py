@@ -45,7 +45,10 @@ class LCDUI(UI):
       self.BACK_WHITE : self.lcd.WHITE,
       self.BACK_RED : self.lcd.RED,
       self.BACK_GREEN : self.lcd.GREEN,
-      self.BACK_BLUE : self.lcd.BLUE
+      self.BACK_BLUE : self.lcd.BLUE,
+      self.BACK_YELLOW : self.lcd.YELLOW,
+      self.BACK_TEAL : self.lcd.TEAL,
+      self.BACK_VIOLET : self.lcd.VIOLET
     }
 
   def shutdown(self):
