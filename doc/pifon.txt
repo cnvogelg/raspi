@@ -180,12 +180,14 @@ pifon.txt - installation guide for your pifon setup
      - play some sounds:
        > aplay /usr/share/sounds/alsa/*
 
+   * If you use the analog output on your Raspi then make sure to enable it:
+     > amixer cset numid=3 1
+
    * Install MPD music player daemon
      # apt-get install mpd mpc (ncmpcpp = curses player)
 
    * Install nice sounds for events
      # apt-get install sound-icons
-
 
 4. Instant Messaging via XMPP
 
