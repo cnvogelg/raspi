@@ -241,4 +241,98 @@ pifon.txt - installation guide for your pifon setup
     --> a new user "audio" should appear in your Adium
     --> talk to audio by mentioning "audio" ;)
 
-   
+
+5. I2C Setup for LCD Plate on mon
+
+  * in /etc/modprobe.d/raspi-blacklist.conf remove the i2c entry by commenting it out
+    #blacklist i2c-bcm2708
+    
+  * create the file '/etc/udev/rules.d/10-local_i2c_group.rules':
+    ----- schnipp -----
+    KERNEL=="i2c-[0-9]*", GROUP="i2c"
+    ----- schnipp -----
+    that assigns the i2c devices to group 'i2c'
+    
+  * add 'i2c-dev' to /etc/modules:
+    ----- schnipp -----
+    i2c-dev
+    ----- schnipp -----
+  
+  * make sure your user is in group 'i2c':
+  
+    # usermod -G -a i2c chris
+
+  
+6. Install pifon
+
+6.1 Install pifon server
+
+  * Hardware:
+    * Raspberry Pi
+    * USB Web cam with audio
+
+  * Installed software: 
+    * tmux, git
+      # apt-get install tmux git-core
+    * python3.2 with sleekxmpp 1.0 (see section 4.3)
+    
+  * Prerequisites:
+    * Rasbpian installation with network access
+    * Working ALSA audio source via WebCAM (see section 3)
+    * Streaming server with Icecast and darkice
+    * Prosody XMPP Server (see section 4)
+  
+  * Installation:
+    * Clone github repository in your home
+      > cd ~
+      > git clone git://github.com/cnvogelg/raspi.git
+
+    * as root edit /etc/rc.local and add:
+    
+      ----- schnipp -----
+      su -l chris -c '/home/chris/raspi/pifon/srv/rc.pifon start'
+      ----- schnipp -----
+      
+      where 'chris' is my user/home
+  
+  * Test:
+    * reboot and test
+    * you can always attach to your running processes with:
+      > tmux list-sessions
+      > tmux attach -t audio
+      leave the tmux session with Ctrl+B and d
+  
+6.2 Install pifon mon
+
+   * Hardware:
+     * Raspberry Pi
+     * Adafruit RGB LCD Plate for Raspi [1]
+     
+   * Installed software:
+     * tmux, git   
+      # apt-get install tmux git-core
+    * python3.2 with sleekxmpp 1.0 (see section 4.3)
+    * python2.7 with sleekxmpp 1.0 (see section 4.3)
+
+  * Installation:
+    * Clone github repository in your home
+      > cd ~
+      > git clone git://github.com/cnvogelg/raspi.git
+
+    * as root edit /etc/rc.local and add
+    
+      ----- schnipp -----
+      su -l chris -c '/home/chris/raspi/pifon/mon/rc.pifon start'
+      ----- schnipp -----
+      
+      where 'chris' is my user/home
+  
+  * Test:
+    * reboot and test
+    * you can always attach to your running processes with:
+      > tmux list-sessions
+      > tmux attach -t mon
+      leave the tmux session with Ctrl+B and d
+       
+  [1] http://www.adafruit.com/products/1110
+
