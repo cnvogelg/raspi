@@ -10,7 +10,10 @@ class Recorder:
     self.bits = 16
   
   def _get_cmd(self):
-    return [self.rec_bin, '-q', '-c', str(self.channels), '-r', str(self.rate), '-b', str(self.bits), '-t', 'raw', '-']
+    cmd = [self.rec_bin, '-q', '-c', str(self.channels), '-r', str(self.rate), '-b', str(self.bits), '-t', 'raw', '-']
+    # filters
+    cmd += [ 'highpass', '500' ]
+    return cmd
 
   def start(self, bufsize=1024):
     """run the audio recording tool in a seperate process and receive its samples

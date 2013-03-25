@@ -146,6 +146,7 @@ pifon.txt - installation guide for your pifon setup
      url             = http://pifon.local:80/
      genre           = baby
      public          = no
+     highpass        = 500
      ----- schnipp -----
      
    * Install Icecast2
