@@ -74,6 +74,7 @@ def main():
   print("pifon_mon: started",file=sys.stderr)
   # main loop
   timeout = 0.1
+  exit_flag = None
   try:
     while True:
       # read args from stdin with timeout
@@ -82,16 +83,21 @@ def main():
         if not bopts.parse_command(args):
           p.dispatch(args)
       # handle control events
-      ctrl.handle_events()
+      exit_flag = ctrl.handle_events()
+      if exit_flag != None:
+        break
       s.handle()
   except KeyboardInterrupt:
-    print("\npfon_mon: break -> shutting down",file=sys.stderr)
+    print("\npifon_mon: break -> shutting down",file=sys.stderr)
   except Exception as e:
     ui.show_message("FATAL CRASH!")
     ui.update_background(ui.BACK_RED)
-    raise
+    exit_flag = True
   
-  ctrl.shutdown()
+  if exit_flag == None:
+    ctrl.shutdown()
+  print("--- pifon_mon done ---",file=sys.stderr)
+  sys.exit(0)
   
 if __name__ == '__main__':
   main()

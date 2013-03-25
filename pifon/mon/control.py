@@ -25,6 +25,7 @@ class Control:
     self.allow_chime = True
     self.ping_state = None
     self.ping_step = 0
+    self.restart_ts = None
     # state
     self.is_connected = False
     self.is_audio_active = False
@@ -177,6 +178,7 @@ class Control:
     
   def handle_events(self):
     self._autohide_levels()
+    exit_flag = None
     # inside menu
     if self.in_menu:
       item = self.menu.handle_next_event()
@@ -190,7 +192,8 @@ class Control:
       if ev != None:
         munged = self._update_blanking(ev != 0)
         if not munged:
-          self._handle_direct_key(ev)
+          exit_flag = self._handle_direct_key(ev)
+      return exit_flag
 
   def update_audio_option(self, key, value):
     """set an audio option from bot"""
@@ -209,6 +212,13 @@ class Control:
   
   def _handle_direct_key(self, ev):
     """some key outside of menu was pressed"""
+    # check for restart combo
+    ok = self._check_restart(ev)
+    if ok == True:
+      return True
+    elif ok == False:
+      return None
+    
     if ev & self.ui.EVENT_PICK:
       # enter menu
       self._enter_menu()
@@ -228,6 +238,28 @@ class Control:
       # toggle no/chime
       on = not self.allow_chime
       self.state.execute_audio_chime(on, False)
+    return None
+    
+  def _check_restart(self, ev):
+    """key if restart key was pressed long enough"""
+    restart_combo = self.ui.EVENT_DEC | self.ui.EVENT_INC
+    pressed = (ev & restart_combo) == restart_combo
+    if pressed:
+      ts = time.time()
+      if self.restart_ts == None:
+        self.restart_ts = ts
+      else:
+        delta = (ts - self.restart_ts)
+        print("restart delta",delta,file=sys.stderr)
+        if delta > 1: # 1s triggers restart
+          self.ui.show_message("--> RESTART <--")
+          return True
+      return False
+    elif ev != 0:
+      # any other combo resets
+      print("no restart",file=sys.stderr)
+      self.restart_ts = None
+    return None
       
   def _update_blanking(self, any_key=None):
     """check if blanking state has changed"""

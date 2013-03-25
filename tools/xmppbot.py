@@ -68,6 +68,9 @@ class ProcRunner(threading.Thread):
           pass
     except KeyboardInterrupt:
       print("bork!")
+    logging.info("bot: disconnecting after process death...")
+    self.output.disconnect(wait=True)
+    logging.info("bot: disconnecting done.")
 
 # ----- XMPP Bot -----
 
@@ -216,7 +219,7 @@ if __name__ == '__main__':
   bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'])
   pr = ProcRunner(cmd, bot)
   bot.set_output(pr)
-
+  
   # try to start process
   pr.start()
 
