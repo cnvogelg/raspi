@@ -1,0 +1,278 @@
+cubie.txt
+---------
+
+my cubieboard setup docs
+
+1. SD Card Setup (on Xubuntu 12.04 LTS)
+
+  * Tools via git
+    > git clone https://github.com/linux-sunxi/sunxi-bsp.git
+    > git clone https://github.com/linux-sunxi/sunxi-tools.git
+    
+  * HW Pack and Linaro ALIP
+    > wget http://dl.linux-sunxi.org/amery/sunxi-3.0/latest/cubieboard_hwpack.tar.xz
+    > wget https://releases.linaro.org/12.11/ubuntu/precise-images/alip/linaro-precise-alip-20121124-519.tar.gz
+    
+  * Build SD Card
+    (on linux console not in X11 due to automount)
+    (assuming /dev/sdb is your SD card)
+    > sudo sunxi-bsp/scripts/sunxi-media-create.sh /dev/sdb cubieboard_hwpack.tar.xz linaro-precise-alip-20121124-519.tar.gz
+  
+2. Config Device in FEX File
+
+  * Mount SD Card DOS Partition
+  
+  * Build fex tools
+    > cd sunxi-tools
+    > make
+  
+  * Decode FEX on SD
+    > ./bin2fex /media/????-????/script.bin script.fex
+    
+  * Edit fex File: 
+    > vi script.fex
+    
+  * Change Resolution: change line
+    screen0_output_mode: 3    # <- 576p
+  
+  * Set fixed MAC address: add lines
+    [dynamic]
+    MAC = "c0b1eeb0ad01"
+  
+  * Write FEX back
+    > ./fex2bin script.fex /media/????-????/script.bin
+    > eject /media/????-????
+    
+3. First Boot
+
+  * Update system
+    > sudo -s
+    # apt-get udpdate
+    # apt-get upgrade
+    
+  * Set Hostname
+    # vi /etc/hostname
+    # vi /etc/hosts
+  
+  * Set DHCP for Fritz!Box
+    # vi /etc/dhcp/dhclient.conf
+    uncomment and set your MAC:
+    send dhcp-client-identifier c0:b1:ee:b0:ad:01
+  
+  * Install SSH server
+    # apt-get install openssh-server
+    
+  * Reboot
+    # reboot
+
+4. Remote Install via SSH
+
+  host> ssh linaro@cubie  (pass: linaro)
+  
+  * Add user chris
+    > sudo -s
+    # useradd -u 501 -m -s /bin/bash chris
+    # passwd chris
+    # cp /etc/skel/.[a-z]* /home/chris/
+    # chown chris:chris /home/chris/.[a-z]*
+    # usermod -a -G adm,dialout,cdrom,audio,dip,video,plugdev,admin chris
+  
+  * Copy SSH id to chris
+    host> ssh-copy-id cubie
+
+  * Start Desktop for chris
+    # vi /etc/lightdm/lightdm.conf
+    autologin-user=chris
+  
+  * Reboot
+
+5. Install NFS client
+
+  # apt-get install autofs nfs-common
+  
+  - edit /etc/auto.master, add:
+  /net	/etc/auto.nfs
+  
+  - create /etc/auto.nfs
+  nfs-share   -soft,intr,vers=3       ion:/disc/storage4/nfs-share
+  
+  - int /etc/default/nfs-commons:
+  NEED_STATD=yes
+  
+  - start autofs and check
+    # /etc/init.d/autofs restart
+    # ls /net/nfs-share
+
+6. Setup SSD
+
+  * Power the board with USB OTG not with the shipped power cable(!)
+    Otherwise SSD produced write errors
+
+  * Partition and format drive
+    # apt-get install parted
+    # parted /dev/sda
+     > mklabel msdos
+     > mkpart
+     > ext4
+     > 0
+     > 100%
+     > quit
+    # mkfs.ext4 /dev/sda1
+  
+  * Mount
+    # vi /etc/fstab
+    /dev/sda1  /disk/ssd               ext4    defaults,noatime  0       0
+    # mkdir -p /disk/ssd
+    # mount /disk/ssd
+
+7. Tools
+
+  * clock sync
+    # apt-get install ntp
+    # /etc/init.d/ntp stop
+    # ntpdate -u ntp.ubuntu.com
+    # /etc/init.d/ntp start
+    # dpkg-reconfigure tzdata
+    # date
+    # reboot
+
+
+
+----- Client Install -----
+
+1. 3D Graphics
+
+  * see http://linux-sunxi.org/Binary_drivers
+  * my fixes:
+    # apt-get install libdrm-dev
+
+
+
+------ Server Install -----
+
+1. NFS Server
+
+  * need recompiled kernel (see A. below)
+  * select in kernel "File Systems -> Network File Systems ->"
+    "[M] NFS Server Support"
+    " ... support for version 3"
+  * recompile kernel and install
+  * install package
+    # apt-get install nfs-kernel-server
+  * define exports and export
+    # vi /etc/exports
+    /disk/ssd 192.168.2.0/24(rw,sync,no_subtree_check)
+    # exportfs -va
+
+2. Netatalk (Apple Share)
+
+  * install package
+    # apt-get install netatalk
+  * edit exports
+    # vi /etc/netatalk/AppleVolumes.default
+    /disk/ssd/data          "SSD_Data" allow:chris
+  * restart
+    # /etc/init.d/netatalk restart
+
+  * zero-conf:
+    # apt-get install avahi-daemon
+    - create /etc/avahi/services/afpd.service:
+
+<?xml version="1.0" standalone='no'?><!--*-nxml-*-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h</name>
+  <service>
+    <type>_afpovertcp._tcp</type>
+    <port>548</port>
+  </service>
+</service-group>  
+
+    - restart avahi
+    # /etc/init.d/avahi-daemon restart
+
+
+
+----- Add Ons -----
+
+A. Build own kernel (on Host Xubuntu 12.04)
+
+  * setup cross env
+    # apt-get install gcc-arm-linux-gnueabihf
+    > export ARCH=arm
+    > export CROSS_COMPILE=/usr/bin/arm-linux-gnueabihf-
+    > export INSTALL_MOD_PATH=$HOME/cubieboard/modules
+
+  * clone linux source
+    > cd cubieboard
+    > git clone --depth 1 -b sunxi-3.0 git@github.com:linux-sunxi/linux-sunxi.git
+    
+  * clone config from current cubieboard
+    > scp cubie:/proc/config.gz .
+    > gunzip config.gz
+    > cp config linux-sunxi/.config
+    > cd linux-sunxi
+    > make oldconfig
+  
+  * more config
+    > make menuconfig
+  
+  * build kernel
+    > make uImage modules
+    > make modules_install
+  
+  * install new kernel
+    - insert SD card into host
+    - copy uImage to FAT partition
+      > cp arch/arm/boot/uImage /media/<dos-part>/
+    - copy modules to root partition
+      > sudo rsync -av modules/lib/modules/ /media/<root-part>/lib/modules/
+    - sync, eject SD card
+  
+  * insert card and reboot cubie
+
+
+B. SPI support
+
+  * update script.fex:
+  
+[spi0_para]
+spi_used = 1
+spi_cs_bitmap = 1
+spi_cs0 = port:PI10<2><default><default><default>
+spi_sclk = port:PI11<2><default><default><default>
+spi_mosi = port:PI12<2><default><default><default>
+spi_miso = port:PI13<2><default><default><default>
+
+...
+
+[spi_devices]
+spi_dev_num = 1
+
+[spi_board0]
+modalias = "spidev"
+max_speed_hz = 1200000
+bus_num = 0
+chip_select = 0
+mode = 0
+full_duplex = 0
+manual_cs = 0
+
+   * update kernel with:
+     - Global Settings -> Experimental
+     - Drivers -> SPI Support -> 
+       - [*] SUN4I SPI Controller
+       - [M] User mode SPI device
+   
+   * test spi dev
+     # modprobe spidev
+     
+   * SPI pinout: 
+     - see http://dl.cubieboard.org/hardware/cubieboard_schematic_2012-08-08.pdf
+     - last page: extension interface U14
+       SPI0_CS    45
+       SPI0_CLK   47
+       SPI0_MOSI  46
+       SPI0_MISO  48
+       VCC +5V    43
+       GND        42
