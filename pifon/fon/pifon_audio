@@ -6,223 +6,78 @@
 # uses SoX' rec tool with ALSA driver for USB WebCam audio
 #
 
-import subprocess
 import os
 import time
 import sys
-import threading
 import select
+import inspect
 
-# ---------- config ----------
-rec_bin = '/usr/bin/rec'
-channels = 1
-rate = 16000
-bits = 16
-cmd = [rec_bin, '-q', '-c', str(channels), '-r', str(rate), '-b', str(bits), '-t', 'raw', '-']
-
-env = dict(os.environ)
-env['AUDIODRIVER'] = 'alsa'
-env['AUDIODEV'] = 'mixin'
-
-# ----- parameters -----
-# this level is used to detect a loud event
-loud_level = 10
-# duration in ms after a loudness event to return to silence mode
-silence_after_loud_ms = 5000
-# update interval in ms
-update_interval = 500
-# trace peak level
-trace_peak = False
-
-# ---------- functions ----------
-
-def record(handler):
-  """run the audio recording tool in a seperate process and receive its samples
-     via stdout pipe.
-     the passed handler will be called for each received sample buffer
-  """
-  bufsize = 1024
-  p = subprocess.Popen(cmd, shell=False, bufsize=bufsize, stdout=subprocess.PIPE, env=env)
-  try:
-    while p.returncode == None:
-      data = p.stdout.read(bufsize)
-      if len(data) > 0:
-        handler.handle_buffer(data)
-      p.poll()
-  except KeyboardInterrupt:
-    # on ctrl-c kill the record process
-    p.poll()
-    if p.returncode == None:
-      p.terminate()
+# add ../../tools and ../common to python path
+my_dir = os.path.split(inspect.getfile( inspect.currentframe() ))[0]
+tools_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","..","tools")))
+if tools_dir not in sys.path:
+  sys.path.insert(0, tools_dir)
+commons_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","common")))
+if commons_dir not in sys.path:
+  sys.path.insert(0, commons_dir)
+  
+import botio
+import botopts
+import pifon_opts
+import detector
+import recorder
     
-# ----- Detector -----
-
-class Detector:
-  def __init__(self, event_handler, loud_level=32, silence_after_loud_ms=5000, update_interval=250, trace_peak=False):
-    self.event_handler = event_handler
-    self.loud_level = loud_level
-    self.silence_after_loud_ms = silence_after_loud_ms
-    self.update_interval = update_interval
-    self.trace_peak = trace_peak
-    # state
-    self.in_loudness = False
-    self.last_silence_time = 0
-    self.last_event_time = 0
-    self.max_peak = 0
-    self.trace_min = 32768
-    self.trace_max = 0
-    self.trace_time = 0
-    
-  def get_peak_value(self, data):
-    """get the loudest value in the buffer of 8-bit unsigned samples
-       return peak_value
-    """
-    peak = 0
-    n = int(len(data) / 2)
-    o = 0
-    for i in range(n):
-      v = data[o] + data[o+1] * 256
-      if v > 32767:
-        v = 65536 - v
-      if v > peak:
-        peak = v
-      o += 2
-    peak = int(peak / 256)
-    return peak
-
-  def handle_buffer(self, data):
-    """check incoming audio buffer and derive loudness state
-       pass the state changes to the passed event handler
-       the event_handler is called with .begin(), .end(), .update()
-    """
-    t = time.time()
-    peak = self.get_peak_value(data)
-    
-    # report a trace of the peak level if desired
-    if peak < self.trace_min:
-      self.trace_min = peak
-    if peak > self.trace_max:
-      self.trace_max = peak
-    if self.trace_peak:
-      delta = (t - self.trace_time) * 1000
-      if delta > self.update_interval:
-        self.event_handler.trace(self.trace_min, self.trace_max)
-        self.trace_min = 32768
-        self.trace_max = 0
-        self.trace_time = t
-    
-    # in loudness phase?
-    if self.in_loudness:
-      do_update = True
-      # check for quiet
-      if peak < self.loud_level:
-        # first silence phase
-        if self.last_silence_time == None:
-          self.last_silence_time = t
-        else:
-          # still silent
-          delta = (t - self.last_silence_time) * 1000
-          if delta >= self.silence_after_loud_ms:
-            # silence was long enough -> leave loudness
-            self.in_loudness = False
-            self.event_handler.end(peak)
-            do_update = False
-      else:
-        # still loud -> reset quiet interval
-        self.last_silence_time = None
-      # update peak?
-      if do_update:
-        if peak > self.max_peak:
-          self.max_peak = peak
-        # long enough for update
-        delta = (t - self.last_event_time) * 1000
-        if delta >= self.update_interval:
-          self.event_handler.update(self.max_peak)
-          self.last_event_time = t
-          self.max_peak = 0
-    else:
-      # check four loud
-      if peak > self.loud_level:
-        self.in_loudness = True
-        self.last_silence_time = None
-        self.last_event_time = t
-        self.event_handler.begin(peak)
-        self.max_peak = 0
-
 # ----- Event Handler -----
 
-def say(s):
-  print(s)
-  sys.stdout.flush()
-
-class EventHandler:
-  def begin(self, peak):
-    say("audio_begin %d" % peak)
-  def end(self,peak):
-    say("audio_end %d" % peak)
-  def update(self,peak):
-    say("audio_update %d" % peak)
-  def trace(self, pmin, pmax):
-    say("audio_trace %d %d" % (pmin, pmax))
-
-# ----- Command Input -----
-
-class Reader(threading.Thread):
-  def __init__(self, d):
-    threading.Thread.__init__(self)
-    self.detector = d
-  
-  def run(self):
-    self.stay = True
-    try:
-      while self.stay:
-        (r,w,x) = select.select([sys.stdin],[],[], 1.0)
-        if sys.stdin in r:
-          l = sys.stdin.readline()
-          l = l.strip()
-          args = l.split(' ')
-          if len(args)>0:
-            self.handle_command(args)          
-    except KeyboardInterrupt:
-      pass
-
-  def stop(self):
-    self.stay = False
-    self.join()
-
-  def handle_command(self, args):
-    cmd = args[0]
-    if cmd == 'set_audio_trace':
-      if len(args) == 1:
-        self.detector.trace_peak = not self.detector.trace_peak
-      else:
-        self.detector.trace_peak = bool(args[1])
-    elif cmd == 'set_audio_level':
-      if len(args) > 1:
-        self.detector.loud_level = int(args[1])
-      say("audio_level %d" % self.detector.loud_level)
-    elif cmd == 'set_audio_update':
-      if len(args) > 1:
-        self.detector.update_interval = int(args[1])
-      say("audio_update %d" % self.detector.update_interval)
-    elif cmd == 'set_audio_silence':
-      if len(args) > 1:
-        self.detector.silence_after_loud_ms = int(args[1])
-      say("audio_silence %d" % self.detector.silence_after_loud_ms)
-    elif cmd == 'audio_help':
-      say("audio_level [n]\naudio_update [n] (ms)\naudio_silence [n] (ms)")
+class DetectorEventHandler:
+  def __init__(self, botio):
+    self.botio = botio  
+  def state(self, state):
+    self.botio.write_line("audio_state %s" % state)
+  def level(self, max_level, cur_level):
+    self.botio.write_line("audio_level %d %d" % (max_level, cur_level))
 
 # ---------- main ----------
 
 def main():
-  ev = EventHandler()
-  d = Detector(ev, loud_level, silence_after_loud_ms, update_interval, trace_peak)
-  r = Reader(d)
-  r.start()
-
-  record(d)
   
-  r.stop()
+  opts = pifon_opts.audio_opts
+  
+  # setup bot
+  bio = botio.BotIO('audio')
+  bopts = botopts.BotOpts(bio,'audio',opts,True)
+  bopts.send_all()
+  
+  # setup audio
+  ev = DetectorEventHandler(bio)
+  d = detector.Detector(ev, opts)
+  rec = recorder.Recorder()
+  
+  # start recorder
+  rec.start()
+  
+  print("start audio",file=sys.stderr);
+
+  # ----- main loop -----
+  try:
+    while True:
+      # check audio data
+      buf = rec.read_buf()
+      if buf == False:
+        break
+      elif buf != None:
+        d.handle_buffer(buf)
+      # check for bot command
+      args = bio.read_args(timeout=0.0)
+      if args != None:
+        if not bopts.parse_command(args):
+          # answer pings
+          if args[0] == 'audio_ping':
+            bio.write_line('audio_pong')
+          elif args[0] == 'audio_state':
+            bio.write_line('audio_state '+ d.get_state_name())
+  except KeyboardInterrupt:
+    print("\nbreak -> stopping audio",file=sys.stderr);
 
 if __name__ == '__main__':
   main()

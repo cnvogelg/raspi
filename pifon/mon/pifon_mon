@@ -1,161 +1,103 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # pifon_mon
 #
 # monitor tool to listen for pifon events and performs actions like
 #
 
-import sys
+from __future__ import print_function
 import os
-import select
-import configparser
-import subprocess
+import sys
+import ConfigParser
+import inspect
 
-# default config
-cfg = {
-  'audio' : {
-    'url':None,
-    'init':None,
-    'start':None,
-    'stop':None,
-    'player':None,
-    'start_sound':None,
-    'stop_sound':None
-  }
-}
+# add ../../tools and ../common to python path
+my_dir = os.path.split(inspect.getfile( inspect.currentframe() ))[0]
+tools_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","..","tools")))
+if tools_dir not in sys.path:
+  sys.path.insert(0, tools_dir)
+commons_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","common")))
+if commons_dir not in sys.path:
+  sys.path.insert(0, commons_dir)
 
-# state
-is_playing = False
-is_muted = False
+import botio
+import botopts
+import pifon_opts
 
-def run_command(cmd):
-  print("running:",cmd,file=sys.stderr)
-  result=subprocess.call(cmd,shell=True,stdout=open('/dev/null','w'))
-  if result != 0:
-    print("Error running:",cmd,"->",result,file=sys.stderr)
+import lcdui
+import control
+import audioplay
+import parser
+import writer
+import state
 
-# audio commands
-
-def audio_init():
-  cmd = cfg['audio']['init']
-  if cmd != None:
-    cmd=cmd.replace('$u',cfg['audio']['url'])
-    run_command(cmd)
-
-def audio_start():
-  global is_playing
-  if is_playing:
-    return
-  is_playing = True
-  # play sound?
-  player = cfg['audio']['player']
-  sound = cfg['audio']['start_sound']
-  if player and sound:
-    run_command(player + " " + sound)
-  # start streaming
-  start = cfg['audio']['start']
-  if start:
-    run_command(start)
-
-def audio_stop():
-  global is_playing
-  if not is_playing:
-    return
-  is_playing = False
-  # stop streaming
-  stop = cfg['audio']['stop']
-  if stop:
-    run_command(stop)
-  # play sound?
-  player = cfg['audio']['player']
-  sound = cfg['audio']['stop_sound']
-  if player and sound:
-    run_command(player + " " + sound)
-
-# ----- Callbacks -----
-
-def audio_begin(*args):
-  global is_muted
-  print("audio_begin:",args,file=sys.stderr)
-  if not is_muted:
-    audio_start()
-
-def audio_update(*args):
-  global is_muted, is_playing
-  print("audio_update:",args,file=sys.stderr)
-  if not is_muted and not is_playing:
-    audio_start()
-
-def audio_end(*args):
-  global is_muted
-  print("audio_end:",args,file=sys.stderr)
-  if not is_muted:
-    audio_stop()
-    
-def mute(*args):
-  global is_muted, is_playing
-  print("mute:",args,file=sys.stderr)
-  is_muted = True
-  if is_playing:
-    audio_stop()
-
-def unmute(*args):
-  global is_muted
-  print("unmute:",args,file=sys.stderr)
-  is_muted = False
-
-# list of valid commands
-valid_commands = {
-  'audio_begin' : audio_begin,
-  'audio_update' : audio_update,
-  'audio_end' : audio_end,
-  'mute' : mute,
-  'unmute' : unmute
-}
-
-def read_config(cfg):
+def read_config(audio_play):
+  """read configuration file"""
   cfg_file = os.path.join(os.path.dirname(sys.argv[0]),'pifon_mon.cfg')
-  parser = configparser.SafeConfigParser()
+  parser = ConfigParser.SafeConfigParser()
   parser.read([cfg_file])
+  # submit audio options
   if parser.has_section('audio'):
     for i in parser.items('audio'):
-      cfg['audio'][i[0]] = i[1]
-
-def handle_command(args):
-  cmd = args[0]
-  if cmd in valid_commands:
-    func = valid_commands[cmd]
-    if len(args)>1:
-      args = args[1:]
-    else:
-      args = ()
-    func(*args)
-  else:
-    print("invalid command:",cmd,file=sys.stderr)
+      audio_play.set_option(i[0],i[1])
 
 # ---------- main ----------
 
 def main():
-  read_config(cfg)
-  audio_init()
-  print("pifon_mon started",file=sys.stderr)
+  # setup bot
+  opts = pifon_opts.audio_opts
+  desc = pifon_opts.audio_desc
+  bio = botio.BotIO('mon')  
+  bopts = botopts.BotOpts(bio,'audio',opts,False)
+  
+  ap = audioplay.AudioPlay()
+  w = writer.Writer(bio)
+  s = state.State(w)
+  p = parser.Parser(s)
+  ui = lcdui.LCDUI()
+  ctrl = control.Control(ui,s,opts,desc)
+  s.set_control(ctrl)
+  s.set_player(ap)
+  
+  # update state with incoming options
+  def update_state(key, value):
+    s.set_audio_option(key, value, True)
+  bopts.set_notifier(update_state)
+  
+  # read configs and setup audio
+  read_config(ap)
+  ap.setup()
+  
+  # setup state
+  s.setup()
+  
+  print("pifon_mon: started",file=sys.stderr)
+  # main loop
+  timeout = 0.1
+  exit_flag = None
   try:
     while True:
-      (r,w,x) = select.select([sys.stdin],[],[], 1.0)
-      if sys.stdin in r:
-        l = sys.stdin.readline()
-        line = l.strip()
-        args = line.split(' ')
-        if len(args) > 0:
-          cmd = args[0]
-          # strip address in local mode
-          if cmd == 'mon:':
-            if len(args) > 1:
-              handle_command(args[1:])
-          else:
-            handle_command(args)
+      # read args from stdin with timeout
+      args = bio.read_args(timeout)
+      if args != None:
+        if not bopts.parse_command(args):
+          p.dispatch(args)
+      # handle control events
+      exit_flag = ctrl.handle_events()
+      if exit_flag != None:
+        break
+      s.handle()
   except KeyboardInterrupt:
-    print("shutting down")
+    print("\npifon_mon: break -> shutting down",file=sys.stderr)
+  except Exception as e:
+    ui.show_message("FATAL CRASH!")
+    ui.update_background(ui.BACK_RED)
+    exit_flag = True
+  
+  if exit_flag == None:
+    ctrl.shutdown()
+  print("--- pifon_mon done ---",file=sys.stderr)
+  sys.exit(0)
   
 if __name__ == '__main__':
   main()

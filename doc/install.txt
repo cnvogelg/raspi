@@ -55,8 +55,14 @@ install.txt
 ** System Config
 
 - /boot/config.txt
+
+  # 720p HDMI ready monitor
   hdmi_group=1
-  hdmi_mode=19  # 720p for my monitor
+  hdmi_mode=19
+
+  # 800x600
+  hdmi_group=2
+  hdmi_mode=9    # @60Hz
 
 ** Hostname
   
@@ -128,7 +134,7 @@ install.txt
 ** Add user "chris"
 
   # adduser --uid 501 chris
-  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,netdev,i2c,input chris
+  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,netdev,input chris
   
   - link autofs shares for user chris (see below)
   > cd $HOME
@@ -147,20 +153,66 @@ install.txt
   # vi /etc/motd
   --> hostname <--
 
+----- Stripped Down Server Install -----
+
+  # aptitude
+  <u>  update sources
+  
+  
+
 ----- Add Ons -----
 
-** Make a script autorun on every boot with user "chris"
+** real vim
 
-  - edit /etc/inittab
-    2:23:respawn:/bin/login -f chris tty2 </dev/tty2 >/dev/tty2 2>&1
+  # apt-get install vim-nox
 
-  - in $HOME/.bashrc add:
-    if [ $(tty) == /dev/tty2 ]; then
-	  echo "AUTO-RUN"
-	  ./my_script
-	  sleep 5
-	  exit 0
-	fi
+** enable I2C for users
+
+  - in /etc/modprobe.d/raspi-blacklist.conf: comment out # i2c entry
+  - in /etc/modules add:
+
+    i2c-dev
+
+  - create /etc/udev/rules.d/10-local_i2c_group.rules
+  
+    KERNEL=="i2c-[0-9]*", GROUP="i2c"
+
+  # apt-get install i2c-tools python-smbus
+  # usermod -a -G i2c chris
+  # i2c-detect -y 0 
+
+** tmux setup (window title)
+
+  - create $HOME/.tmuxconf:
+
+set-option -g set-titles on
+set-option -g set-titles-string "#T"
+
+unbind C-b
+
+set -g prefix C-a
+bind-key a send-prefix
+
+set -g history-limit 10000
+
+  - in $HOME/.bashrc modify and at 'screen' terminal:
+
+...
+case "$TERM" in
+xterm*|rxvt*|screen)
+...
+
+** auto-start tmux session on remote ssh
+
+  in $HOME/.bashrc:
+
+if [ "$PS1" != "" -a "${STARTED_TMUX:-x}" = x -a "${SSH_TTY:-x}" != x ]
+then
+        STARTED_TMUX=1; export STARTED_TMUX
+        sleep 1
+        ( (tmux has-session -t remote && tmux attach-session -t remote) || (tmux new-session -s remote) ) && exit 0
+        echo "tmux failed to start"
+fi
 	
 ** Use Green LED for own stuff
 
@@ -170,3 +222,10 @@ install.txt
   - toggle LED
     # echo 1 >/sys/class/leds/led0/brightness
     # echo 0 >/sys/class/leds/led0/brightness
+
+----- HowTo -----
+
+** size of installed packages
+
+  # dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n
+
