@@ -107,14 +107,18 @@ install.txt
   
 - reboot  
 
+** mDNS
+
+  # apt-get install avahi-daemon
+
 ** NSF/Autofs 
 
   # apt-get install autofs
   
   - edit /etc/auto.master, add:
-  /net	/etc/auto.net
+  /net	/etc/auto.nfs
   
-  - create /etc/auto.net
+  - create /etc/auto.nfs
   nfs-share   -soft,intr,vers=3       ion:/disc/storage4/nfs-share
   
   - int /etc/default/nfs-commons:
@@ -164,7 +168,7 @@ install.txt
 
 ** real vim
 
-  # apt-get install vim-nox
+  # apt-get install vim-nox | vim
 
 ** enable I2C for users
 
