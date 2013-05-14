@@ -293,7 +293,7 @@ pifon.txt - installation guide for your pifon setup
     * as root edit /etc/rc.local and add:
     
       ----- schnipp -----
-      su -l chris -c '/home/chris/raspi/pifon/srv/rc.pifon start'
+      su -l chris -c '/home/chris/raspi/pifon/fon/rc.pifon_fon start'
       ----- schnipp -----
       
       where 'chris' is my user/home
@@ -325,7 +325,7 @@ pifon.txt - installation guide for your pifon setup
     * as root edit /etc/rc.local and add
     
       ----- schnipp -----
-      su -l chris -c '/home/chris/raspi/pifon/mon/rc.pifon start'
+      su -l chris -c '/home/chris/raspi/pifon/mon/rc.pifon_mon start'
       ----- schnipp -----
       
       where 'chris' is my user/home
