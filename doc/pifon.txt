@@ -356,6 +356,11 @@ pifon.txt - installation guide for your pifon setup
       ----- schnipp -----
       
       where 'chris' is my user/home
+   
+    * on pifon SERVER add prosody user 'client' with password 'client>
+    
+      pifon_srv# prosodyctl adduser client@pifon.local
+      password: client
   
   * Test:
     * reboot and test
