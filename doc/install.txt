@@ -4,7 +4,7 @@ install.txt
 1. basic raspberrypi board install
 
 - download raspbian image from raspberry.org
-   (current: 2012-09-18-wheezy-raspbian.zip)
+   (current: 2013-07-26-wheezy-raspbian.zip)
 
 - unzip
 - attach fresh SD card
@@ -13,72 +13,75 @@ install.txt
 - find out _correct_ /dev/rdisk<n> device for SD Card
   > diskutil list
 - write image to SD card
-  > sudo dd if=2012-09-18-wheezy-raspbian.img of=/dev/rdisk1 bs=2m
+  > sudo dd if=2013-07-26-wheezy-raspbian.img of=/dev/rdisk1 bs=2m
   
 - wire raspi with power, monitor, keyboard, mouse
 - attach SD card and power on, boot
 
+
 2. setup in "raspi-config" tool
 
-- "expand fs"
-- "disable overscan"
-- "setup keyboard"
-  -> 105 intl keyboard -> more -> german -> eliminate dead keys
-  -> default key set -> keep 
-- "locale" -> de.UTF-8  (disable en_GB*) -> default locale: de.UTF-8
-- "change timezone" -> Europe -> Berlin
-- "memory split": GPU -> non-gfx: 16
-- (optional) "overclock": Turbo 1000 MHz  (seems to work only on 512 KiB models)
-- "enable ssh"
-- "boot behaviour" - no desktop at startup
-- "update"
+- "1 expand fs"
+- "3 boot behaviour" - no desktop at startup
+- "4 I18n Options"
+  - "locale" -> de.UTF-8  (disable en_GB*) -> default locale: de.UTF-8
+  - "change timezone" -> Europe -> Berlin
+  - "setup keyboard"
+    -> 105 intl keyboard -> more -> german -> eliminate dead keys
+    -> default key set -> keep 
+- (optional) "7 overclock": Turbo 1000 MHz  (seems to work only on 512 KiB models)
+- "8 Advanced Options"
+  - "disable overscan"
+  - "hostname"
+  - "memory split": GPU -> non-gfx: 16
+  - "enable ssh"
+  - "update"
 
-  # reboot   (perform sd card resize)
+# reboot   (perform sd card resize)
+
 
 3. custom setup
 
   (I usually perform these steps already in a ssh sesson - cut & paste from here :)
   host> ssh pi@<your_raspi_ip>
 
-- full update
-  > sudo -s
-  # apt-get update
-  # apt-get dist-upgrade
+  - full update (system/debian updates)
 
-** rpi-update
+    > sudo -s
+    # apt-get update
+    # apt-get dist-upgrade
 
-- install (see https://github.com/Hexxeh/rpi-update/)
-  # apt-get install git-core
-  # wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && sudo chmod +x /usr/bin/rpi-update
-  # rpi-update
+** rpi-update (kernel & firmware updates)
+
+  - install (see https://github.com/Hexxeh/rpi-update/)
+    
+    # apt-get install git-core
+    # wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && sudo chmod +x /usr/bin/rpi-update
+    # rpi-update
 
 ** System Config
 
-- /boot/config.txt
+  - edit /boot/config.txt:
 
-  # 720p HDMI ready monitor
-  hdmi_group=1
-  hdmi_mode=19
+    # 720p HDMI ready monitor
+    hdmi_group=1
+    hdmi_mode=19
 
-  # 800x600
-  hdmi_group=2
-  hdmi_mode=9    # @60Hz
-
-** Hostname
-  
-- set own host name
-  -> edit /etc/hostname and set "yourhost"
-  -> /etc/hosts add "yourhost" as 127.0.0.1
+    # 800x600
+    hdmi_group=2
+    hdmi_mode=9    # @60Hz
 
 ** Ethernet
 
-  > ifconfig | grep eth0 -> hw address 
+  > ifconfig | grep eth0 -> hw address
+   
   - set host name for Fritz!Box DHCP server
     -> edit /etc/dhcp/dhclient.conf
+    
        interface "eth0" {
-	 	 send host-name = "yourhost-eth";
-		 send dhcp-client-identifier <mac:add>;
-	   }
+         send host-name = "yourhost-eth";
+         send dhcp-client-identifier <mac:add>;
+       }
      
   (you need the interface block only if you have additional wlan)
 
@@ -111,7 +114,7 @@ install.txt
 
   # apt-get install avahi-daemon
 
-** NSF/Autofs 
+** NSF/Autofs (for my public share)
 
   # apt-get install autofs
   
@@ -124,9 +127,8 @@ install.txt
   - int /etc/default/nfs-commons:
   NEED_STATD=yes
   
-  # /etc/init.d/autofs restart
+  - I needed to fix NFS first
   
-  - Note: on one Pi I needed:
   # update-rc.d rpcbind enable
   # update-rc.d nfs-common enable
   # update-rc.d rpcbind defaults
@@ -134,6 +136,10 @@ install.txt
   
   # /etc/init.d/rpcbind restart
   # /etc/init.d/nfs-common restart
+
+  - now start autofs
+
+  # /etc/init.d/autofs restart  
   
 ** Add user "chris"
 
@@ -160,6 +166,9 @@ install.txt
 ----- Stripped Down Server Install -----
 
   # aptitude
+  
+  - deselect packages
+  
   <u>  update sources
   
   
@@ -185,7 +194,9 @@ install.txt
   # usermod -a -G i2c chris
   # i2c-detect -y 0 
 
-** tmux setup (window title)
+** tmux setup (window title, use ctrl-b)
+
+  # apt-get install tmux
 
   - create $HOME/.tmuxconf:
 
@@ -199,7 +210,7 @@ bind-key a send-prefix
 
 set -g history-limit 10000
 
-  - in $HOME/.bashrc modify and at 'screen' terminal:
+  - color prompt in tmux: in $HOME/.bashrc modify and at 'screen' terminal:
 
 ...
 case "$TERM" in

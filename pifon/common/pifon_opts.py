@@ -3,8 +3,8 @@
 # audio options
 audio_opts = {
   'trace' : False,
-  'alevel' : 10,
-  'slevel' : 5,
+  'alevel' : 1,
+  'slevel' : 1,
   'attack' : 0,
   'sustain' : 5,
   'respite' : 10,

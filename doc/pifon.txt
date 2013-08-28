@@ -47,8 +47,16 @@ pifon.txt - installation guide for your pifon setup
       Sub-Geräte: 1/1
       Sub-Gerät #0: subdevice #0
   
-  - Adjust the recording level on the command line
-  pifon> amixer -c 1 sset 'Mic' <value>
+  - Adjust the recording level (I use 100)
+
+    - interactive
+    pifon> alsamixer -c 1
+      - press F4 to select record section
+      - alter value with cursor up/down
+      - save with ESCAPE
+    
+    - manual  
+    pifon> amixer -c 1 sset 'Mic' <value>
 
 3.1. Install Audio Streaming Server
    
@@ -81,7 +89,7 @@ pifon.txt - installation guide for your pifon setup
          dh_auto_configure -- --prefix=/usr --sysconfdir=/usr/share/doc/darkice/examples --with-vorbis-prefix=/usr/lib/arm-linux-gnueabihf/ --with-jack-prefix=/usr/lib/arm-linux-gnueabihf/ --with-alsa-prefix=/usr/lib/arm-linux-gnueabihf/ --with-faac-prefix=/usr/lib/arm-linux-gnueabihf/ --with-aacplus-prefix=/usr/lib/arm-linux-gnueabihf/ --with-samplerate-prefix=/usr/lib/arm-linux-gnueabihf/ --with-lame-prefix=/usr/lib/arm-linux-gnueabihf/ CFLAGS='-march=armv6 -mfpu=vfp -mfloat-abi=hard'
      ---- schnipp ----
      
-     > $ debchange -v 1.0-999~mp3+1
+     > debchange -v 1.0-999~mp3+1
      
      ---- schnipp ----
      darkice (1.0-999~mp3+1) UNRELEASED; urgency=low
@@ -92,6 +100,7 @@ pifon.txt - installation guide for your pifon setup
      ---- schnipp ----
      
      > dpkg-buildpackage -rfakeroot -uc -b
+     > cd ..
      # dpkg -i ../darkice_1.0-999~mp3+1_armhf.deb
   
    * Setup ALSA config
@@ -139,7 +148,7 @@ pifon.txt - installation guide for your pifon setup
      quality         = 0.6
      server          = localhost
      port            = 8000
-     password        = secert
+     password        = hackme
      mountPoint      = pifon
      name            = baby@pifon
      description     = The live stream from baby's room
@@ -152,8 +161,13 @@ pifon.txt - installation guide for your pifon setup
    * Install Icecast2
    
       # apt-get install icecast2
+
+      Config? -> No
   
    * Configure Icecast2
+   
+      # vi /etc/default/icecast2
+      ENABLE=true
    
       # vi /etc/icecast2/icecast.xml
       
@@ -161,7 +175,11 @@ pifon.txt - installation guide for your pifon setup
       <burst-on-connect>0</burst-on-connect>
       <!-- <burst-size>65535</burst-size> -->
       ----- schnipp -----
-      
+  
+   * Run Icecast2
+   
+      # /etc/init.d/icecast2 start
+  
    * Run DarkIce
    
       > sudo darkice
@@ -175,14 +193,14 @@ pifon.txt - installation guide for your pifon setup
 
 3.2 Audio Receiver
 
+   * If you use the analog output on your Raspi then make sure to enable it:
+     > amixer cset numid=3 1
+
    * Make sure your audio device is set up correctly
-     - check levels
+     - check levels (I use 85)
        > alsamixer
      - play some sounds:
        > aplay /usr/share/sounds/alsa/*
-
-   * If you use the analog output on your Raspi then make sure to enable it:
-     > amixer cset numid=3 1
 
    * Install MPD music player daemon
      # apt-get install mpd mpc (ncmpcpp = curses player)
@@ -225,21 +243,27 @@ pifon.txt - installation guide for your pifon setup
   * Setup your host Mac client to join the new server
     -> I use Adium http://adium.im
     - add a new XMPP user account <user>@pifon.local with own <pass>
-      and register at server
+      and register at server pifon.local
     - In the new account tab select "Show Services..."
       -> double click on the "muc" service
        -> select room "pifon"
         -> a new chat called 'pifon@muc.pifon.local' is opened
+        -> keep chat open to watch pifon traffic
 
 4.3 Raspi Client
 
-  * Download sleekxmpp 1.0 library
+  * Download sleekxmpp 1.0 library (NOT 1.1.x) and install in Python3
     -> http://sleekxmpp.com/index.html
-
-  * Install in Python3
-    # sudo python3 setup.py install
+    > cd src
+    > sudo -s
+    # wget http://github.com/fritzy/SleekXMPP/zipball/1.0
+    # mv 1.0 install.zip
+    # unzip install.zip
+    # cd fritzy-SleekXMPP-79f1aa0
+    # python3 setup.py install
     
   * Test with example "muc.py"
+    > cd examples
     > python3 muc.py -j audio@pifon.local -p audio -r pifon@muc.pifon.local -n audio
     --> a new user "audio" should appear in your Adium
     --> talk to audio by mentioning "audio" ;)
@@ -275,8 +299,8 @@ pifon.txt - installation guide for your pifon setup
     * USB Web cam with audio
 
   * Installed software: 
-    * tmux, git
-      # apt-get install tmux git-core
+    * tmux, git, sox
+      # apt-get install tmux git-core sox
     * python3.2 with sleekxmpp 1.0 (see section 4.3)
     
   * Prerequisites:
@@ -290,7 +314,7 @@ pifon.txt - installation guide for your pifon setup
       > cd ~
       > git clone git://github.com/cnvogelg/raspi.git
 
-    * as root edit /etc/rc.local and add:
+    * as root edit /etc/rc.local and add before "exit 0":
     
       ----- schnipp -----
       su -l chris -c '/home/chris/raspi/pifon/fon/rc.pifon_fon start'
@@ -304,6 +328,9 @@ pifon.txt - installation guide for your pifon setup
       > tmux list-sessions
       > tmux attach -t audio
       leave the tmux session with Ctrl+B and d
+    * you can exit the audio server by pressing Ctrl+C while being attached
+    * in your shell you can start it again with:
+      > $HOME/raspi/pifon/fon/rc.pifon_fon start
   
 6.2 Install pifon mon
 
