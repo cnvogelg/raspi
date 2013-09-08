@@ -2,6 +2,7 @@ from __future__ import print_function
 import time
 import menu
 import sys
+import time
 
 class Control:
   """control the monitor from a ui"""
@@ -55,7 +56,12 @@ class Control:
   # ----- update state calls -----
   
   def _print_title(self):
-    txt = "pifon "
+    # get time and display clock
+    tim = time.time()
+    t = time.localtime(tim)
+    hour = t[3]
+    mins = t[4]  
+    txt = "%02d:%02d " % (hour, mins)
     # ping state
     if self.ping_state == None:
       txt += " "
