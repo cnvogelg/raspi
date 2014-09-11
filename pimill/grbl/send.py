@@ -2,6 +2,18 @@ import time
 
 import host
 
+class GrblSendError(host.GrblBaseError):
+    def __init__(self, msg, event=None):
+        self.msg = msg
+        self.event = event
+
+    def __str__(self):
+        if self.event is None:
+            return "GrblSendError: " + self.msg
+        else:
+            return "GrblSendError: " + self.msg + " event: " + self.event
+
+
 class GrblSend:
     """send multi lines of GCode to Grbl.
 
@@ -9,140 +21,179 @@ class GrblSend:
         regular state updates
     """
 
-    def __init__(self, host, 
-                 update=0.3, max_cmd=60, poll=0.1,
-                 start_reset=True, end_wait=True):
+    def __init__(self, host, line_source,
+                 state_callee=None,
+                 update=0.3, max_cmd=0, poll=0.1,
+                 start_reset=True, end_wait=True, check_mode=False):
         """setup sender by associating a GrblHost instance
 
             host -- grbl host
+            source -- iterable object that provides gcode lines
+
+            state_callee -- callable to get state updates (ts, state)
 
             update -- update interval for state infos (s)
-            max_cmd -- max time to wait for command reply
+            max_cmd -- max time to wait for command reply (0=off)
             poll -- internal interval to poll for incoming event data
 
             start_reset -- send a soft_reset before each send operation
             end_wait -- wait for idle at end of transfer
+            check_mode -- enable check mode before sending
         """
         self.host = host
+        self.line_source = line_source
+        self.state_callee = state_callee
+
         self.update = update
         self.max_cmd = max_cmd
         self.poll = poll
 
         self.start_reset = start_reset
         self.end_wait = end_wait
+        self.check_mode = check_mode
 
+    def __iter__(self):
+        """return the iterator for this send operation"""
+        return GrblSendIter(self)
+
+    def send(self):
+        """convenience function to call the iter"""
+        for wait in self:
+            time.sleep(wait)
+
+
+class GrblSendIter:
+    def __init__(self, send):
+        self.send = send
+        self.host = send.host
+        self.state_callee = send.state_callee
+        self.line_iter = send.line_source.__iter__()
         self.line_no = 0
-        self.total_time = 0
+        self.last_update_time = 0
+        self.start_run = time.time()
+        self.start_cmd = 0
+        self.need_line = True
+        self.got_all_lines = False
+        self._setup()
 
-    def send(self, source, state_update=None, check_mode=False):
-        """send all string lines returned by source's iterator
-           report status in regular intervals to call'able state_update:
+    def get_lines(self):
+        return self.line_no
 
-            state_update(run_time, grbl_state)
-
-           return last received event or None if command timed out
-           if event is not ID_OK then send was aborted
-        """
-        # nothing to send
-        if source is None:
-            raise RuntimeError("no source given")
-        src_iter = source.__iter__()
-        if src_iter is None:
-            raise RuntimeError("no iterator in source")
-
-        # first reset Grbl
-        if self.start_reset:
+    def _setup(self):
+        # begin with reset
+        if self.send.start_reset:
             self.host.soft_reset()
-
-        # enable check mode
-        if check_mode:
+        # check mode?
+        if self.send.check_mode:
             self.host.toggle_check_mode()
 
-        run_start = time.time()
-        last_time = run_start
-        last_event = None
-        ok = True
+    def _teardown(self):
+        # update total time
+        now = time.time()
+        self.total_time = now - self.start_run
+        # get final status
+        if self.state_callee != None:
+            s = self.host.get_state()
+            self.state_callee(self.total_time, s)
+        # disbale check mode?
+        if self.send.check_mode:
+            self.host.toggle_check_mode()
+
+    def _get_next_line(self):
+        """return the next line of the source iterator or None"""
+        if self.got_all_lines:
+            return None
         try:
-            while True:
-                # main loop of sender
-                line = src_iter.next()
-                # send line to host
-                self.host.send_line(line)
-                self.line_no += 1
-                cmd_start_time = time.time()
-
-                # now loop until result is here or we have to update status
-                while True:
-                    # try to grab an event
-                    while True:
-                        # check for state update?
-                        now = time.time()
-                        delta = now - last_time
-                        if delta >= self.update:
-                            # send a state request
-                            last_time = now
-                            self.host.request_state()                            
-
-                        # check total command time
-                        delta = now - cmd_start_time
-                        if delta >= self.max_cmd:
-                            last_event = None
-                            ok = False
-                            raise StopIteration()
-
-                        # got an event?
-                        if self.host.has_event():
-                            break
-
-                        # do a poll sleep
-                        time.sleep(self.poll)
-
-                    # event is ready -> read it
-                    e = self.host.get_event()
-                    last_event = e
-                    if e.id == host.ID_OK:
-                        # ready for next command
-                        break
-                    elif e.id in (host.ID_ERROR, host.ID_ALARM):
-                        # abort send
-                        ok = False
-                        raise StopIteration()
-                    elif e.id == ID_STATE:
-                        # an incoming state update
-                        if state_update != None:
-                            state_update(last_time - run_start, e.data)
-
+            return self.line_iter.next()
         except StopIteration:
-            # end wait
-            if self.end_wait and ok:
-                while True:
-                    # get update
-                    s = self.host.get_state()
-                    if s.id == host.STATE_IDLE:
-                        break
+            self.got_all_lines = True
+            return None
 
-                    # check for state update
-                    if state_update != None:
-                        now = time.time()
-                        delta = now - last_time
-                        if delta >= self.update:
-                            state_update(last_time - run_start, s)
-                            last_time = now
+    def _process_line(self):
+        line = self._get_next_line()
+        if line is not None:
+            self.need_line = False
+            self.host.send_line(line)
+            self.line_no += 1
+            self.start_cmd = time.time()
 
-                    # poll sleep
-                    time.sleep(self.poll)
+    def next(self):
+        """main iterator entrance point. 
 
-            # update total time
-            now = time.time()
-            self.total_time = now - run_start
+           returns the minimum amount of time before you should
+           call this method again.
 
-            # get final status
-            if state_update != None:
-                s = self.host.get_state()
-                state_update(self.total_time, s)
+           you can call this method later or earlier, but if you 
+           call it too late then you might get state calls later
+        """
+        now = time.time()
 
-            # disable check mode
-            if check_mode:
-                self.host.toggle_check_mode()
+        # do we need to send a new line?
+        if self.need_line and not self.got_all_lines:
+            self._process_line()
 
-            return last_event
+        # all lines were sent - wait for finish
+        if self.got_all_lines:
+            # poll state
+            state = self.host.get_state()
+            if state.id == host.STATE_IDLE:
+                # idle again -> tear down and end iteration
+                self._teardown()
+                raise StopIteration()
+
+            # check for state update
+            if self.state_callee is not None:
+                delta = now - self.last_update_time
+                if delta >= self.send.update:
+                    self.state_callee(now - self.start_run, state)
+                    self.last_update_time = now
+
+            # calc poll time
+            return self._calc_poll_time(now)
+
+        # still sending lines...
+        # do we need a state update?
+        if self.state_callee is not None:
+            delta = now - self.last_update_time
+            if delta >= self.send.update:
+                # send a state request
+                self.host.request_state()
+                self.last_update_time = now
+
+        # a command time out?
+        mc = self.send.max_cmd
+        if mc > 0:
+            delta = now - self.start_cmd
+            if delta >= mc:
+                self._teardown()
+                raise GrblSendError("Command time out")
+
+        # is an event waiting?
+        if self.host.has_event():
+            # event is ready -> read it
+            ev = self.host.get_event()
+            if ev.id == host.ID_OK:
+                # ready for next line
+                self._process_line()
+            elif ev.id in (host.ID_ERROR, host.ID_ALARM):
+                # abort send
+                self._teardown()
+                raise GrblSendError("Command failed", ev)
+            elif ev.id == host.ID_STATE:
+                # an incoming state update
+                if self.state_callee != None:
+                    delta = now - self.start_run
+                    self.state_callee(delta, ev.data)
+
+        # calc sleep time
+        return self._calc_poll_time(time.time())
+
+    def _calc_poll_time(self, now):
+        """use either poll time or time to next status update for sleep"""
+        poll_time = self.send.poll
+        if self.state_callee is None:
+            return poll_time
+        next_update = self.last_update_time + self.send.update
+        delta_update = max(next_update - now, 0)
+        return min(poll_time, delta_update)
+

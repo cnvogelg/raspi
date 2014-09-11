@@ -36,25 +36,41 @@ class GrblSendTests(unittest.TestCase):
     def setUp(self):
         self.host = host.GrblHost(ser_port, ser_baud)
         self.host.open()
-        self.send = send.GrblSend(self.host)
 
     def tearDown(self):
         self.host.close()
 
     def testSendSingleLine(self):
         u = KeepLastUpdater()
-        self.send.send(('G0 X1',), u)
+        lines = ('G0 X1',)
+        s = send.GrblSend(self.host, lines, u)
+        i = s.__iter__()
+        try:
+            while True:
+                delta = i.next()
+                time.sleep(delta)
+        except StopIteration:
+            pass
+        self.assertEquals(1, i.get_lines())
         self.assertIsNotNone(u.last)
         self.assertEquals((1.0, 0.0, 0.0), u.last.mpos)
 
-    def testMultiLines(self):
+    def testSendMultiLines(self):
         lines = (
             'G0 X1',
             'G0 Y2',
             'G0 Z3'
         )
         u = KeepAllUpdater()
-        self.send.send(lines, u)
+        s = send.GrblSend(self.host, lines, u)
+        i = s.__iter__()
+        try:
+            while True:
+                delta = i.next()
+                time.sleep(delta)
+        except StopIteration:
+            pass
+        self.assertEquals(3, i.get_lines())
         self.assertEquals((1.0, 2.0, 3.0), u.get_last()[1].mpos)
 
 if __name__ == '__main__':
