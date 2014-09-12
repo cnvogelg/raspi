@@ -117,6 +117,14 @@ class GrblHostTests(unittest.TestCase):
         self.assertEquals((1.0, 2.0, 3.0), s.wpos)
         self.assertEquals((1.0, 2.0, 3.0), s.mpos)
 
+    def testSendLineWait(self):
+        gcode = "G91"
+        self.host.send_line_wait(gcode)
+        gcode = "G90"
+        self.host.send_line_wait(gcode)
+        with self.assertRaises(host.GrblEventError):
+            self.host.send_line_wait("BLA")
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

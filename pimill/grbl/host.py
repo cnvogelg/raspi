@@ -233,10 +233,10 @@ class GrblHost:
         self.ser.write(line + "\r")
 
     def send_kill_alarm(self):
-        self.ser.write("$X\r\n")
+        self.ser.write("$X\r")
 
     def send_start_homing(self):
-        self.ser.write("$H\r\n")
+        self.ser.write("$H\r")
 
     # ---- real time commands ----
 
@@ -282,15 +282,33 @@ class GrblHost:
         while time.time() <= end:
             s = self.get_state()
             if s.id == state_id:
-                return True
-        return False
+                return
+            time.sleep(interval)
+        raise GrblHostError("Timeout")
 
-    def send_line_result(self, line):
-        """send a line and return the result
+    def wait_for_result(self, timeout=10, interval=0.1):
+        """wait for a command's result. either ok, error, or alarm
+
+            ok will return, error or alarm trigger GrblEventError
+        """
+        end = time.time() + timeout
+        while time.time() <= end:
+            ev = self.get_event()
+            if ev.id == ID_OK:
+                return
+            elif ev.id in (ID_ERROR, ID_ALARM):
+                raise GrblEventError(ev)
+            time.sleep(interval)
+        raise GrblHostError("Timeout")
+
+    def send_line_wait(self, line, timeout=10, interval=0.1):
+        """send a line and wait for ok result
 
             note: it blocks until a result was returned.
             note: everything not a return state gives a GrblStateError or GrblEventError
         """
+        self.send_line(line)
+        self.wait_for_result(timeout, interval)
 
     # ---- grbl events ----
 
