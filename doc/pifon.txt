@@ -271,9 +271,16 @@ pifon.txt - installation guide for your pifon setup
 
 5. I2C Setup for LCD Plate on mon
 
-  * in /etc/modprobe.d/raspi-blacklist.conf remove the i2c entry by commenting it out
+  * install i2c tools
+    # apt-get install i2c-tools
+
+  * [OBSOLETE] in /etc/modprobe.d/raspi-blacklist.conf remove the i2c entry by commenting it out
     #blacklist i2c-bcm2708
     
+  * [NEW] add in /boot/config.txt:
+        dtparam=i2c0=on
+    (i2c1 for newer models)
+  
   * create the file '/etc/udev/rules.d/10-local_i2c_group.rules':
     ----- schnipp -----
     KERNEL=="i2c-[0-9]*", GROUP="i2c"
@@ -287,9 +294,14 @@ pifon.txt - installation guide for your pifon setup
   
   * make sure your user is in group 'i2c':
   
-    # usermod -G -a i2c chris
-
+    # usermod -a -G i2c chris
+    
+  * test bus
   
+    > i2cdetect 0
+    (or 1 if bus 1)
+
+
 6. Install pifon
 
 6.1 Install pifon server
@@ -339,8 +351,8 @@ pifon.txt - installation guide for your pifon setup
      * Adafruit RGB LCD Plate for Raspi [1]
      
    * Installed software:
-     * tmux, git   
-      # apt-get install tmux git-core
+     * tmux, python-smbus
+          # apt-get install tmux python-smbus
     * python3.2 with sleekxmpp 1.0 (see section 4.3)
     * python2.7 with sleekxmpp 1.0 (see section 4.3)
 

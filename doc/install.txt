@@ -51,7 +51,7 @@ install.txt
     # apt-get update
     # apt-get dist-upgrade
 
-** rpi-update (kernel & firmware updates)
+** [OBSOLETE] rpi-update (kernel & firmware updates)
 
   - install (see https://github.com/Hexxeh/rpi-update/)
     
@@ -71,7 +71,7 @@ install.txt
     hdmi_group=2
     hdmi_mode=9    # @60Hz
 
-** Ethernet
+** [OBSOLETE] Ethernet
 
   > ifconfig | grep eth0 -> hw address
    
@@ -105,7 +105,7 @@ install.txt
  	    send host-name = "yourhost";
 	    send dhcp-client-identifier <mac:addr:wlan>;
       }
-  # ifdownt wlan0
+  # ifdown wlan0
   # ifup wlan0
   
 - reboot  
@@ -119,25 +119,7 @@ install.txt
   # apt-get install autofs
   
   - edit /etc/auto.master, add:
-  /net	/etc/auto.nfs
-  
-  - create /etc/auto.nfs
-  nfs-share   -soft,intr,vers=3       ion:/disc/storage4/nfs-share
-  
-  - int /etc/default/nfs-commons:
-  NEED_STATD=yes
-  
-  - I needed to fix NFS first
-  
-  # update-rc.d rpcbind enable
-  # update-rc.d nfs-common enable
-  # update-rc.d rpcbind defaults
-  # update-rc.d nfs-common defaults
-  
-  # /etc/init.d/rpcbind restart
-  # /etc/init.d/nfs-common restart
-
-  - now start autofs
+  /net	-hosts
 
   # /etc/init.d/autofs restart  
   
@@ -163,7 +145,7 @@ install.txt
   # vi /etc/motd
   --> hostname <--
 
------ Stripped Down Server Install -----
+----- Strip Down Install -----
 
   # aptitude
   
@@ -174,6 +156,34 @@ install.txt
   
 
 ----- Add Ons -----
+
+--- Watterott Display "Rpi-Display" ---
+
+  - install notro's kernel
+
+    # REPO_URI=https://github.com/notro/rpi-firmware rpi-update
+    # reboot
+
+  - remove spi from blacklist in /etc/modprobe.d/raspi-blacklist.conf
+  
+  - install touch screen tools
+  
+    # apt-get install xinput
+
+  - 8 Bit Display (new RPi Display)
+
+    in /etc/modules add:
+        
+        fbtft dma
+        fbtft_device name=rpi-display speed=32000000 rotate=270
+	
+  - Touch Panel Driver
+  
+    in /etc/modules add (in one line):
+  
+        ads7846_device model=7846 cs=1 speed=2000000 gpio_pendown=25 \
+        pressure_max=255 x_plate_ohms=60
+
 
 ** real vim
 
