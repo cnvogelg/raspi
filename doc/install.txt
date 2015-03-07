@@ -209,6 +209,11 @@ install.txt
       xset s noblank # don't blank the video device
       exec $HOME/raspi/piradio/piradio.py # your app!
 
+  - create '/dev/input/touchscreen' for input device
+    create file /etc/udev/rules.d/29-ads7846.rules:
+
+    SUBSYSTEM=="input", KERNEL=="event[0-9]*", ATTRS{name}=="ADS7846 Touchscreen", SYMLINK+="input/touchscreen"
+
   - set fb1 as X11 buffer
 
       vi /usr/share/X11/xorg.conf.d/99-fbdev.conf:
