@@ -159,72 +159,68 @@ install.txt
 
 --- Watterott Display "Rpi-Display" ---
 
-  - install notro's kernel
+  - use mainline kernel and update
 
-    # REPO_URI=https://github.com/notro/rpi-firmware rpi-update
-    # reboot
+    # rpi-update
 
-  - remove spi from blacklist in /etc/modprobe.d/raspi-blacklist.conf
-  
+  - enable rpi-display overlay in /boot/config.txt:
+
+    dtoverlay=rpi-display
+
+  - reboot and display should work
+
+  - show boot terminal:
+    in /boot/cmdline.txt add:
+
+    logo.nologo fbcon=map:10 fbcon=font:VGA8x8
+
   - install touch screen tools
-  
+
     # apt-get install xinput
 
-  - 8 Bit Display (new RPi Display)
+  - calibrate touch:
 
-    in /etc/modules add:
-        
-        fbtft dma
-        fbtft_device name=rpi-display speed=32000000 rotate=270
-	
-  - Touch Panel Driver
-  
-    in /etc/modules add (in one line):
-  
-        ads7846_device model=7846 cs=1 speed=2000000 gpio_pendown=25 \
-        pressure_max=255 x_plate_ohms=60
-
-  - calibrate:
-  
+      > apt-get install autoconf automake libtool libx11-devi libxext-devl libxi-dev
       > git clone https://github.com/tias/xinput_calibrator.git
       > cd xinput_calibrator
       > ./autogen.sh
       > ./configure
       > make
       > sudo make install
-      
+
       > startx &
-      > /usr/local/bin/xinput_calibrator 
+      > DISPLAY=:0.0 /usr/local/bin/xinput_calibrator 
       > pkill x
-      
+
       copy output to file /usr/share/X11/xorg.conf.d/99-calib.conf:
-      
+
       Section "InputClass"
               Identifier      "calibration"
               MatchProduct    "ADS7846 Touchscreen"
               Option  "Calibration"   "210 3955 3775 260"
               Option  "SwapAxes"      "1"
       EndSection
-      
-  - edit $HOME/.xinitrc:
-  
+
+  - (opt) disable blanking
+    edit $HOME/.xinitrc:
+
       xset s off	# don't activate screensaver
       xset -dpms	# disable DPMS (Energy Star) features.
       xset s noblank # don't blank the video device
-      exec $HOME/raspi/piradio/piradio.py
+      exec $HOME/raspi/piradio/piradio.py # your app!
 
   - set fb1 as X11 buffer
-  
+
       vi /usr/share/X11/xorg.conf.d/99-fbdev.conf:
-      
+
       Section "Device"
         Identifier "bla"
         Driver "fbdev"
         Option "fbdev" "/dev/fb1"
       EndSection
-      
+
   - launch X11 in /etc/rc.local:
-  
+
       su -l chris -c startx &
 
 
