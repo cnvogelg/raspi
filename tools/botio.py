@@ -11,7 +11,7 @@ class BotIO:
   def __init__(self, nick):
     self.nick = nick
   
-  def read_line(self, timeout=0.1):
+  def read_line(self, timeout=0.1, broadcast=True):
     """return next line from bot or None if nothing was received"""
     (r,w,x) = select.select([sys.stdin],[],[], timeout)
     if sys.stdin in r:
@@ -26,13 +26,16 @@ class BotIO:
         else:
           return None
       else:
-        return line
+        if broadcast:
+          return line
+        else:
+          return None
     else:
       return None
   
-  def read_args(self, timeout=0.1):
+  def read_args(self, timeout=0.1, broadcast=True):
     """already split line into args"""
-    line = self.read_line(timeout)
+    line = self.read_line(timeout, broadcast)
     if line == None:
       return None
     else:
@@ -53,9 +56,9 @@ class BotIO:
 # ----- test -----
 if __name__ == '__main__':
   print("BotIO test: echo!",file=sys.stderr)
-  bio = BotIO('echo')
+  bio = BotIO('echo_test')
   while True:
-    args = bio.read_args(timeout=1)
+    args = bio.read_args(timeout=1,broadcast=False)
     if args != None:
       # do not recurse :)
       if args[0] != 'echo':

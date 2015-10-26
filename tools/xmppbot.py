@@ -124,6 +124,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
         for addr in addrs:
           # check addr
           if addr == self.nick:
+            body = self.nick + ': ' + body
             valid = True
           elif addr == self.nick_host:
             valid = True
