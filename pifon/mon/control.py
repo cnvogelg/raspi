@@ -9,7 +9,7 @@ class Control:
   update_rate = 250 # in ms
   blank_delay = 10 # s
   autohide_delay = 5000 # in ms
-  
+
   def __init__(self, ui, state, opts, desc):
     self.ui = ui
     self.state = state
@@ -36,7 +36,7 @@ class Control:
     self._print_state()
     self._print_title()
     self._print_value()
-  
+
   def _create_menu(self, opts, desc):
     result = []
     for key in opts:
@@ -48,19 +48,19 @@ class Control:
       elif t == bool:
         m = menu.BoolMenuItem(key, value)
       result.append(m)
-    return result  
-  
+    return result
+
   def shutdown(self):
     self.ui.shutdown()
-  
+
   # ----- update state calls -----
-  
+
   def _print_title(self):
     # get time and display clock
     tim = time.time()
     t = time.localtime(tim)
     hour = t[3]
-    mins = t[4]  
+    mins = t[4]
     txt = "%02d:%02d " % (hour, mins)
     # ping state
     if self.ping_state == None:
@@ -71,7 +71,7 @@ class Control:
       txt += "."
     self.ui.update_title(txt)
     self._update_back()
-      
+
   def _update_back(self):
     if self.is_blanking:
       back = self.ui.BACK_OFF
@@ -82,7 +82,7 @@ class Control:
       # white is default color
       else:
         back = self.ui.BACK_WHITE
-      
+
       # overwrite if state
       if self.is_connected:
         if self.is_audio_active:
@@ -96,19 +96,19 @@ class Control:
     if back != self.last_backlight:
       self.last_backlight = back
       self.ui.update_background(back)
-  
+
   def update_audio_ping(self, ping_state):
     """state of pinging the audio server: None=send ping, True=does ping, False=no ping"""
     self.ping_state = ping_state
     self._print_title()
-  
+
   def update_audio_state(self, audio_state, is_audio_active, is_connected):
     self.audio_state = audio_state
     self.is_audio_active = is_audio_active
     self.is_connected = is_connected
     self._print_state()
     self._update_blanking()
-    
+
   def update_mon_state(self, is_audio_muted, is_audio_listen, allow_chime, allow_blank):
     self.is_audio_muted = is_audio_muted
     self.is_audio_listen = is_audio_listen
@@ -116,11 +116,11 @@ class Control:
     self.allow_blank = allow_blank
     self._print_state()
     self._update_blanking()
-  
+
   def update_audio_play(self, is_audio_playing):
     self.is_audio_playing = is_audio_playing
     self._print_state()
-  
+
   def _print_state(self):
     if self.in_menu:
       return
@@ -146,7 +146,7 @@ class Control:
       txt += " "
     self.ui.update_message(txt)
     self._update_back()
-  
+
   def update_audio_level(self, max_level, cur_level):
     """audio level changed"""
     level = "%03d %03d" % (max_level, cur_level)
@@ -157,7 +157,7 @@ class Control:
       if delta > self.update_rate:
         self._print_value()
     self.last_level_ts = ts
-  
+
   def _autohide_levels(self):
     if self.last_level != "":
       ts = time.time()
@@ -166,22 +166,22 @@ class Control:
         self.last_level = ""
         self._print_value()
         self.last_level_ts = ts
-  
+
   def _print_value(self):
     self.ui.update_status(self.last_level)
-  
+
   def _leave_menu(self):
     self.in_menu = False
     self.menu.hide()
     self.ui.show_message("")
     self._print_state()
     self._update_blanking(True)
-    
+
   def _enter_menu(self):
     self.in_menu = True
     self.ui.hide_message()
     self.menu.show()
-    
+
   def handle_events(self):
     self._autohide_levels()
     exit_flag = None
@@ -190,16 +190,17 @@ class Control:
       item = self.menu.handle_next_event()
       if item == False:
         self._leave_menu()
-      elif item != None:
+      elif item is not None:
         self._handle_menu_item(item)
     # outside menu
     else:
       ev = self.ui.get_next_event()
-      if ev != None:
-        munged = self._update_blanking(ev != 0)
-        if not munged:
-          exit_flag = self._handle_direct_key(ev)
-      return exit_flag
+      if ev is None:
+        return True
+      munged = self._update_blanking(ev != 0)
+      if not munged:
+        exit_flag = self._handle_direct_key(ev)
+    return exit_flag
 
   def update_audio_option(self, key, value):
     """set an audio option from bot"""
@@ -211,11 +212,11 @@ class Control:
     # is currently shown?
     if self.in_menu and item == self.menu.get_current_item():
       self.menu.update_current_item()
-  
+
   def _handle_menu_item(self, item):
     """set an audio option from menu"""
     self.state.set_audio_option(item.name, item.get_value(), False)
-  
+
   def _handle_direct_key(self, ev):
     """some key outside of menu was pressed"""
     # check for restart combo
@@ -224,7 +225,7 @@ class Control:
       return True
     elif ok == False:
       return None
-    
+
     if ev & self.ui.EVENT_PICK:
       # enter menu
       self._enter_menu()
@@ -245,7 +246,7 @@ class Control:
       on = not self.allow_chime
       self.state.execute_audio_chime(on, False)
     return None
-    
+
   def _check_restart(self, ev):
     """key if restart key was pressed long enough"""
     restart_combo = self.ui.EVENT_DEC | self.ui.EVENT_INC
@@ -266,7 +267,7 @@ class Control:
       print("no restart",file=sys.stderr)
       self.restart_ts = None
     return None
-      
+
   def _update_blanking(self, any_key=None):
     """check if blanking state has changed"""
     new_blanking = self.is_blanking
@@ -274,28 +275,28 @@ class Control:
     # init ts on startup
     if self.last_button_ts == None:
       self.last_button_ts = time.time()
-    
+
     # a key press was reported
     if any_key == True:
       # disable any blanking
       new_blanking = False
       self.last_button_ts = None
-    
+
     # no key press was reported
     elif any_key == False:
       # wait
       delay = (time.time() - self.last_button_ts)
       if delay >= self.blank_delay:
         new_blanking = True
-    
+
     # allow blanking only in some states
     if self.audio_state not in ('idle','init','online'):
       new_blanking = False
-      
+
     # blanking not allowed by user
     if not self.allow_blank:
       new_blanking = False
-    
+
     # changed blanking?
     if new_blanking != self.is_blanking:
       print("blanking: ",self.is_blanking,file=sys.stderr)

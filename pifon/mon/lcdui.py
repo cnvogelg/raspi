@@ -2,18 +2,25 @@
 # using an LCD with the pifon
 #
 # I use an Adafruit LCD Plate for the Raspi here
-# http://learn.adafruit.com/adafruit-16x2-character-lcd-plus-keypad-for-raspberry-pi 
+# http://learn.adafruit.com/adafruit-16x2-character-lcd-plus-keypad-for-raspberry-pi
 #
 
 import time
-from contrib.Adafruit_CharLCDPlate import Adafruit_CharLCDPlate
+import os
+
+# use LCDsim or real one? is LCDSIM environment set?
+if 'LCDSIM' in os.environ:
+  from contrib.lcdsim import LCDSim as LCD
+else:
+  from contrib.Adafruit_CharLCDPlate import Adafruit_CharLCDPlate as LCD
+
 from ui import UI
 
 # user interface class
 class LCDUI(UI):
   def __init__(self):
     # setup display
-    self.lcd = Adafruit_CharLCDPlate()
+    self.lcd = LCD()
     self.lcd.begin(16, 2)
     self.lcd.clear()
     # init state
@@ -62,7 +69,7 @@ class LCDUI(UI):
       self.last_back = back
       mapped_back = self.map_back[back]
       self.lcd.backlight(mapped_back)
-      
+
   def show_menu(self, title):
     """start showing a menu"""
     # limit to 8 chars
@@ -71,10 +78,10 @@ class LCDUI(UI):
     self.last_value_len = 0
     self.lcd.setCursor(0,1)
     self.lcd.message(t)
-  
+
   def hide_menu(self):
     self.show_menu("")
-  
+
   def _update_value(self, value, last_len, size, pad_right=False):
     """update value and return (txt, pos, new_last_len)"""
     t = str(value)
@@ -84,7 +91,7 @@ class LCDUI(UI):
       t = t[:size]
       n = size
     # overwrite last value
-    if n < last_len: 
+    if n < last_len:
       d = last_len - n
       if pad_right:
         t = t + (" " * d)
@@ -92,7 +99,7 @@ class LCDUI(UI):
         t = (" " * d) + t
     pos = size - len(t)
     return (t, pos, n)
-  
+
   def update_menu_value(self, value):
     """update a value change in the menu"""
     (txt, pos, self.last_value_len) = self._update_value(value, self.last_value_len, 4)
@@ -109,25 +116,28 @@ class LCDUI(UI):
     (txt, pos, self.last_status_len) = self._update_value(status, self.last_status_len, 10)
     self.lcd.setCursor(pos + 6,0)
     self.lcd.message(txt)
-  
+
   def show_message(self, msg):
     """if no menu is shown then you can show a message"""
     self.last_msg_len = 16
     self.update_message(msg)
-  
+
   def update_message(self, msg):
     (txt, pos, self.last_msg_len) = self._update_value(msg, self.last_msg_len, 16, True)
     self.lcd.setCursor(0,1)
-    self.lcd.message(txt)    
-  
+    self.lcd.message(txt)
+
   def hide_message(self):
     """if a message is shown then hide it"""
     self.update_message("")
-  
+
   def get_next_event(self):
     """return the next button event or 0 if no event occurred"""
     # check for new press
     mask = self.lcd.buttonRead()
+    # special quit feature of sim
+    if mask is None:
+      return None
     changes = (self.last_mask ^ mask) & mask
     self.last_mask = mask
     # any button newly pressed
@@ -199,4 +209,4 @@ if __name__ == '__main__':
       val2 += 1
       ui.update_status(val2)
     time.sleep(0.1)
-  
+
