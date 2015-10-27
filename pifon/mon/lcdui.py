@@ -35,6 +35,7 @@ class LCDUI(UI):
     self.last_status_len = 0
     self.last_msg_len = 0
     self.last_back = self.BACK_OFF
+    self.in_menu = False
     for i in xrange(self.num_buttons):
       self.last_repeat.append([0])
       self.first_flag.append(True)
@@ -63,6 +64,8 @@ class LCDUI(UI):
     self.lcd.noDisplay()
     self.lcd.backlight(self.lcd.OFF)
 
+  # ----- menu handling -----
+
   def update_background(self, back):
     """update background"""
     if back != self.last_back:
@@ -78,9 +81,11 @@ class LCDUI(UI):
     self.last_value_len = 0
     self.lcd.setCursor(0,1)
     self.lcd.message(t)
+    self.in_menu = True
 
   def hide_menu(self):
     self.show_menu("")
+    self.in_menu = False
 
   def _update_value(self, value, last_len, size, pad_right=False):
     """update value and return (txt, pos, new_last_len)"""
@@ -106,30 +111,78 @@ class LCDUI(UI):
     self.lcd.setCursor(pos + 12,1)
     self.lcd.message(txt)
 
-  def update_title(self, title):
-    """update the title message"""
-    self.lcd.setCursor(0,0)
-    self.lcd.message(title)
+  # ----- main page ----
 
-  def update_status(self, status):
-    """update the status bar"""
-    (txt, pos, self.last_status_len) = self._update_value(status, self.last_status_len, 10)
-    self.lcd.setCursor(pos + 6,0)
+  def update_clock(self, hours, mins, secs):
+    """update clock value"""
+    txt = "%02d:%02d:%02d" % (hours, mins, secs)
+    self.lcd.setCursor(0,0)
+    self.lcd.message(txt)
+
+  def update_audio_ping(self, ping):
+    """update the title message"""
+    if self.in_menu:
+      return
+    self.lcd.setCursor(0,1)
+    if ping is None:
+      txt = "!"
+    elif ping:
+      txt = "."
+    else:
+      txt = " "
+    self.lcd.message(txt)
+
+  def update_audio_state(self, state, is_audio_active, is_connected):
+    if self.in_menu:
+      return
+    txt = (state + " " * 6)[:7]
+    self.lcd.setCursor(1,1)
+    self.lcd.message(txt)
+
+  def update_audio_play(self, is_audio_playing):
+    if self.in_menu:
+      return
+    if is_audio_playing:
+      txt = "> "
+    else:
+      txt = "||"
+    self.lcd.setCursor(9,1)
+    self.lcd.message(txt)
+
+  def update_audio_levels(self, max_value, cur_value, hide):
+    if hide:
+      txt = " pifon "
+    else:
+      txt = "%03d %03d" % (max_value, cur_value)
+    self.lcd.setCursor(9,0)
+    self.lcd.message(txt)
+
+  def update_mon_state(self, is_audio_muted, is_audio_listen, allow_chime, allow_blank):
+    if self.in_menu:
+      return
+    if is_audio_muted:
+      txt = "M"
+    else:
+      txt = " "
+    if is_audio_listen:
+      txt += "L"
+    else:
+      txt += " "
+    if allow_chime:
+      txt += "C"
+    else:
+      txt += " "
+    if allow_blank:
+      txt += "B"
+    else:
+      txt += " "
+    self.lcd.setCursor(12,1)
     self.lcd.message(txt)
 
   def show_message(self, msg):
     """if no menu is shown then you can show a message"""
     self.last_msg_len = 16
     self.update_message(msg)
-
-  def update_message(self, msg):
-    (txt, pos, self.last_msg_len) = self._update_value(msg, self.last_msg_len, 16, True)
-    self.lcd.setCursor(0,1)
-    self.lcd.message(txt)
-
-  def hide_message(self):
-    """if a message is shown then hide it"""
-    self.update_message("")
 
   def get_next_event(self):
     """return the next button event or 0 if no event occurred"""

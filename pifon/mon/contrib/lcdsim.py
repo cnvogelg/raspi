@@ -31,7 +31,7 @@ class LCDSim:
   }
 
   fg_col_map = {
-    OFF : (0,0,0),
+    OFF : (50,50,50),
     RED : (255,0,0),
     GREEN : (0,255,0),
     BLUE : (0,0,255),
@@ -58,7 +58,7 @@ class LCDSim:
     if font_name is None:
       font_name = "font/hd44780.ttf"
     self.font = pygame.font.Font(font_name, font_size)
-    self.fy = self.font.get_height()
+    self.fy = font_size #self.font.get_height()
     self.fx,_ = self.font.size("W")
     self.of_x = self.fx
     self.of_y = self.fy / 2

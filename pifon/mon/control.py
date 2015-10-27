@@ -16,7 +16,9 @@ class Control:
     self.items = self._create_menu(opts, desc)
     self.menu = menu.Menu(ui, self.items)
     self.in_menu = False
-    self.last_level = ""
+    self.level_hide = False
+    self.cur_level = 0
+    self.max_level = 0
     self.last_level_ts = 0
     self.audio_state = "init"
     self.last_button_ts = None
@@ -27,15 +29,15 @@ class Control:
     self.ping_state = None
     self.ping_step = 0
     self.restart_ts = None
+    self.last_handle_ts = 0
     # state
     self.is_connected = False
     self.is_audio_active = False
     self.is_audio_muted = False
     self.is_audio_playing = False
     self.is_audio_listen = False
-    self._print_state()
-    self._print_title()
-    self._print_value()
+    # init lcd
+    self._update_back()
 
   def _create_menu(self, opts, desc):
     result = []
@@ -54,23 +56,6 @@ class Control:
     self.ui.shutdown()
 
   # ----- update state calls -----
-
-  def _print_title(self):
-    # get time and display clock
-    tim = time.time()
-    t = time.localtime(tim)
-    hour = t[3]
-    mins = t[4]
-    txt = "%02d:%02d " % (hour, mins)
-    # ping state
-    if self.ping_state == None:
-      txt += " "
-    elif self.ping_state == False:
-      txt += "!"
-    else:
-      txt += "."
-    self.ui.update_title(txt)
-    self._update_back()
 
   def _update_back(self):
     if self.is_blanking:
@@ -100,86 +85,59 @@ class Control:
   def update_audio_ping(self, ping_state):
     """state of pinging the audio server: None=send ping, True=does ping, False=no ping"""
     self.ping_state = ping_state
-    self._print_title()
+    self.ui.update_audio_ping(ping_state)
 
   def update_audio_state(self, audio_state, is_audio_active, is_connected):
     self.audio_state = audio_state
     self.is_audio_active = is_audio_active
     self.is_connected = is_connected
-    self._print_state()
+    self.ui.update_audio_state(audio_state, is_audio_active, is_connected)
     self._update_blanking()
+    self._update_back()
 
   def update_mon_state(self, is_audio_muted, is_audio_listen, allow_chime, allow_blank):
     self.is_audio_muted = is_audio_muted
     self.is_audio_listen = is_audio_listen
     self.allow_chime = allow_chime
     self.allow_blank = allow_blank
-    self._print_state()
+    self.ui.update_mon_state(is_audio_muted, is_audio_listen, allow_chime, allow_blank)
     self._update_blanking()
+    self._update_back()
 
   def update_audio_play(self, is_audio_playing):
     self.is_audio_playing = is_audio_playing
-    self._print_state()
-
-  def _print_state(self):
-    if self.in_menu:
-      return
-    # audio state
-    txt = "%7s " % self.audio_state
-    # play state
-    if self.is_audio_playing:
-      txt += "PLAY"
-    else:
-      txt += "stop"
-    # mon state
-    if self.is_audio_muted:
-      txt += " M"
-    else:
-      txt += "  "
-    if self.is_audio_listen:
-      txt += "L"
-    else:
-      txt += " "
-    if self.allow_chime:
-      txt += "*"
-    else:
-      txt += " "
-    self.ui.update_message(txt)
+    self.ui.update_audio_play(is_audio_playing)
+    self._update_blanking()
     self._update_back()
 
   def update_audio_level(self, max_level, cur_level):
     """audio level changed"""
-    level = "%03d %03d" % (max_level, cur_level)
-    ts = time.time()
-    if level != self.last_level:
-      self.last_level = level
+    if max_level != self.max_level or cur_level != self.cur_level:
+      ts = time.time()
       delta = (ts - self.last_level_ts) * 1000
       if delta > self.update_rate:
-        self._print_value()
-    self.last_level_ts = ts
+        self.ui.update_audio_levels(max_level, cur_level, False)
+        self.last_level_ts = ts
+        self.cur_level = cur_level
+        self.max_level = max_level
+        self.level_hide = False
 
   def _autohide_levels(self):
-    if self.last_level != "":
+    if not self.level_hide and self.cur_level == 0:
       ts = time.time()
-      delta = (ts -self.last_level_ts) * 1000
-      if  delta > self.autohide_delay:
-        self.last_level = ""
-        self._print_value()
+      delta = (ts - self.last_level_ts) * 1000
+      if delta > self.autohide_delay:
         self.last_level_ts = ts
-
-  def _print_value(self):
-    self.ui.update_status(self.last_level)
+        self.level_hide = True
+        self.ui.update_audio_levels(0, 0, True)
 
   def _leave_menu(self):
     self.in_menu = False
     self.menu.hide()
-    self.ui.show_message("")
-    self._print_state()
     self._update_blanking(True)
 
   def _enter_menu(self):
     self.in_menu = True
-    self.ui.hide_message()
     self.menu.show()
 
   def handle_events(self):
@@ -200,7 +158,21 @@ class Control:
       munged = self._update_blanking(ev != 0)
       if not munged:
         exit_flag = self._handle_direct_key(ev)
+    # tick handler
+    self._tick_handler()
     return exit_flag
+
+  def _tick_handler(self):
+    t = time.time()
+    delta = t - self.last_handle_ts
+    if delta >= 1:
+      self.last_handle_ts = t
+      # one second passed -> update
+      lt = time.localtime(t)
+      hour = lt[3]
+      mins = lt[4]
+      secs = lt[5]
+      self.ui.update_clock(hour, mins, secs)
 
   def update_audio_option(self, key, value):
     """set an audio option from bot"""
