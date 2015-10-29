@@ -3,8 +3,8 @@
 
 """
   xmppbot - attach a process as bot XMPP client
-  
-  stdin of process is fed with incoming messages adressed with <name>: 
+
+  stdin of process is fed with incoming messages adressed with <name>:
   stdout of process is received and print as messages
 """
 
@@ -32,22 +32,22 @@ class ProcRunner(threading.Thread):
     self.in_queue = queue.Queue()
     self.stop_flag = False
     self.output = output
-    
+
   def put(self, line):
     self.in_queue.put(line)
-    
+
   def stop(self):
     self.proc.poll()
     if self.proc.returncode == None:
       self.proc.terminate()
     self.join()
-  
+
   def run(self):
     try:
       self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
       stdout = self.proc.stdout
       stdin  = self.proc.stdin
-      while self.proc.returncode == None:      
+      while self.proc.returncode == None:
         # update return code
         self.proc.poll()
         # check for input/output
@@ -75,12 +75,13 @@ class ProcRunner(threading.Thread):
 # ----- XMPP Bot -----
 
 class ProcBot(sleekxmpp.ClientXMPP):
-  def __init__(self, jid, password, room, nick):
+  def __init__(self, jid, password, room, nick, filter_nick=True):
     sleekxmpp.ClientXMPP.__init__(self, jid, password)
 
     self.in_room = False
     self.room = room
     self.nick = nick
+    self.filter_nick = filter_nick
     self.queue = queue.Queue()
 
     # add hostname to nick automatically
@@ -96,14 +97,14 @@ class ProcBot(sleekxmpp.ClientXMPP):
                            self.muc_online)
     self.add_event_handler("muc::%s::got_offline" % self.room,
                            self.muc_offline)
-                           
+
     self.register_plugin('xep_0030') # Service Discovery
     self.register_plugin('xep_0045') # Multi-User Chat
     self.register_plugin('xep_0199') # XMPP Ping
-  
+
   def set_output(self, output):
     self.output = output
-  
+
   def start(self, event):
     self.getRoster()
     self.sendPresence()
@@ -113,27 +114,31 @@ class ProcBot(sleekxmpp.ClientXMPP):
                                     wait=True)
 
   def muc_message(self, msg):
-    if msg['mucnick'] != self.nick_host:
-      body = msg['body']
-      # check for addressing <addr>[,<addr>]:<msg> and <addr> = <nick>|<nick>@<host>
-      valid = False
-      pos = body.find(':')
-      if pos != -1 and pos != len(body) - 1:
+    got_nick = msg['mucnick']
+    body = msg['body']
+    if got_nick != self.nick_host:
+      logging.info("bot: got nick=%s,line='%s'" % (got_nick, body))
+      # receiver[,receiver]|text
+      valid = not self.filter_nick
+      pos = body.find('|')
+      if pos != -1:
         addrs = body[0:pos].split(',')
-        body = body[pos+1:]
         for addr in addrs:
           # check addr
           if addr == self.nick:
-            body = self.nick + ': ' + body
             valid = True
           elif addr == self.nick_host:
             valid = True
       else:
+        # no receiver
+        body = "all|" + body
         valid = True
       # post message to stdout
       if valid:
+        # prefix line with sender
+        body = got_nick + ';' + body
         self.output.put(body)
-        
+
   def muc_online(self, presence):
     if presence['muc']['nick'] == self.nick_host:
       self.in_room = True
@@ -146,20 +151,25 @@ class ProcBot(sleekxmpp.ClientXMPP):
       except queue.Empty:
         pass
       # write a 'connected' message to output
-      self.output.put("connected")
-  
+      self.send_internal("connected")
+
   def muc_offline(self, presence):
     if presence['muc']['nick'] == self.nick_host:
       self.in_room = False
       logging.info("bot: left room")
       # write a 'disconnected' message to output
-      self.output.put("disconnected")
-  
+      self.send_internal("disconnected")
+
   def put(self, msg):
     if self.in_room:
+      logging.info("bot: put msg='%s'" % msg)
       self.send_message(mto=self.room, mbody=msg, mtype='groupchat')
     else:
+      logging.info("bot: queue msg='%s'" % msg)
       self.queue.put(msg)
+
+  def send_internal(self, msg):
+    self.output.put("%s;|%s" % (self.nick, msg))
 
 # ----- main -----
 
@@ -169,9 +179,10 @@ def parse_args():
   parser.add_argument('-v', '--verbose', action='store_true', default=False, help="be more verbos")
   parser.add_argument('-d', '--debug', action='store_true', default=False, help="show debug output")
   parser.add_argument('-c', '--config-file', action='store', default=None, help="name of config file")
+  parser.add_argument('-f', '--no-filter', action='store_false', default=True, help="disable nick name filter")
   args = parser.parse_args()
   return args
-  
+
 def parse_config(file_name):
   parser = configparser.SafeConfigParser()
   parser.read([file_name])
@@ -181,24 +192,28 @@ def parse_config(file_name):
     for r in req:
       if r not in cfg:
         raise ValueError(r + " is missing in config")
+    opt = ('address',)
+    for o in opt:
+      if o not in cfg:
+        cfg[o] = None
     return cfg
   else:
     raise ValueError("section 'xmppbot' missing in config")
-  
+
 if __name__ == '__main__':
   # parse command line arguments
   args = parse_args()
   cmd = args.cmd
-  
+
   # load config for parameters
   config_file = args.config_file
   if config_file == None:
-    config_file = cmd[0] + '.cfg'  
+    config_file = cmd[0] + '.cfg'
   if not os.path.exists(config_file):
     print("no config file:",config_file,file=sys.stderr)
     sys.exit(1)
   cfg = parse_config(config_file)
-  
+
   # setup logging
   log=logging.ERROR
   if args.verbose:
@@ -217,16 +232,18 @@ if __name__ == '__main__':
   print("config: ",cfg,file=sys.stderr)
 
   # setup proc bot
-  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'])
+  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'],
+                args.no_filter)
   pr = ProcRunner(cmd, bot)
   bot.set_output(pr)
-  
+
   # try to start process
   pr.start()
 
   # main loop
   logging.info("bot: connecting...")
-  if bot.connect():
+  addr = cfg['address']
+  if bot.connect(address=cfg['address']):
     logging.info("bot: connected")
     bot.process(block=True)
     logging.info("bot: disconnect")
