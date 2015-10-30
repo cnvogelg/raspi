@@ -48,7 +48,7 @@ def main():
   # setup bot
   opts = pifon_opts.audio_opts
   desc = pifon_opts.audio_desc
-  bio = botio.BotIO('mon')
+  bio = botio.BotIO()
   bopts = botopts.BotOpts(bio,'audio',opts,False)
 
   ap = audioplay.AudioPlay()
@@ -79,8 +79,9 @@ def main():
   try:
     while True:
       # read args from stdin with timeout
-      args = bio.read_args(timeout)
-      if args != None:
+      msg = bio.read_args(timeout)
+      if msg:
+        args = msg.args
         if not bopts.parse_command(args):
           p.dispatch(args)
       # handle control events
