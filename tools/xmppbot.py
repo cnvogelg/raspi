@@ -112,6 +112,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
                                     self.nick_host,
                                     # password=the_room_password,
                                     wait=True)
+    self.send_internal("init")
 
   def muc_message(self, msg):
     got_nick = msg['mucnick']
@@ -131,7 +132,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
             valid = True
       else:
         # no receiver
-        body = "all|" + body
+        body = "|" + body
         valid = True
       # post message to stdout
       if valid:
@@ -169,7 +170,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
       self.queue.put(msg)
 
   def send_internal(self, msg):
-    self.output.put("%s;|%s" % (self.nick, msg))
+    self.output.put("%s;|%s" % (self.nick_host, msg))
 
 # ----- main -----
 
