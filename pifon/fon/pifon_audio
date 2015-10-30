@@ -20,18 +20,18 @@ if tools_dir not in sys.path:
 commons_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","common")))
 if commons_dir not in sys.path:
   sys.path.insert(0, commons_dir)
-  
+
 import botio
 import botopts
 import pifon_opts
 import detector
 import recorder
-    
+
 # ----- Event Handler -----
 
 class DetectorEventHandler:
   def __init__(self, botio):
-    self.botio = botio  
+    self.botio = botio
   def state(self, state):
     self.botio.write_line("audio_state %s" % state)
   def level(self, max_level, cur_level):
@@ -40,22 +40,22 @@ class DetectorEventHandler:
 # ---------- main ----------
 
 def main():
-  
+
   opts = pifon_opts.audio_opts
-  
+
   # setup bot
-  bio = botio.BotIO('audio')
+  bio = botio.BotIO()
   bopts = botopts.BotOpts(bio,'audio',opts,True)
   bopts.send_all()
-  
+
   # setup audio
   ev = DetectorEventHandler(bio)
   d = detector.Detector(ev, opts)
   rec = recorder.Recorder()
-  
+
   # start recorder
   rec.start()
-  
+
   print("start audio",file=sys.stderr);
 
   # ----- main loop -----
@@ -68,12 +68,13 @@ def main():
       elif buf != None:
         d.handle_buffer(buf)
       # check for bot command
-      args = bio.read_args(timeout=0.0)
-      if args != None:
+      msg = bio.read_args(timeout=0.0)
+      if msg:
+        args = msg.args
         if not bopts.parse_command(args):
           # answer pings
           if args[0] == 'audio_ping':
-            bio.write_line('audio_pong')
+            bio.write_line('audio_pong', receivers=[msg.sender])
           elif args[0] == 'audio_state':
             bio.write_line('audio_state '+ d.get_state_name())
   except KeyboardInterrupt:
