@@ -68,6 +68,8 @@ class ProcRunner(threading.Thread):
           pass
     except KeyboardInterrupt:
       print("bork!")
+    except Exception:
+      pass
     logging.info("bot: disconnecting after process death...")
     self.output.disconnect(wait=True)
     logging.info("bot: disconnecting done.")
@@ -141,7 +143,8 @@ class ProcBot(sleekxmpp.ClientXMPP):
         self.output.put(body)
 
   def muc_online(self, presence):
-    if presence['muc']['nick'] == self.nick_host:
+    nick = presence['muc']['nick']
+    if nick == self.nick_host:
       self.in_room = True
       logging.info("bot: enter room")
       # empty queue
@@ -151,15 +154,16 @@ class ProcBot(sleekxmpp.ClientXMPP):
           self.put(msg)
       except queue.Empty:
         pass
-      # write a 'connected' message to output
-      self.send_internal("connected")
+    # write a 'connected' message to output
+    self.send_internal("connected " + nick)
 
   def muc_offline(self, presence):
-    if presence['muc']['nick'] == self.nick_host:
+    nick = presence['muc']['nick']
+    if nick == self.nick_host:
       self.in_room = False
       logging.info("bot: left room")
-      # write a 'disconnected' message to output
-      self.send_internal("disconnected")
+    # write a 'disconnected' message to output
+    self.send_internal("disconnected " + nick)
 
   def put(self, msg):
     if self.in_room:

@@ -5,16 +5,27 @@ from __future__ import print_function
 import select
 import sys
 import os
+import time
 
 class BotIOMsg:
-  def __init__(self, line, sender, receivers):
+  def __init__(self, line, sender, receivers, is_internal):
     self.line = line
     self.args = None
     self.sender = sender
     self.receivers = receivers
+    self.is_internal = is_internal
+    self.int_cmd = None
+    self.int_nick = None
 
   def split_args(self):
     self.args = self.line.split()
+
+  def __str__(self):
+    if self.receivers is None:
+      rcv = ""
+    else:
+      rcv = ",".join(self.receivers)
+    return "[%s;%s|%s (%s)]" % (self.sender, rcv, self.line, self.is_internal)
 
 class BotIO:
   """small helpers to read and write commands to the stdin/stdout bot pipe"""
@@ -25,6 +36,7 @@ class BotIO:
     if os.isatty(sys.stdin.fileno()):
       self._nick = "fake"
     else:
+      self._nick = None
       # wait for init command by bot
       l = sys.stdin.readline()
       line = l.strip()
@@ -34,7 +46,9 @@ class BotIO:
       self._nick = msg.sender
     # show nick
     if verbose:
-      print("init: nick='%s'" % self._nick, file=sys.stderr)
+      print("botio: init: nick='%s'" % self._nick, file=sys.stderr)
+    # init roster
+    self._roster = {}
 
   def get_nick(self):
     return self._nick
@@ -54,29 +68,79 @@ class BotIO:
         receivers = prefix[pos+1:].split(',')
         if len(receivers) == 1 and receivers[0] == '':
           receivers = None
-        return BotIOMsg(line, sender, receivers)
+
+        # a message from my nick is considered internal
+        is_internal = sender == self._nick
+
+        msg = BotIOMsg(line, sender, receivers, is_internal)
+
+        # parse internal message
+        if is_internal:
+          if not self._parse_internal(msg):
+            return None
+
+        return msg
     # something went wrong
     return None
 
-  def read_line(self, timeout=0.1):
+  def _parse_internal(self, msg):
+    """parse message from xmppbot"""
+    msg.split_args()
+    args = msg.args
+    if len(args) < 2:
+      return False
+    cmd = args[0]
+    if cmd == 'connected':
+      nick = " ".join(args[1:])
+      if self._verbose:
+        print("botio: connected '%s'" % nick, file=sys.stderr)
+      self._roster[nick] = (True, time.time())
+      msg.int_cmd = 'connected'
+      msg.int_nick = nick
+      return True
+    elif cmd == 'disconnected':
+      nick = " ".join(args[1:])
+      if self._verbose:
+        print("botio: disconnected '%s'" % nick, file=sys.stderr)
+      self._roster[nick] = (False, time.time())
+      msg.int_cmd = 'disconnected'
+      msg.int_nick = nick
+      return True
+    else:
+      if self._verbose:
+        print("botio: unknown command:", msg.line, file=sys.stderr)
+      return False
+
+  def get_roster(self):
+    return self._roster
+
+  def read_line(self, timeout=0.1, internal=False):
     """return next line from bot or None if nothing was received
        return (line, sender, [receiver, ...])
        return False if line is invalid or None on timeout
     """
-    (r,w,x) = select.select([sys.stdin],[],[], timeout)
-    if sys.stdin in r:
-      l = sys.stdin.readline()
-      line = l.strip()
-      if self._verbose:
-        print("botio: got '%s'" % line, file=sys.stderr)
-      msg = self._parse_line(line)
-      if msg:
-        return msg
+    while True:
+      (r,w,x) = select.select([sys.stdin],[],[], timeout)
+      if sys.stdin in r:
+        l = sys.stdin.readline()
+        line = l.strip()
+        if self._verbose:
+          print("botio: got '%s'" % line, file=sys.stderr)
+        msg = self._parse_line(line)
+        if msg:
+          # if its internal and return internal then report it
+          # otherwise loop
+          if internal:
+            if msg.is_internal:
+              return msg
+          else:
+            return msg
+        else:
+          # parse error of message
+          return False
       else:
-        return False
-    else:
-      # timout
-      return None
+        # timeout
+        return None
 
   def read_args(self, timeout=0.1):
     """already split line into args"""
@@ -103,13 +167,15 @@ if __name__ == '__main__':
   print("BotIO test: echo!",file=sys.stderr)
   bio = BotIO(verbose=True)
   nick = bio.get_nick()
-  print("got nick: '%s'" % nick, file=sys.stderr)
+  print("test: got nick: '%s'" % nick, file=sys.stderr)
   while True:
     msg = bio.read_args(timeout=1)
     if msg:
-      print("echo_test got: line=%s, sender=%s, receivers=%s" %
-            (msg.line, msg.sender, msg.receivers),file=sys.stderr)
-      if msg.sender == nick:
-        print("-> internal msg!",file=sys.stderr)
+      if msg.is_internal:
+        print("test: internal: cmd=%s nick=%s" % (msg.int_cmd, msg.int_nick),
+              file=sys.stderr)
+        print("test: roster=", bio.get_roster(), file=sys.stderr)
       else:
+        print("test: reply to: line=%s, sender=%s, receivers=%s" %
+              (msg.line, msg.sender, msg.receivers),file=sys.stderr)
         bio.write_line('echo ' + ' '.join(msg.args), receivers=[msg.sender])
