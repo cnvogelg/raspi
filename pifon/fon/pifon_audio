@@ -53,20 +53,16 @@ def main():
   d = detector.Detector(ev, opts)
   rec = recorder.Recorder()
 
-  # start recorder
-  rec.start()
-
   print("start audio",file=sys.stderr);
 
   # ----- main loop -----
   try:
     while True:
       # check audio data
-      buf = rec.read_buf()
-      if buf == False:
+      rms = rec.read_rms()
+      if rms is None:
         break
-      elif buf != None:
-        d.handle_buffer(buf)
+      d.handle_rms(rms)
       # check for bot command
       msg = bio.read_args(timeout=0.0)
       if msg:

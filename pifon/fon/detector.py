@@ -8,7 +8,7 @@ class Detector:
   STATE_ACTIVE = 2
   STATE_SUSTAIN = 3
   STATE_RESPITE = 4
-  
+
   state_names = (
     "idle",
     "attack",
@@ -16,7 +16,7 @@ class Detector:
     "sustain",
     "respite"
   )
-  
+
   def __init__(self, event_handler, opts):
     self.event_handler = event_handler
     self.opts = opts
@@ -29,35 +29,17 @@ class Detector:
     self.cur_level = 0
     self.max_level = 0
     self.state = self.STATE_IDLE
-  
+
   def get_state_name(self):
     return self.state_names[self.state]
-  
-  def get_rms(self, data):
-    """get root mean square of all samples"""
-    n = int(len(data) / 2)
-    o = 0
-    sums = 0
-    for i in range(n):
-      v = data[o] + data[o+1] * 256
-      if v > 32767:
-        v = 65536 - v
-      f = v / 32767.0
-      sums += f * f
-      o += 2
-    rms = math.sqrt(sums / n)
-    return rms
 
-  def handle_buffer(self, data):
+  def handle_rms(self, level):
     """check incoming audio buffer and derive loudness state
        pass the state changes to the passed event handler
        the event_handler is called with .begin(), .end(), .update()
     """
     t = time.time()
-    
-    # determine current RMS value of audio buffer
-    level = int(self.get_rms(data) * 100)
-    
+
     # options
     update = self.opts['update'] * 100 # in ms
 
@@ -66,7 +48,7 @@ class Detector:
       self.cur_level = level
     if level > self.max_level:
       self.max_level = level
-      
+
     # process levels?
     delta = (t - self.last_update_time) * 1000
     if delta >= update:
@@ -74,35 +56,35 @@ class Detector:
       self.last_update_time = t
       # reset current level for next block
       self.cur_level = 0
-      
+
   def process_levels(self, t, max_level, cur_level):
     # trace flag
     trace = self.opts['trace']
 
     # show level?
-    show_level = trace or self.state != self.STATE_IDLE    
+    show_level = trace or self.state != self.STATE_IDLE
     if show_level:
       self.event_handler.level(max_level, cur_level)
-    
+
     # update state with current peak
     self.state_update(t, cur_level)
-  
+
   def state_update(self, t, peak):
     """determine new state of detector"""
 
     # get parameters
     alevel = self.opts['alevel']
     slevel = self.opts['slevel']
-    
+
     old_state = self.state
-    
+
     # ----- IDLE -----
     if self.state == self.STATE_IDLE:
       # start attack?
       if peak >= alevel:
         self.attack_begin_time = t
         self.state = self.STATE_ATTACK
-    
+
     # ----- ATTACK -----
     elif self.state == self.STATE_ATTACK:
       # long enough?
@@ -114,14 +96,14 @@ class Detector:
       else:
         # fall back to idle
         self.state = self.STATE_IDLE
-    
+
     # ----- ACTIVE -----
     elif self.state == self.STATE_ACTIVE:
       # sustain
       if peak < slevel:
         self.sustain_begin_time = t
         self.state = self.STATE_SUSTAIN
-    
+
     # ----- SUSTAIN -----
     elif self.state == self.STATE_SUSTAIN:
       # long enough?
@@ -134,7 +116,7 @@ class Detector:
       else:
         # fall back to active
         self.state = self.STATE_ACTIVE
-    
+
     # ----- RESPITE -----
     elif self.state == self.STATE_RESPITE:
       # long enough?
@@ -145,7 +127,7 @@ class Detector:
         self.state = self.STATE_IDLE
         # reset max level
         self.max_level = 0
-    
+
     # post a state update?
     if old_state != self.state:
       self.event_handler.state(self.state_names[self.state])

@@ -115,6 +115,7 @@ int main(int argc, char **argv)
 
     /* show result */
     printf("%" PRIi32 "\n", result);
+    fflush(stdout);
   }
 }
 
