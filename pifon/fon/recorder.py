@@ -1,8 +1,8 @@
 import subprocess
 
 class Recorder:
-  def __init__(self, rate=16000):
-    cmd = ["tools/vumeter", str(rate)]
+  def __init__(self):
+    cmd = ["tools/vumeter"]
     self.p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
 
   def read_rms(self):

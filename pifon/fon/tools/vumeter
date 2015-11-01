@@ -7,7 +7,11 @@ if [ "$SYSTEM" = "Linux" ]; then
   export AUDIODEV=mixin
 fi
 
-SAMPLE_RATE=22050
+# if not defined use default
+if [ "$SAMPLE_RATE" = "" ]; then
+  SAMPLE_RATE=22050
+fi
+
 INTERVAL=100
 FILTERS="highpass 500"
 DIRNAME="`dirname \"$0\"`"
