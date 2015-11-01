@@ -1,0 +1,22 @@
+#!/bin/sh
+SYSTEM=`uname -s`
+
+if [ "$SYSTEM" = "Linux" ]; then
+  # on linux use Alsa and "mixin" device
+  export AUDIODRIVER=alsa
+  export AUDIODEV=mixin
+fi
+
+SAMPLE_RATE=22050
+INTERVAL=100
+FILTERS="highpass 500"
+DIRNAME="`dirname \"$0\"`"
+
+# optional give sample rate
+if [ "$1" != "" ]; then
+  SAMPLE_RATE=$1
+  shift
+fi
+
+# run sox record and pipe to rms
+exec rec -q -c 1 -r ${SAMPLE_RATE} -b 16 -t raw - ${FILTERS} | ${DIRNAME}/rms -r ${SAMPLE_RATE} -i ${INTERVAL}
