@@ -19,9 +19,6 @@ TMUX_RUN=$TOOLS_DIR/tmux_run
 LOOPER=$TOOLS_DIR/looper
 XMPPBOT=$TOOLS_DIR/xmppbot.py
 
-# config sample rate of audio device
-export SAMPLE_RATE=16000
-
 # check action
 if [ $# -lt 1 ]; then
   echo "Usage: $0 start|status|stop"
