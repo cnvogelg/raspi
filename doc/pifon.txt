@@ -409,6 +409,9 @@ pifon.txt - installation guide for your pifon setup
 
       where 'chris' is my user/home
 
+    * create file $HOME/.sample_rate that contains the sample rate of
+      your device
+
   * Test:
     * reboot and test
     * you can always attach to your running processes with:
