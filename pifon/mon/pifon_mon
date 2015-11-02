@@ -81,13 +81,13 @@ def main():
       # read args from stdin with timeout
       msg = bio.read_args(timeout)
       if msg:
-        args = msg.args
-        if not bopts.parse_command(args):
-          p.dispatch(args)
+        if not bopts.parse_command(msg.args):
+          p.dispatch(msg)
       # handle control events
       exit_flag = ctrl.handle_events()
       if exit_flag != None:
         break
+      # state handler
       s.handle()
   except KeyboardInterrupt:
     print("\npifon_mon: break -> shutting down",file=sys.stderr)

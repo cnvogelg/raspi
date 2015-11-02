@@ -4,20 +4,12 @@ install.txt
 1. basic raspberrypi board install
 
 - download raspbian image from raspberry.org
-   (current: 2013-07-26-wheezy-raspbian.zip)
+   (current: 2015 jessie)
 
 - unzip
 - attach fresh SD card
-- on Mac: unmount volume
-  > diskutil unmount /Volume/<Name>
-- find out _correct_ /dev/rdisk<n> device for SD Card
-  > diskutil list
-- write image to SD card
-  > sudo dd if=2013-07-26-wheezy-raspbian.img of=/dev/rdisk1 bs=2m
-  
-- wire raspi with power, monitor, keyboard, mouse
-- attach SD card and power on, boot
-
+- on Mac: use ApplePiBake
+   see http://www.tweaking4all.com/hardware/raspberry-pi/macosx-apple-pi-baker/
 
 2. setup in "raspi-config" tool
 
@@ -28,7 +20,7 @@ install.txt
   - "change timezone" -> Europe -> Berlin
   - "setup keyboard"
     -> 105 intl keyboard -> more -> german -> eliminate dead keys
-    -> default key set -> keep 
+    -> default key set -> keep
 - (optional) "7 overclock": Turbo 1000 MHz  (seems to work only on 512 KiB models)
 - "8 Advanced Options"
   - "disable overscan"
@@ -51,15 +43,7 @@ install.txt
     # apt-get update
     # apt-get dist-upgrade
 
-** [OBSOLETE] rpi-update (kernel & firmware updates)
-
-  - install (see https://github.com/Hexxeh/rpi-update/)
-    
-    # apt-get install git-core
-    # wget http://goo.gl/1BOfJ -O /usr/bin/rpi-update && sudo chmod +x /usr/bin/rpi-update
-    # rpi-update
-
-** System Config
+** Set Video Output (if HDMI is used)
 
   - edit /boot/config.txt:
 
@@ -70,20 +54,6 @@ install.txt
     # 800x600
     hdmi_group=2
     hdmi_mode=9    # @60Hz
-
-** [OBSOLETE] Ethernet
-
-  > ifconfig | grep eth0 -> hw address
-   
-  - set host name for Fritz!Box DHCP server
-    -> edit /etc/dhcp/dhclient.conf
-    
-       interface "eth0" {
-         send host-name = "yourhost-eth";
-         send dhcp-client-identifier <mac:add>;
-       }
-     
-  (you need the interface block only if you have additional wlan)
 
 ** (Optional) Wifi (here Netgear Mini USB Dongle )
 
@@ -107,36 +77,35 @@ install.txt
       }
   # ifdown wlan0
   # ifup wlan0
-  
-- reboot  
 
-** mDNS
-
-  # apt-get install avahi-daemon
+- reboot
 
 ** NSF/Autofs (for my public share)
 
   # apt-get install autofs
-  
+
   - edit /etc/auto.master, add:
   /net	-hosts
 
-  # /etc/init.d/autofs restart  
-  
+  # service autofs restart
+
 ** Add user "chris"
 
   # adduser --uid 501 chris
-  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,netdev,input chris
-  
+  # usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi chris
+
+** (Optional) link my NFS share
+
   - link autofs shares for user chris (see below)
   > cd $HOME
   > mkdir net
   > cd net ; ln -s /net/nfs-share share
-  
+
 ** SSH for "chris"
 
 - push SSH credentials from host machine
-  
+  (on OSX: sudo port install openssh +ssh_copy_id)
+
   host> ssh-copy-id chris@<yourpi>
   host> scp -r ~/.ssh yourpi:
 
@@ -147,13 +116,25 @@ install.txt
 
 ----- Strip Down Install -----
 
+ ** Remove bloaters
+
+  # apt-get remove --purge wolfram-engine libreoffice
+  # apt-get autoremove
+
+ ** (Optional) Headless: remove X11
+
+  # apt-get remove --auto-remove --purge libx11-.*
+  # apt-get autoremove
+
+ ** (Optional) Manual Cleanup
+
   # aptitude
-  
+
   - deselect packages
-  
+
   <u>  update sources
-  
-  
+
+
 
 ----- Add Ons -----
 
@@ -189,7 +170,7 @@ install.txt
       > sudo make install
 
       > startx &
-      > DISPLAY=:0.0 /usr/local/bin/xinput_calibrator 
+      > DISPLAY=:0.0 /usr/local/bin/xinput_calibrator
       > pkill x
 
       copy output to file /usr/share/X11/xorg.conf.d/99-calib.conf:
@@ -241,12 +222,12 @@ install.txt
     i2c-dev
 
   - create /etc/udev/rules.d/10-local_i2c_group.rules
-  
+
     KERNEL=="i2c-[0-9]*", GROUP="i2c"
 
   # apt-get install i2c-tools python-smbus
   # usermod -a -G i2c chris
-  # i2c-detect -y 0 
+  # i2c-detect -y 0
 
 ** tmux setup (window title, use ctrl-b)
 
@@ -282,12 +263,12 @@ then
         ( (tmux has-session -t remote && tmux attach-session -t remote) || (tmux new-session -s remote) ) && exit 0
         echo "tmux failed to start"
 fi
-	
+
 ** Use Green LED for own stuff
 
   - enable/disable LED mode
     # echo none >/sys/class/leds/led0/trigger
-	# echo mmc0 >/sys/class/leds/led0/trigger
+    # echo mmc0 >/sys/class/leds/led0/trigger
   - toggle LED
     # echo 1 >/sys/class/leds/led0/brightness
     # echo 0 >/sys/class/leds/led0/brightness
