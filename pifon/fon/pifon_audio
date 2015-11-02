@@ -45,8 +45,7 @@ def main():
 
   # setup bot
   bio = botio.BotIO()
-  bopts = botopts.BotOpts(bio,'audio',opts,True)
-  bopts.send_all()
+  bopts = botopts.BotOpts(bio,'audio',opts)
 
   # setup audio
   ev = DetectorEventHandler(bio)
@@ -66,13 +65,14 @@ def main():
       # check for bot command
       msg = bio.read_args(timeout=0.0)
       if msg:
-        args = msg.args
-        if not bopts.parse_command(args):
+        if not bopts.parse_command(msg):
+          args = msg.args
           # answer pings
           if args[0] == 'audio_ping':
             bio.write_line('audio_pong', receivers=[msg.sender])
-          elif args[0] == 'audio_state':
-            bio.write_line('audio_state '+ d.get_state_name())
+          # answer query audio state
+          elif args[0] == 'query_audio_state':
+            bio.write_line('audio_state '+ d.get_state_name(), receivers=[msg.sender])
   except KeyboardInterrupt:
     print("\nbreak -> stopping audio",file=sys.stderr);
 
