@@ -16,6 +16,7 @@ class BotIOMsg:
     self.is_internal = is_internal
     self.int_cmd = None
     self.int_nick = None
+    self.ts = None
 
   def split_args(self):
     self.args = self.line.split()
@@ -73,6 +74,7 @@ class BotIO:
         is_internal = sender == self._nick
 
         msg = BotIOMsg(line, sender, receivers, is_internal)
+        msg.ts = time.time()
 
         # parse internal message
         if is_internal:
