@@ -15,9 +15,9 @@ class PlayCtl:
      Manual listening may override any playing triggered by active
      server states.
   """
-  def __init__(self, player_name, callback=None, player_opts={}):
-    self.player = player.create_player(player_name, **player_opts)
-    self.callback = callback
+  def __init__(self, player):
+    self.player = player
+    self.callback = None
     self.listen_srv = None
     self.play_srv = None
     self.chime_start = None
@@ -25,6 +25,9 @@ class PlayCtl:
     self.url_map = {}
     self.state_map = {}
     self.active_states = ('attack', 'active', 'sustain')
+
+  def set_callback(self, callback):
+    self.callback = callback
 
   def set_chimes(self, start=None, stop=None):
     """set sound files for start/stop chimes.
@@ -190,6 +193,8 @@ class PlayCtl:
 
 # ----- Test -----
 if __name__ == '__main__':
+  import player
+
   class Callbacks:
     def playctl_play(self, server):
       print("play", server)
@@ -200,7 +205,8 @@ if __name__ == '__main__':
     def playctl_unlisten(self, server):
       print("unlisten", server)
 
-  pc = PlayCtl('dummy', callback=Callbacks())
+  pc = PlayCtl(player.create_player('dummy'))
+  pc.set_callback(Callbacks())
   # simul connect
   pc.audio_connect("a", "http://a/play")
   pc.audio_connect("b", "http://b/play")

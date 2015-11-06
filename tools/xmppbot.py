@@ -32,6 +32,7 @@ class ProcRunner(threading.Thread):
     self.in_queue = queue.Queue()
     self.stop_flag = False
     self.output = output
+    self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
 
   def put(self, line):
     self.in_queue.put(line)
@@ -44,7 +45,6 @@ class ProcRunner(threading.Thread):
 
   def run(self):
     try:
-      self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
       stdout = self.proc.stdout
       stdin  = self.proc.stdin
       while self.proc.returncode == None:
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     sys.exit(2)
 
   # show config
-  print("config: ",cfg,file=sys.stderr)
+  print("xmppbot config: ",cfg,file=sys.stderr)
 
   # setup proc bot
   bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'],

@@ -26,11 +26,14 @@ class AudioSrv:
 
      also performs ping checks
   """
-  def __init__(self, botio, callback=None, ping_interval=1):
+  def __init__(self, botio, ping_interval=1):
     self.botio = botio
-    self.callback = callback
+    self.callback = None
     self.ping_interval = ping_interval
     self.instances = {}
+
+  def set_callback(self, callback):
+    self.callback = callback
 
   def handle_msg(self, msg):
     """parse an xmpp message and check if its from audio
@@ -144,7 +147,7 @@ if __name__ == '__main__':
   sys.path.append("../../tools")
   import botio
 
-  class Test:
+  class Callbacks:
     def audio_add_instance(self, i):
       print("add_instance", i, file=sys.stderr)
     def audio_del_instance(self, i):
@@ -157,7 +160,9 @@ if __name__ == '__main__':
       print("ping", i, valid, file=sys.stderr)
 
   bio = botio.BotIO()
-  asrv = AudioSrv(bio, Test())
+  asrv = AudioSrv(bio)
+  asrv.set_callback(Callbacks())
+  print("--- main loop ---", file=sys.stderr)
   while True:
     msg = bio.read_args(timeout=1)
     if msg:
