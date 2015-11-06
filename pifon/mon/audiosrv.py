@@ -76,7 +76,7 @@ class AudioSrv:
         # no ping received?
         if not i.got_ping:
           if self.callback is not None:
-            self.callback.audio_ping(i)
+            self.callback.audio_ping(i, False)
         # send new ping
         i.got_ping = False
         i.ping_ts = ts
@@ -88,7 +88,7 @@ class AudioSrv:
       i.got_ping = True
       i.ping_ts = ts
       if self.callback is not None:
-        self.callback.audio_ping(i)
+        self.callback.audio_ping(i, True)
 
   def _update_state(self, ts, sender, state):
     i = self._get_instance(sender)
@@ -153,8 +153,8 @@ if __name__ == '__main__':
       print("update_level", i, file=sys.stderr)
     def audio_update_state(self, i):
       print("update state", i, file=sys.stderr)
-    def audio_ping(self, i):
-      print("ping", i, file=sys.stderr)
+    def audio_ping(self, i, valid):
+      print("ping", i, valid, file=sys.stderr)
 
   bio = botio.BotIO()
   asrv = AudioSrv(bio, Test())
