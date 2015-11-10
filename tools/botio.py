@@ -166,18 +166,30 @@ class BotIO:
 
 # ----- test -----
 if __name__ == '__main__':
-  print("BotIO test: echo!",file=sys.stderr)
-  bio = BotIO(verbose=True)
+  def log(*args):
+    t =  time.time()
+    a = ["%10.3f" % t] + list(args)
+    print(*a,file=sys.stderr)
+
+  log("test: start")
+  bio = BotIO(verbose=False)
   nick = bio.get_nick()
-  print("test: got nick: '%s'" % nick, file=sys.stderr)
+  log("test: got nick: '%s'" % nick)
   while True:
-    msg = bio.read_args(timeout=1)
-    if msg:
-      if msg.is_internal:
-        print("test: internal: cmd=%s nick=%s" % (msg.int_cmd, msg.int_nick),
-              file=sys.stderr)
-        print("test: roster=", bio.get_roster(), file=sys.stderr)
-      else:
-        print("test: reply to: line=%s, sender=%s, receivers=%s" %
-              (msg.line, msg.sender, msg.receivers),file=sys.stderr)
-        bio.write_line('echo ' + ' '.join(msg.args), receivers=[msg.sender])
+    try:
+      msg = bio.read_args(timeout=1)
+      if msg:
+        if msg.is_internal:
+          if msg.int_cmd == 'exit':
+            log("text: exit")
+            break
+          log("test: internal: cmd=%s nick=%s" % (msg.int_cmd, msg.int_nick))
+          log("test: roster=", bio.get_roster())
+        else:
+          log("test: reply to: line=%s, sender=%s, receivers=%s" %
+                (msg.line, msg.sender, msg.receivers))
+          if msg.receivers is not None:
+            log("test: do echo!")
+            bio.write_line('echo ' + ' '.join(msg.args), receivers=[msg.sender])
+    except KeyboardInterrupt:
+      log("test: Break")

@@ -25,54 +25,48 @@ import socket
 
 # ----- ProcRunner -----
 
-class ProcRunner(threading.Thread):
-  def __init__(self, cmd, output):
-    threading.Thread.__init__(self, name="proc_runner")
+class ProcRunner:
+  def __init__(self, cmd):
     self.cmd = cmd
     self.in_queue = queue.Queue()
     self.stop_flag = False
-    self.output = output
     self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
+    self.output = None
+
+  def set_output(self, output):
+    self.output = output
 
   def put(self, line):
     self.in_queue.put(line)
 
-  def stop(self):
+  def process(self, timeout=0.1):
+    stdout = self.proc.stdout
+    stdin  = self.proc.stdin
+    # update return code
     self.proc.poll()
-    if self.proc.returncode == None:
-      self.proc.terminate()
-    self.join()
-
-  def run(self):
+    ret = self.proc.returncode
+    if ret is not None:
+      return ret
+    # check for input/output
+    (r,w,x) = select.select([stdout],[],[],timeout)
+    if stdout in r:
+      # something to read from stdin
+      data = stdout.readline().strip()
+      line = data.decode()
+      self.output.put(line)
+    # something to write to stdout?
     try:
-      stdout = self.proc.stdout
-      stdin  = self.proc.stdin
-      while self.proc.returncode == None:
-        # update return code
-        self.proc.poll()
-        # check for input/output
-        (r,w,x) = select.select([stdout],[],[],0.1)
-        if stdout in r:
-          # something to read from stdin
-          data = stdout.readline().strip()
-          line = data.decode()
-          self.output.put(line)
-        # something to write to stdout?
-        try:
-          line = self.in_queue.get(False)
-          line += '\n'
-          data = line.encode()
-          stdin.write(data)
-          stdin.flush()
-        except queue.Empty:
-          pass
-    except KeyboardInterrupt:
-      print("bork!")
-    except Exception:
+      line = self.in_queue.get(False)
+      line += '\n'
+      data = line.encode()
+      stdin.write(data)
+      stdin.flush()
+    except queue.Empty:
       pass
-    logging.info("bot: disconnecting after process death...")
-    self.output.disconnect(wait=True)
-    logging.info("bot: disconnecting done.")
+
+  def is_running(self):
+    self.proc.poll()
+    return self.proc.returncode is None
 
 # ----- XMPP Bot -----
 
@@ -86,12 +80,6 @@ class ProcBot(sleekxmpp.ClientXMPP):
     self.filter_nick = filter_nick
     self.queue = queue.Queue()
 
-    # add hostname to nick automatically
-    host = socket.gethostname()
-    pos = host.find('.')
-    if pos != -1:
-      host = host[0:pos]
-    self.nick_host = nick + "@" + host
 
     self.add_event_handler("session_start", self.start)
     self.add_event_handler("groupchat_message", self.muc_message)
@@ -111,15 +99,14 @@ class ProcBot(sleekxmpp.ClientXMPP):
     self.getRoster()
     self.sendPresence()
     self.plugin['xep_0045'].joinMUC(self.room,
-                                    self.nick_host,
+                                    self.nick,
                                     # password=the_room_password,
                                     wait=True)
-    self.send_internal("init")
 
   def muc_message(self, msg):
     got_nick = msg['mucnick']
     body = msg['body']
-    if got_nick != self.nick_host:
+    if got_nick != self.nick:
       logging.info("bot: got nick=%s,line='%s'" % (got_nick, body))
       # receiver[,receiver]|text
       valid = not self.filter_nick
@@ -129,8 +116,6 @@ class ProcBot(sleekxmpp.ClientXMPP):
         for addr in addrs:
           # check addr
           if addr == self.nick:
-            valid = True
-          elif addr == self.nick_host:
             valid = True
       else:
         # no receiver
@@ -144,7 +129,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
 
   def muc_online(self, presence):
     nick = presence['muc']['nick']
-    if nick == self.nick_host:
+    if nick == self.nick:
       self.in_room = True
       logging.info("bot: enter room")
       # empty queue
@@ -159,7 +144,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
 
   def muc_offline(self, presence):
     nick = presence['muc']['nick']
-    if nick == self.nick_host:
+    if nick == self.nick:
       self.in_room = False
       logging.info("bot: left room")
     # write a 'disconnected' message to output
@@ -174,7 +159,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
       self.queue.put(msg)
 
   def send_internal(self, msg):
-    self.output.put("%s;|%s" % (self.nick_host, msg))
+    self.output.put("%s;|%s" % (self.nick, msg))
 
 # ----- main -----
 
@@ -237,24 +222,78 @@ if __name__ == '__main__':
   print("xmppbot config: ",cfg,file=sys.stderr)
 
   # setup proc bot
-  bot = ProcBot(cfg['jid'], cfg['password'], cfg['room'], cfg['nick'],
-                args.no_filter)
-  pr = ProcRunner(cmd, bot)
-  bot.set_output(pr)
+  pr = ProcRunner(cmd)
 
-  # try to start process
-  pr.start()
+  # setup nick
+  host = socket.gethostname()
+  pos = host.find('.')
+  if pos != -1:
+    host = host[0:pos]
+  nick = cfg['nick'] + "@" + host
+
+  # prepare bot options
+  jid = cfg['jid']
+  pw = cfg['password']
+  room = cfg['room']
+  addr = cfg['address']
+  if addr is not None:
+    addr = (addr, 5222)
+  no_filter = args.no_filter
 
   # main loop
-  logging.info("bot: connecting...")
-  addr = cfg['address']
-  if bot.connect(address=cfg['address']):
-    logging.info("bot: connected")
-    bot.process(block=True)
-    logging.info("bot: disconnect")
-  else:
-    print("Unable to connect!",file=sys.stderr)
+  stay = True
+  while stay:
+    try:
+      bot = ProcBot(jid, pw, room, nick, no_filter)
+      bot.set_output(pr)
+      pr.set_output(bot)
 
-  logging.info("bot: stop proc runner")
-  pr.stop()
+      # send init
+      bot.send_internal("init")
+      pr.process()
+
+      # connect bot
+      logging.info("bot: connecting...")
+      if bot.connect(address=addr):
+        bot.send_internal("connected "+nick)
+        logging.info("bot: connected")
+        try:
+          bot.process(block=False)
+          # main loop
+          while stay:
+            ret = pr.process()
+            if ret is not None:
+              print("Process ended with ret=",ret,file=sys.stderr)
+              stay = False
+              break
+          logging.info("bot: disconnecting")
+          bot.disconnect()
+        # user wants to abort
+        except KeyboardInterrupt:
+          print("***Break***",file=sys.stderr)
+          logging.info("bot: disconnecting")
+          bot.disconnect()
+          stay = False
+        except Exception as e:
+          print("ERROR: ",e,file=sys.stderr)
+          logging.info("bot: disconnecting")
+          bot.disconnect()
+          # report to process
+          bot.send_internal("disconnected "+nick)
+          # retry...
+      else:
+        print("Unable to connect!",file=sys.stderr)
+        break
+    except KeyboardInterrupt:
+      print("***Break",file=sys.stderr)
+      break
+    except Exception as e:
+      print("ERROR:",e,file=sys.stderr)
+
+  # shutdown proc?
+  if pr.is_running():
+    logging.info("bot: end proc")
+    bot.send_internal("exit")
+
   logging.info("bot: done")
+  sys.exit(0)
