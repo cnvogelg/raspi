@@ -68,6 +68,9 @@ class ProcRunner:
     self.proc.poll()
     return self.proc.returncode is None
 
+  def end(self):
+    self.proc.terminate()
+
 # ----- XMPP Bot -----
 
 class ProcBot(sleekxmpp.ClientXMPP):
@@ -266,18 +269,12 @@ if __name__ == '__main__':
               print("Process ended with ret=",ret,file=sys.stderr)
               stay = False
               break
-          logging.info("bot: disconnecting")
-          bot.disconnect()
         # user wants to abort
         except KeyboardInterrupt:
           print("***Break***",file=sys.stderr)
-          logging.info("bot: disconnecting")
-          bot.disconnect()
           stay = False
         except Exception as e:
           print("ERROR: ",e,file=sys.stderr)
-          logging.info("bot: disconnecting")
-          bot.disconnect()
           # report to process
           bot.send_internal("disconnected "+nick)
           # retry...
@@ -289,11 +286,13 @@ if __name__ == '__main__':
       break
     except Exception as e:
       print("ERROR:",e,file=sys.stderr)
+    finally:
+      logging.info("bot: disconnecting")
+      bot.disconnect()
 
   # shutdown proc?
   if pr.is_running():
     logging.info("bot: end proc")
-    bot.send_internal("exit")
+    pr.end()
 
   logging.info("bot: done")
-  sys.exit(0)
