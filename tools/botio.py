@@ -193,3 +193,5 @@ if __name__ == '__main__':
             bio.write_line('echo ' + ' '.join(msg.args), receivers=[msg.sender])
     except KeyboardInterrupt:
       log("test: Break")
+      break
+
