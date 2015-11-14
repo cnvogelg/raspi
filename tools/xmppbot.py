@@ -30,7 +30,7 @@ class ProcRunner:
     self.cmd = cmd
     self.in_queue = queue.Queue()
     self.stop_flag = False
-    self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE)
+    self.proc = subprocess.Popen(cmd,stdout=subprocess.PIPE,stdin=subprocess.PIPE,bufsize=0)
     self.output = None
     self.old_data = ""
 
@@ -39,27 +39,6 @@ class ProcRunner:
 
   def put(self, line):
     self.in_queue.put(line)
-
-  def _read_lines(self, data):
-    if data is None:
-      return None
-    data = data.decode()
-    data = self.old_data + data
-    self.old_data = ""
-    # remove CRs
-    data = data.replace('\r','')
-    # no new line?
-    if "\n" not in data:
-      # keep for next read
-      self.old_data = data
-      return None
-    else:
-      lines = data.strip().split("\n")
-      if data[-1] == '\n':
-        return lines
-      else:
-        self.old_data = lines[-1]
-        return lines[:-1]
 
   def process(self, timeout=0.1):
     stdout = self.proc.stdout
@@ -73,11 +52,9 @@ class ProcRunner:
     (r,w,x) = select.select([stdout],[],[],timeout)
     if stdout in r:
       # read data
-      data = stdout.read1(1024)
-      lines = self._read_lines(data)
-      if lines is not None:
-        for line in lines:
-          self.output.put(line)
+      data = stdout.readline()
+      line = data.decode()
+      self.output.put(line)
     # something to write to stdout?
     try:
       line = self.in_queue.get(False)
