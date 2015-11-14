@@ -59,6 +59,9 @@ class BotOpts:
 
   def handle_command(self, msg):
     """parse a option command. return true if command was parsed"""
+    # ignore internal commands
+    if msg.int_cmd is not None:
+      return False
     args = msg.args
     n = len(args)
     if n < 1:

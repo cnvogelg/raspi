@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 {
   uint32_t scale = 100; /* result values are returned in [0;100] */
   uint32_t sample_rate = 44100; /* sample rate of audio stream */
-  uint32_t interval = 1000; /* 1000ms = 1s report once per second */
+  uint32_t interval = 250; /* 1000ms = 1s report once per second */
   uint32_t block_size = 0; /* if no sample rate is given use this one */
 
   /* parse arguments */
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
       sum += d * d;
     }
     sum /= block_size;
-    
+
     double d = (double)sum / (32768.0 * 32768.0);
 
     /* root */

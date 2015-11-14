@@ -75,6 +75,7 @@ class BotOptsCtl:
         elif msg.int_cmd == 'disconnected':
           botopts.flush_all()
           return True
+      # ignore internal commands
       return False
     # only check for my server
     if msg.sender != self.receiver:

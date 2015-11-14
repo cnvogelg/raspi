@@ -41,7 +41,7 @@ class Detector:
     t = time.time()
 
     # options
-    update = self.opts['update'] * 100 # in ms
+    update = self.opts.get_value('update') * 100 # in ms
 
     # determine max current RMS level
     if level > self.cur_level:
@@ -59,7 +59,7 @@ class Detector:
 
   def process_levels(self, t, max_level, cur_level):
     # trace flag
-    trace = self.opts['trace']
+    trace = self.opts.get_value('trace')
 
     # show level?
     show_level = trace or self.state != self.STATE_IDLE
@@ -73,8 +73,8 @@ class Detector:
     """determine new state of detector"""
 
     # get parameters
-    alevel = self.opts['alevel']
-    slevel = self.opts['slevel']
+    alevel = self.opts.get_value('alevel')
+    slevel = self.opts.get_value('slevel')
 
     old_state = self.state
 
@@ -89,7 +89,7 @@ class Detector:
     elif self.state == self.STATE_ATTACK:
       # long enough?
       if peak >= alevel:
-        attack = self.opts['attack'] * 1000 # in ms
+        attack = self.opts.get_value('attack') * 1000 # in ms
         delta = (t - self.attack_begin_time) * 1000
         if delta >= attack:
           self.state = self.STATE_ACTIVE
@@ -108,7 +108,7 @@ class Detector:
     elif self.state == self.STATE_SUSTAIN:
       # long enough?
       if peak < slevel:
-        sustain = self.opts['sustain'] * 1000 # in ms
+        sustain = self.opts.get_value('sustain') * 1000 # in ms
         delta = (t - self.sustain_begin_time) * 1000
         if delta >= sustain:
           self.state = self.STATE_RESPITE
@@ -120,7 +120,7 @@ class Detector:
     # ----- RESPITE -----
     elif self.state == self.STATE_RESPITE:
       # long enough?
-      respite = self.opts['respite'] * 1000 # in ms
+      respite = self.opts.get_value('respite') * 1000 # in ms
       delta = (t - self.respite_begin_time) * 1000
       if delta >= respite:
         # return to idle
