@@ -45,20 +45,37 @@ class BotOptsCtl:
 
   # ----- query values -----
 
-  def query_value(self, key, receivers=None):
+  def query_value(self, key):
     """current value is send via bot"""
     args = ['query', key]
     self.botio.write_args(args, receivers=[self.receiver])
 
-  def query_all(self, receivers=None):
+  def query_all(self):
     """send all values to bot"""
     line = 'query_all'
     self.botio.write_line(line, receivers=[self.receiver])
+
+  def flush_all(self):
+    self.opts = {}
+    self.got_all = False
+    if self.notify_all is not None:
+      self.notify_all(self.opts.values())
 
   # ----- parse bot command -----
 
   def handle_command(self, msg):
     """parse a option command. return true if command was parsed"""
+    # handle internal
+    if msg.is_internal:
+      # initial query
+      if msg.int_nick == srv:
+        if msg.int_cmd == 'connected':
+          botopts.query_all()
+          return True
+        elif msg.int_cmd == 'disconnected':
+          botopts.flush_all()
+          return True
+      return False
     # only check for my server
     if msg.sender != self.receiver:
       return False
@@ -135,12 +152,7 @@ if __name__ == '__main__':
     try:
       msg = bio.read_args(timeout=1)
       if msg:
-        if msg.is_internal:
-          # initial query
-          if msg.int_cmd == 'connected' and msg.int_nick == srv:
-            botopts.query_all()
-        else:
-          botopts.handle_command(msg)
+        botopts.handle_command(msg)
     except KeyboardInterrupt:
       log("Break")
       break
