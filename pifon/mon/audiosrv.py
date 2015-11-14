@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 import time
+import botoptsctl
 
 class AudioInstance:
   """an audio server instance"""
@@ -14,6 +15,7 @@ class AudioInstance:
     self.level_ts = None
     self.got_ping = True
     self.ping_ts = 0
+    self.opts = None
 
   def __str__(self):
     return "[%s,%s,%s,%s,%s]" % \
@@ -44,9 +46,11 @@ class AudioSrv:
     cmd = msg.int_cmd
     if cmd == 'connected':
       self._add_instance(msg.int_nick)
+      self._handle_msg_in_instances(msg)
       return True
     elif cmd == 'disconnected':
       self._del_instance(msg.int_nick)
+      self._handle_msg_in_instances(msg)
       return True
     elif cmd is None:
       # regular message
@@ -65,7 +69,15 @@ class AudioSrv:
           return True
         elif cmd == 'audio_pong':
           self._got_pong(msg.ts, msg.sender)
+        else:
+          self._handle_msg_in_instances(msg)
     return False
+
+  def _handle_msg_in_instances(self, msg):
+    for i in self.instances.values():
+      opts = i.opts
+      if opts is not None:
+        opts.handle_command(msg)
 
   def tick(self):
     """call this method in regular intervals. it will handle the ping
@@ -132,6 +144,13 @@ class AudioSrv:
         self.callback.audio_add_instance(i)
       # query initial state
       self.botio.write_line("query_audio_state", receivers=[nick])
+      # setup options
+      i.opts = botoptsctl.BotOptsCtl(self.botio, nick)
+      def notify(field):
+        self._opt_update(i, field)
+      def notify_all(fields):
+        self._opt_update_all(i, fields)
+      i.opts.set_notifier(notify, notify_all)
 
   def _del_instance(self, nick):
     if nick in self.instances:
@@ -139,6 +158,14 @@ class AudioSrv:
       del self.instances[nick]
       if self.callback is not None:
         self.callback.audio_del_instance(i)
+
+  def _opt_update(self, i, field):
+    if self.callback is not None:
+      self.callback.audio_update_option(i, field)
+
+  def _opt_update_all(self, i, fields):
+    if self.callback is not None:
+      self.callback.audio_update_all_options(i, fields)
 
 
 # test
@@ -158,6 +185,10 @@ if __name__ == '__main__':
       print("update state", i, file=sys.stderr)
     def audio_ping(self, i, valid):
       print("ping", i, valid, file=sys.stderr)
+    def audio_update_option(self, i, field):
+      print("update_option", i, field, file=sys.stderr)
+    def audio_update_all_options(self, i, fields):
+      print("update_all_options", i, fields, file=sys.stderr)
 
   bio = botio.BotIO()
   asrv = AudioSrv(bio)

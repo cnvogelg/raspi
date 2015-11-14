@@ -17,9 +17,6 @@ my_dir = os.path.split(inspect.getfile( inspect.currentframe() ))[0]
 tools_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","..","tools")))
 if tools_dir not in sys.path:
   sys.path.insert(0, tools_dir)
-commons_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","common")))
-if commons_dir not in sys.path:
-  sys.path.insert(0, commons_dir)
 
 # my modules
 import botio
@@ -90,6 +87,11 @@ class AudioSrvCallbacks:
 
   def audio_ping(self, i, valid):
     print("ping", i, valid, file=sys.stderr)
+
+  def audio_update_option(self, i, field):
+    print("update_option", i, field, file=sys.stderr)
+  def audio_update_all_options(self, i, fields):
+    print("update_all_options", i, fields, file=sys.stderr)
 
 # ---------- main ----------
 

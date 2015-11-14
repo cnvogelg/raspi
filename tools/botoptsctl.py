@@ -68,12 +68,12 @@ class BotOptsCtl:
     # handle internal
     if msg.is_internal:
       # initial query
-      if msg.int_nick == srv:
+      if msg.int_nick == self.receiver:
         if msg.int_cmd == 'connected':
-          botopts.query_all()
+          self.query_all()
           return True
         elif msg.int_cmd == 'disconnected':
-          botopts.flush_all()
+          self.flush_all()
           return True
       # ignore internal commands
       return False

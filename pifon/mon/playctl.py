@@ -15,6 +15,12 @@ class PlayCtl:
      Manual listening may override any playing triggered by active
      server states.
   """
+
+  PLAY_CONTROL_OFF = 0
+  PLAY_CONTROL_PLAY = 1
+  PLAY_CONTROL_LISTEN = 2
+  PLAY_CONTROL_MUTE = 3
+
   def __init__(self, player):
     self.player = player
     self.callback = None
@@ -25,6 +31,7 @@ class PlayCtl:
     self.url_map = {}
     self.state_map = {}
     self.active_states = ('attack', 'active', 'sustain')
+    self.muted = False
 
   def set_callback(self, callback):
     self.callback = callback
@@ -40,6 +47,16 @@ class PlayCtl:
     if self.is_playing():
       self._stop()
 
+  def get_state(self):
+    if self.is_playing():
+      return self.PLAY_CONTROL_PLAY
+    elif self.is_listening():
+      return self.PLAY_CONTROL_LISTEN
+    elif self.is_muted():
+      return self.PLAY_CONTROL_MUTE
+    else:
+      return self.PLAY_CONTROL_OFF
+
   def is_playing(self):
     """return true if someone is playing"""
     return self.play_srv is not None or self.listen_srv is not None
@@ -48,8 +65,46 @@ class PlayCtl:
     """return true if (manual) listening is enabled"""
     return self.listen_srv is not None
 
+  def is_muted(self):
+    return self.muted
+
+  def mute(self):
+    if self.muted:
+      return False
+    # stop listening
+    if self.listen_srv is not None:
+      self.listen_srv = None
+    if self.play_srv is not None:
+      ok = self._stop()
+    else:
+      ok = True
+    if ok:
+      # realize mute
+      self.muted = True
+      if self.callback is not None:
+        self.callback.playctl_mute()
+    return ok
+
+  def unmute(self):
+    if not self.muted:
+      return False
+    # realize unmute
+    self.muted = False
+    if self.callback is not None:
+      self.callback.playctl_unmute()
+    # auto start if another server is active?
+    srv = self._find_active()
+    if srv is not None:
+      return self._play(srv)
+    else:
+      return True
+
   def listen(self, server):
     """enable manual listening"""
+    # if was muted disable it
+    if self.muted:
+      self.muted = False
+    # already listening?
     if self.listen_srv is not None:
       return False
     # is anyone playing?
@@ -204,6 +259,10 @@ if __name__ == '__main__':
       print("listen", server)
     def playctl_unlisten(self, server):
       print("unlisten", server)
+    def playctl_mute(self):
+      print("mute")
+    def playctl_unmute(self):
+      print("unmute")
 
   pc = PlayCtl(player.create_player('dummy'))
   pc.set_callback(Callbacks())
@@ -214,6 +273,10 @@ if __name__ == '__main__':
   print("----- listen -----")
   pc.listen("a")
   pc.unlisten()
+  # mute
+  print("----- mute -----")
+  pc.mute()
+  pc.unmute()
   # trigger state
   print("----- trigger state -----")
   pc.audio_state("a", "attack")
