@@ -66,7 +66,9 @@ class BotOpts:
       return False
     # check if its a 'query', 'push' command
     cmd = args[0]
-    if cmd == 'query' and n == 2:
+    if cmd == 'query_all':
+      self.push_all( receivers=[msg.sender])
+    elif cmd == 'query' and n == 2:
       # query <name>
       key = args[1]
       if key not in self.opts:
@@ -84,6 +86,9 @@ class BotOpts:
         return False
       else:
         return True
+    elif cmd == 'error':
+      # ignore errors
+      pass
     else:
       self._error("cmd? " + cmd)
       return False
@@ -91,10 +96,6 @@ class BotOpts:
   def _handle_query(self, key, sender):
     if key in self.opts:
       self.push_value(key, receivers=[sender])
-      return True
-    elif key == '*':
-      # all entries with '*'
-      self.push_all(receivers=[sender])
       return True
     else:
       self._error("query? " + key)
