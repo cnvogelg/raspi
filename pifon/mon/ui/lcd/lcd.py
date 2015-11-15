@@ -24,7 +24,7 @@ class LCD16x2:
       from lcdsim import LCDSim as LCD
       self._lcd = LCD(font_path=font_path)
     else:
-      from contrib.Adafruit_CharLCDPlate import Adafruit_CharLCDPlate as LCD
+      from adafruit.Adafruit_CharLCDPlate import Adafruit_CharLCDPlate as LCD
       self._lcd = LCD()
     self._lcd.begin(16,2)
 
