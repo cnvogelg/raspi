@@ -1,5 +1,6 @@
 
 import pygame
+import os
 
 # user interface class
 class LCDSim:
@@ -52,12 +53,13 @@ class LCDSim:
     WHITE : (64,64,64)
   }
 
-  def __init__(self, size=(16,2), font_name=None, font_size=32):
+  def __init__(self, size=(16,2), font_name=None, font_size=32, font_path="."):
     pygame.init()
     # setup font
     if font_name is None:
-      font_name = "font/hd44780.ttf"
-    self.font = pygame.font.Font(font_name, font_size)
+      font_name = "hd44780.ttf"
+    font_file = os.path.join(font_path, font_name)
+    self.font = pygame.font.Font(font_file, font_size)
     self.fy = font_size #self.font.get_height()
     self.fx,_ = self.font.size("W")
     self.of_x = self.fx
