@@ -216,18 +216,11 @@ install.txt
 
 ** enable I2C for users
 
-  - in /etc/modprobe.d/raspi-blacklist.conf: comment out # i2c entry
-  - in /etc/modules add:
-
-    i2c-dev
-
-  - create /etc/udev/rules.d/10-local_i2c_group.rules
-
-    KERNEL=="i2c-[0-9]*", GROUP="i2c"
+  - in raspi-config: advanced options -> enable i2c
 
   # apt-get install i2c-tools python-smbus
   # usermod -a -G i2c chris
-  # i2c-detect -y 0
+  # i2cdetect -y 1
 
 ** tmux setup (window title, use ctrl-b)
 
