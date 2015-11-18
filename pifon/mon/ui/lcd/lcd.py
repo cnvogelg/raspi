@@ -68,6 +68,9 @@ class LCD16x2:
       self._lcd.createChar(num, list(data))
       num += 1
 
+  def off(self):
+    self.backlight(0)
+
   def clear(self):
     self._lcd.clear()
 
@@ -112,18 +115,23 @@ if __name__ == '__main__':
   lcd.text(7,1,lcd.all_chars)
   on = True
   col = 6
-  while True:
-    but = lcd.buttonRead()
-    if but is None or but == 0xc:
-      break
-    if but == 1:
-      if not on:
-        on = True
-    if on:
-      col = (col + 1) % 8
-      lcd.text(4,1,"%d" % col)
-      lcd.backlight(col)
-      on = False
-    lcd.text(0,1,"%02x" % but)
-    time.sleep(0.25)
-
+  try:
+    while True:
+      but = lcd.buttonRead()
+      if but is None or but == 0xc:
+        break
+      if but == 1:
+        if not on:
+          on = True
+      if on:
+        col = (col + 1) % 8
+        lcd.text(4,1,"%d" % col)
+        lcd.backlight(col)
+        on = False
+      lcd.text(0,1,"%02x" % but)
+      time.sleep(0.25)
+  except KeyboardInterrupt:
+    pass
+  finally:
+    lcd.off()
+    print("bye")
