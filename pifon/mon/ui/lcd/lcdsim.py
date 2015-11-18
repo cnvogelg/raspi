@@ -76,13 +76,34 @@ class LCDSim:
     self.begin(16, 2)
     self.cx = 0
     self.cy = 0
-    self.bg_col = self.OFF
+    self.bg_col = self.WHITE
     self._redraw()
+    # custom chars
+    self.custom_chars = [None] * 8
+    self.palette = None
 
   def begin(self, width, height):
     self.width = width
     self.height = height
     self.clear()
+
+  def createChar(self, num, data):
+    s = pygame.Surface((5,8),0,8)
+    if self.palette is None:
+      self.palette = list(s.get_palette())
+    y = 0
+    for d in data:
+      for x in xrange(5):
+        bit = 1 << x
+        pos = (4-x,y)
+        if d & bit == bit:
+          s.set_at(pos, 1)
+        else:
+          s.set_at(pos, 0)
+      y += 1
+    factor = self.fy / 8
+    d = pygame.transform.scale(s, (5*factor,self.fy))
+    self.custom_chars[num] = d
 
   def clear(self):
     self.data = []
@@ -108,17 +129,44 @@ class LCDSim:
     self.bg_col = color
     self._redraw()
 
+  def _sane_line(self, txt):
+    """remove custom chars"""
+    line = ""
+    for c in txt:
+      if c < 32 or c > 127:
+        line += " "
+      else:
+        line += chr(c)
+    return line
+
   def _redraw(self):
     fg_col = self.fg_col_map[self.bg_col]
     bg_col = self.bg_col_map[self.bg_col]
     self.surface.fill(bg_col)
     yp = self.of_y
     for y in xrange(self.height):
-      line = str(self.data[y])
+      # build text line without custom chars
+      data = self.data[y]
+      line = self._sane_line(data)
       if not self._is_empty(line):
         text_surface = self.font.render(line, False, fg_col)
         self.surface.blit(text_surface, (self.of_x, yp))
+      # render custom chars
+      xp = self.of_x
+      for c in data:
+        if c < 8:
+          char_surf = self.custom_chars[c]
+          if char_surf is not None:
+            # adjust palette
+            self.palette[0] = bg_col
+            self.palette[1] = fg_col
+            char_surf.set_palette(self.palette)
+            # blit
+            self.surface.blit(char_surf, (xp, yp))
+        xp += self.fx
+      # next line
       yp = yp + self.fy
+    # show text
     self.screen.blit(self.surface, (0,0))
     pygame.display.flip()
 
