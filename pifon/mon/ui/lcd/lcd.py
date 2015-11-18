@@ -114,7 +114,7 @@ if __name__ == '__main__':
   col = 6
   while True:
     but = lcd.buttonRead()
-    if but is None:
+    if but is None or but == 0xc:
       break
     if but == 1:
       if not on:
