@@ -81,10 +81,32 @@ class LCD16x2:
   def buttonRead(self):
     return self._lcd.buttonRead()
 
+
+def autodetect_sim():
+  """check if we can use the sim or the real thing
+     return True for sim, False for real, None if neither is possible
+  """
+  # real one needs smbus
+  try:
+    import smbus
+    return False
+  except ImportError:
+    pass
+  # sim needs pygame
+  try:
+    import pygame
+    return True
+  except ImportError:
+    return None
+
+
 # ----- test -----
 if __name__ == '__main__':
   import time
-  lcd = LCD16x2(sim=True, font_path="../../font")
+  sim = autodetect_sim()
+  if sim is None:
+    print("Neither sim nor real LCD available!")
+  lcd = LCD16x2(sim=sim, font_path="../../font")
   lcd.clear()
   lcd.text(0,0,lcd.pi_char + "hello, world!")
   lcd.text(7,1,lcd.all_chars)
