@@ -53,6 +53,12 @@ class LCDSim:
     WHITE : (64,64,64)
   }
 
+  # chars missing in font
+  extra_char_codes = {
+    # pi
+    0xf7 : (0x0,0x0,0x1f,0xa,0xa,0xa,0x13,0x0)
+  }
+
   def __init__(self, size=(16,2), font_name=None, font_size=32, font_path="."):
     pygame.init()
     # setup font
@@ -77,10 +83,16 @@ class LCDSim:
     self.cx = 0
     self.cy = 0
     self.bg_col = self.WHITE
-    self._redraw()
     # custom chars
     self.custom_chars = [None] * 8
     self.palette = None
+    # extra chars
+    self.extra_chars = {}
+    for ec in self.extra_char_codes:
+      data = self.extra_char_codes[ec]
+      self.extra_chars[ec] = self._create_char_bitmap(data)
+    # first redraw
+    self._redraw()
 
   def begin(self, width, height):
     self.width = width
@@ -88,6 +100,9 @@ class LCDSim:
     self.clear()
 
   def createChar(self, num, data):
+    self.custom_chars[num] = self._create_char_bitmap(data)
+
+  def _create_char_bitmap(self, data):
     s = pygame.Surface((5,8),0,8)
     if self.palette is None:
       self.palette = list(s.get_palette())
@@ -103,7 +118,7 @@ class LCDSim:
       y += 1
     factor = self.fy / 8
     d = pygame.transform.scale(s, (5*factor,self.fy))
-    self.custom_chars[num] = d
+    return d
 
   def clear(self):
     self.data = []
@@ -151,18 +166,23 @@ class LCDSim:
       if not self._is_empty(line):
         text_surface = self.font.render(line, False, fg_col)
         self.surface.blit(text_surface, (self.of_x, yp))
-      # render custom chars
+      # render custom or extra chars
       xp = self.of_x
       for c in data:
+        # custom char
+        char_surf = None
         if c < 8:
           char_surf = self.custom_chars[c]
-          if char_surf is not None:
-            # adjust palette
-            self.palette[0] = bg_col
-            self.palette[1] = fg_col
-            char_surf.set_palette(self.palette)
-            # blit
-            self.surface.blit(char_surf, (xp, yp))
+        elif c in self.extra_chars:
+          char_surf = self.extra_chars[c]
+        # render custom char
+        if char_surf is not None:
+          # adjust palette
+          self.palette[0] = bg_col
+          self.palette[1] = fg_col
+          char_surf.set_palette(self.palette)
+          # blit
+          self.surface.blit(char_surf, (xp, yp))
         xp += self.fx
       # next line
       yp = yp + self.fy

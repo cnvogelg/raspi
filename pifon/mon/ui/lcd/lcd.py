@@ -65,7 +65,7 @@ class LCD16x2:
     # load custom chars
     num = 0
     for data in self.custom_chars:
-      self._lcd.createChar(num, data)
+      self._lcd.createChar(num, list(data))
       num += 1
 
   def clear(self):
@@ -110,10 +110,20 @@ if __name__ == '__main__':
   lcd.clear()
   lcd.text(0,0,lcd.pi_char + "hello, world!")
   lcd.text(7,1,lcd.all_chars)
+  on = True
+  col = 6
   while True:
     but = lcd.buttonRead()
     if but is None:
       break
+    if but == 1:
+      if not on:
+        on = True
+    if on:
+      col = (col + 1) % 8
+      lcd.text(4,1,"%d" % col)
+      lcd.backlight(col)
+      on = False
     lcd.text(0,1,"%02x" % but)
     time.sleep(0.25)
 
