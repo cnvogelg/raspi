@@ -12,7 +12,6 @@ import sys
 import os
 import logging
 import argparse
-import configparser
 import time
 
 import sleekxmpp
@@ -22,6 +21,8 @@ import subprocess
 import select
 
 import socket
+
+import botcfg
 
 # ----- ProcRunner -----
 
@@ -174,25 +175,39 @@ def parse_args():
   parser.add_argument('-d', '--debug', action='store_true', default=False, help="show debug output")
   parser.add_argument('-c', '--config-file', action='store', default=None, help="name of config file")
   parser.add_argument('-f', '--no-filter', action='store_false', default=True, help="disable nick name filter")
+  # overwrite config options
+  parser.add_argument('-n', '--nick', default=None, help="set nick name")
+  parser.add_argument('-p', '--password', default=None, help="set password")
+  parser.add_argument('-j', '--jid', default=None, help="set jabber id")
+  parser.add_argument('-r', '--room', default=None, help="set room name")
+  parser.add_argument('-a', '--address', default=None, help="set jabber server host address")
   args = parser.parse_args()
   return args
 
-def parse_config(file_name):
-  parser = configparser.SafeConfigParser()
-  parser.read([file_name])
-  if parser.has_section('xmppbot'):
-    cfg = dict(parser.items('xmppbot'))
-    req = ('nick','password','jid','room')
-    for r in req:
-      if r not in cfg:
-        raise ValueError(r + " is missing in config")
-    opt = ('address',)
-    for o in opt:
-      if o not in cfg:
-        cfg[o] = None
-    return cfg
-  else:
-    raise ValueError("section 'xmppbot' missing in config")
+def get_cmd_name(cmd):
+  name = os.path.basename(cmd)
+  return name
+
+# default 'xmppbot' config section
+def_cfg = {
+  'nick' : None,
+  'password' : None,
+  'jid' : None,
+  'room' : None,
+  'address' : None
+}
+
+def overlay_cfg_args(cfg, args):
+  for field in ('nick', 'password', 'jid', 'room', 'address'):
+    val = getattr(args, field)
+    if val is not None:
+      cfg[field] = val
+
+def check_cfg(cfg):
+  for field in ('nick', 'password', 'jid', 'room'):
+    if cfg[field] is None:
+      return "No '%s' given!" % field
+  return None
 
 if __name__ == '__main__':
   # parse command line arguments
@@ -200,13 +215,21 @@ if __name__ == '__main__':
   cmd = args.cmd
 
   # load config for parameters
-  config_file = args.config_file
-  if config_file == None:
-    config_file = cmd[0] + '.cfg'
-  if not os.path.exists(config_file):
-    print("no config file:",config_file,file=sys.stderr)
+  cmd_name = get_cmd_name(cmd[0])
+  bot_cfg = botcfg.BotCfg(cmd_name)
+  path = bot_cfg.load()
+  if path is not None:
+    print("xmppbot config loaded from:",path,file=sys.stderr)
+  cfg = bot_cfg.get_section("xmppbot", def_cfg)
+
+  # overwrite config with arguments
+  overlay_cfg_args(cfg, args)
+
+  # check config
+  error = check_cfg(cfg)
+  if error is not None:
+    print("config error:",error,file=sys.stderr)
     sys.exit(1)
-  cfg = parse_config(config_file)
 
   # setup logging
   log=logging.ERROR
