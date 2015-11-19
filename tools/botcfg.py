@@ -2,9 +2,9 @@
 from __future__ import print_function
 import os
 try:
-  import configparser
+  from configparser import SafeConfigParser, Error
 except ImportError:
-  import ConfigParser
+  from ConfigParser import SafeConfigParser, Error
 
 class BotCfg:
   """manage a configuration in a *.cfg file"""
@@ -14,7 +14,7 @@ class BotCfg:
     file_name = name + ".cfg"
     self.home_cfg_file = os.path.expanduser("~/." + file_name)
     self.cwd_cfg_file = file_name
-    self.cfg = configparser.SafeConfigParser()
+    self.cfg = SafeConfigParser()
 
   def get_read_file(self):
     if self.force_cfg_file is not None:
@@ -48,8 +48,13 @@ class BotCfg:
     if cfg_file is None:
       return None
     # parse config
-    self.cfg.read([cfg_file])
-    return cfg_file
+    try:
+      self.cfg.read([cfg_file])
+      return cfg_file
+    except Error:
+      return None
+    except IOError:
+      return None
 
   def save(self):
     """save config to file
@@ -57,10 +62,15 @@ class BotCfg:
     cfg_file = self.get_write_file()
     if cfg_file is None:
       return None
-    fh = open(cfg_file, "w")
-    self.cfg.write(fh)
-    fh.close()
-    return cfg_file
+    try:
+      fh = open(cfg_file, "w")
+      self.cfg.write(fh)
+      fh.close()
+      return cfg_file
+    except Error:
+      return None
+    except IOError:
+      return None
 
   def _read_value(self, def_value, value):
     if def_value is None:

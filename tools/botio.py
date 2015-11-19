@@ -6,6 +6,7 @@ import select
 import sys
 import os
 import time
+import botcfg
 
 class BotIOMsg:
   def __init__(self, line, sender, receivers, is_internal):
@@ -36,23 +37,38 @@ class BotIO:
     # no bot connected? fake nick
     if os.isatty(sys.stdin.fileno()):
       self._nick = "fake"
+      self._cmd_name = "fake"
+      self._cfg_path = None
     else:
       self._nick = None
       # wait for init command by bot
       l = sys.stdin.readline()
       line = l.strip()
       msg = self._parse_line(line)
-      if not msg:
+      if not msg or len(msg.args) != 3:
         raise ValueError("no init by bot!")
       self._nick = msg.sender
+      self._cmd_name = msg.args[1]
+      self._cfg_path = msg.args[2]
     # show nick
     if verbose:
-      print("botio: init: nick='%s'" % self._nick, file=sys.stderr)
+      print("botio: init: nick='%s' cmd_name='%s' cfg_path='%s'" % \
+        (self._nick, self._cmd_name, self._cfg_path), file=sys.stderr)
     # init roster
     self._roster = {}
 
   def get_nick(self):
     return self._nick
+
+  def get_cmd_name(self):
+    return self._cmd_name
+
+  def get_cfg_path(self):
+    return self._cfg_path
+
+  def get_cfg(self):
+    """return a config object that matches the one of xmppbot"""
+    return botcfg.BotCfg(self._cmd_name, self._cfg_path)
 
   def _parse_line(self, line):
     """split line from bot into message
@@ -75,6 +91,7 @@ class BotIO:
 
         msg = BotIOMsg(line, sender, receivers, is_internal)
         msg.ts = time.time()
+        msg.split_args()
 
         # parse internal message
         if is_internal:
@@ -87,7 +104,6 @@ class BotIO:
 
   def _parse_internal(self, msg):
     """parse message from xmppbot"""
-    msg.split_args()
     args = msg.args
     if len(args) < 2:
       return False
@@ -174,7 +190,10 @@ if __name__ == '__main__':
   log("test: start")
   bio = BotIO(verbose=False)
   nick = bio.get_nick()
-  log("test: got nick: '%s'" % nick)
+  cmd_name = bio.get_cmd_name()
+  cfg_path = bio.get_cfg_path()
+  log("test: got nick='%s' cmd_name='%s' cfg_path='%s'" % \
+    (nick, cmd_name, cfg_path))
   while True:
     try:
       msg = bio.read_args(timeout=1)

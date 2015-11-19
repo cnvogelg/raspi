@@ -276,7 +276,7 @@ if __name__ == '__main__':
       pr.set_output(bot)
 
       # send init
-      bot.send_internal("init")
+      bot.send_internal("init " + cmd_name + " " + path)
       pr.process()
 
       # connect bot

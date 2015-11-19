@@ -45,21 +45,39 @@ class BotOptsCtl:
 
   # ----- query values -----
 
+  def _send(self, *args):
+    self.botio.write_args(args, receivers=[self.receiver])
+
   def query_value(self, key):
     """current value is send via bot"""
-    args = ['query', key]
-    self.botio.write_args(args, receivers=[self.receiver])
+    self._send('query', key)
 
   def query_all(self):
     """send all values to bot"""
-    line = 'query_all'
-    self.botio.write_line(line, receivers=[self.receiver])
+    self._send('query_all')
 
   def flush_all(self):
+    """remove all locally stored options"""
     self.opts = {}
     self.got_all = False
     if self.notify_all is not None:
       self.notify_all(self.opts.values())
+
+  def load(self):
+    """load the options from config file"""
+    self._send('load')
+
+  def save(self):
+    """save options to config file"""
+    self._send('save')
+
+  def reset_all(self):
+    """reset all options to default values"""
+    self._send('reset_all')
+
+  def reset(self, key):
+    """reset a field to default values"""
+    self._send('reset', key)
 
   # ----- parse bot command -----
 
@@ -94,7 +112,7 @@ class BotOptsCtl:
     elif cmd == 'end_values':
       return self._handle_end_values()
     # ignore errors
-    elif cmd == 'error':
+    elif cmd in ('error', 'status'):
       pass
     # unknown command
     else:

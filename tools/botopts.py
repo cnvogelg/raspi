@@ -5,12 +5,18 @@ import sys
 class BotOpts:
   """serve a set of bot options"""
 
-  def __init__(self, botio, opts):
+  def __init__(self, botio, opts, cfg=None):
     self.botio = botio
     self.opts = {}
+    self.def_values = {}
+    self.cfg = cfg
     for o in opts:
       self.opts[o.name] = o
+      self.def_values[o.name] = o.value
     self.notify = None
+    self.cfg_name = "bot_opts"
+    # load options from config if available
+    self.load()
 
   def set_notifier(self, notify):
     """set notifier callback. calls notifier(field)"""
@@ -37,9 +43,67 @@ class BotOpts:
       return True
     # ignore same value
     elif ok is None:
+      self._status("same " + name)
       return True
     else:
       return False
+
+  def get_values(self):
+    """return a dict with name : values"""
+    res = {}
+    for name in self.opts:
+      field = self.opts[name]
+      res[name] = field.value
+    return res
+
+  # ----- load/save/reset -----
+
+  def load(self):
+    """load option values from config file"""
+    if self.cfg is not None:
+      path = self.cfg.load()
+      if path is None:
+        self._error("load? not_found")
+        return False
+      self._status("loaded "+path)
+      new_vals = self.cfg.get_section(self.cfg_name, self.get_values())
+      for key in new_vals:
+        if not self.set_value(key, new_vals[key]):
+          self._error("load? set_value")
+          return False
+      return True
+    else:
+      self._error("load? no_cfg")
+      return False
+
+  def save(self):
+    """save option values to config file"""
+    if self.cfg is not None:
+      self.cfg.set_section(self.cfg_name, self.get_values())
+      path = self.cfg.save()
+      if path is None:
+        self._error("save? not_found")
+        return False
+      else:
+        self._status("saved "+path)
+        return True
+    else:
+      self._error("save? no_cfg")
+      return False
+
+  def reset(self, key):
+    """reset a key"""
+    if key in self.def_values:
+      return self.set_value(key, self.def_values[key])
+    else:
+      return False
+
+  def reset_all(self):
+    """reset all values"""
+    for key in self.def_values:
+      if not self.set_value(key, self.def_values[key]):
+        return False
+    return True
 
   # ----- push value to change other bot's options -----
 
@@ -89,7 +153,19 @@ class BotOpts:
         return False
       else:
         return True
-    elif cmd == 'error':
+    elif cmd == 'load':
+      return self.load()
+    elif cmd == 'save':
+      return self.save()
+    elif cmd == 'reset' and n == 2:
+      key = args[1]
+      if key not in self.opts:
+        self._error("key? " + key)
+        return False
+      return self.reset(key)
+    elif cmd == 'reset_all':
+      return self.reset_all()
+    elif cmd in ('error', 'status'):
       # ignore errors
       pass
     else:
@@ -107,6 +183,8 @@ class BotOpts:
   def _error(self, txt):
     self.botio.write_line("error " + txt)
 
+  def _status(self, txt):
+    self.botio.write_line("status " + txt)
 
 # ----- Test -----
 if __name__ == '__main__':
@@ -130,7 +208,7 @@ if __name__ == '__main__':
     BotOptField("anint",int,42, val_range=[1,100], desc="an integer"),
     BotOptField("astr",str,"hoo!", desc="a string")
   ]
-  botopts = BotOpts(bio, opts)
+  botopts = BotOpts(bio, opts, cfg=bio.get_cfg())
   botopts.set_notifier(notifier)
   log("got nick: '%s'" % nick)
   while True:
