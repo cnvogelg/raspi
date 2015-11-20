@@ -8,6 +8,10 @@ if [ "$SYSTEM" = "Linux" ]; then
   # on linux use Alsa and "mixin" device
   export AUDIODRIVER=alsa
   export AUDIODEV=mixin
+  RECORD="arecord -q -Dplug:pcm.mixin -f S16_LE"
+else
+  RECORD="rec -q -b 16 -t raw"
+  POST_RECORD="- highpass 500"
 fi
 
 # default options
@@ -15,7 +19,6 @@ SAMPLE_RATE=22050
 INTERVAL=100
 CHANNELS=1
 
-FILTERS="highpass 500"
 DIRNAME="`dirname \"$0\"`"
 
 # optional give sample rate
@@ -30,5 +33,5 @@ if [ "$3" != "" ]; then
 fi
 
 # run sox record and pipe to rms
-exec rec -q -c ${CHANNELS} -r ${SAMPLE_RATE} -b 16 -t raw - ${FILTERS} | \
+exec ${RECORD} -c ${CHANNELS} -r ${SAMPLE_RATE} ${POST_RECORD} | \
   ${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL}
