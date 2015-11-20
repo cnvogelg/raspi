@@ -108,12 +108,12 @@ class BotIO:
     if len(args) < 2:
       return False
     cmd = args[0]
+    msg.int_cmd = cmd
     if cmd == 'connected':
       nick = " ".join(args[1:])
       if self._verbose:
         print("botio: connected '%s'" % nick, file=sys.stderr)
       self._roster[nick] = (True, time.time())
-      msg.int_cmd = 'connected'
       msg.int_nick = nick
       return True
     elif cmd == 'disconnected':
@@ -121,10 +121,10 @@ class BotIO:
       if self._verbose:
         print("botio: disconnected '%s'" % nick, file=sys.stderr)
       self._roster[nick] = (False, time.time())
-      msg.int_cmd = 'disconnected'
       msg.int_nick = nick
       return True
     else:
+      msg.int_nick = None
       if self._verbose:
         print("botio: unknown command:", msg.line, file=sys.stderr)
       return False
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     print(*a,file=sys.stderr)
 
   log("test: start")
-  bio = BotIO(verbose=False)
+  bio = BotIO()
   nick = bio.get_nick()
   cmd_name = bio.get_cmd_name()
   cfg_path = bio.get_cfg_path()

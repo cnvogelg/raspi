@@ -138,6 +138,8 @@ class ProcBot(sleekxmpp.ClientXMPP):
 
   def muc_online(self, presence):
     nick = presence['muc']['nick']
+    # write a 'connected' message to output
+    self.send_internal("connected " + nick)
     if nick == self.nick:
       self.in_room = True
       logging.info("bot: enter room")
@@ -148,8 +150,6 @@ class ProcBot(sleekxmpp.ClientXMPP):
           self.put(msg)
       except queue.Empty:
         pass
-    # write a 'connected' message to output
-    self.send_internal("connected " + nick)
 
   def muc_offline(self, presence):
     nick = presence['muc']['nick']
@@ -168,6 +168,7 @@ class ProcBot(sleekxmpp.ClientXMPP):
       self.queue.put(msg)
 
   def send_internal(self, msg):
+    logging.info("bot: put internal msg='%s'" % msg)
     self.output.put("%s;|%s" % (self.nick, msg))
 
 # ----- main -----

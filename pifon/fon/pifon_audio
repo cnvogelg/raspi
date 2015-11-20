@@ -77,6 +77,7 @@ def main():
 
   # setup bot
   bio = botio.BotIO()
+  nick = bio.get_nick()
   botcfg = bio.get_cfg()
   bopts = botopts.BotOpts(bio,opts,cfg=botcfg,cfg_name="audio")
 
@@ -88,7 +89,7 @@ def main():
 
   # setup audio
   ev = DetectorEventHandler(bio)
-  d = detector.Detector(ev, bopts)
+  d = detector.Detector(bopts)
   rec = recorder.Recorder(sample_rate, interval, channels)
   sim = simulator.Simulator()
 
@@ -114,7 +115,15 @@ def main():
       msg = bio.read_args(timeout=0.0)
       if msg:
         if msg.is_internal:
-          pass
+          if msg.int_nick == nick:
+            # my connect
+            if msg.int_cmd == 'connected':
+              print("connected",file=sys.stderr)
+              d.post_state()
+              d.set_event_handler(ev)
+            elif msg.ind_cmd == 'disconnected':
+              print("disconnected",file=sys.stderr)
+              d.set_event_handler(None)
         else:
           ok = handle_msg(bio, msg)
           if not ok:

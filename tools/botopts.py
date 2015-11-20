@@ -25,7 +25,7 @@ class BotOpts:
       vals = self.get_values()
       new_vals = cfg.get_section(self.cfg_name, vals)
       for key in new_vals:
-        self.set_value(key, new_vals[key])
+        self.set_value(key, new_vals[key], do_reply=False)
 
   def set_notifier(self, notify):
     """set notifier callback. calls notifier(field)"""
@@ -37,7 +37,7 @@ class BotOpts:
     """internal get value"""
     return self.opts[name].get()
 
-  def set_value(self, name, value, do_notify=True):
+  def set_value(self, name, value, do_notify=True, do_reply=False):
     """internal set value"""
     if name not in self.opts:
       return False
@@ -48,11 +48,13 @@ class BotOpts:
       if self.notify is not None and do_notify:
         self.notify(field)
       # push to room
-      self.push_value(name)
+      if do_reply:
+        self.push_value(name)
       return True
     # ignore same value
     elif ok is None:
-      self._status("same " + name)
+      if do_reply:
+        self._status("same " + name)
       return True
     else:
       return False

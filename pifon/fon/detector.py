@@ -17,8 +17,8 @@ class Detector:
     "respite"
   )
 
-  def __init__(self, event_handler, opts):
-    self.event_handler = event_handler
+  def __init__(self, opts):
+    self.event_handler = None
     self.opts = opts
     # state
     self.last_update_time = 0
@@ -29,6 +29,9 @@ class Detector:
     self.cur_level = 0
     self.max_level = 0
     self.state = self.STATE_IDLE
+
+  def set_event_handler(self, ev):
+    self.event_handler = ev
 
   def get_state_name(self):
     return self.state_names[self.state]
@@ -130,4 +133,8 @@ class Detector:
 
     # post a state update?
     if old_state != self.state:
+      self.post_state()
+
+  def post_state(self):
+    if self.event_handler is not None:
       self.event_handler.state(self.state_names[self.state])
