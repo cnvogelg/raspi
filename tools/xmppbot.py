@@ -84,9 +84,10 @@ class ProcBot(sleekxmpp.ClientXMPP):
     self.nick = nick
     self.filter_nick = filter_nick
     self.queue = queue.Queue()
-
+    self.is_stopped = False
 
     self.add_event_handler("session_start", self.start)
+    self.add_event_handler("session_stop", self.stop)
     self.add_event_handler("groupchat_message", self.muc_message)
     self.add_event_handler("muc::%s::got_online" % self.room,
                            self.muc_online)
@@ -107,6 +108,9 @@ class ProcBot(sleekxmpp.ClientXMPP):
                                     self.nick,
                                     # password=the_room_password,
                                     wait=True)
+
+  def stop(self, event):
+    self.is_stopped = True
 
   def muc_message(self, msg):
     got_nick = msg['mucnick']
@@ -311,8 +315,11 @@ if __name__ == '__main__':
     except Exception as e:
       print("ERROR:",e,file=sys.stderr)
     finally:
-      logging.info("bot: disconnecting")
-      bot.disconnect()
+      if not bot.is_stopped:
+        logging.info("bot: disconnecting")
+        bot.disconnect()
+      else:
+        logging.info("bot: no need to disconnect")
 
   # shutdown proc?
   if pr.is_running():
