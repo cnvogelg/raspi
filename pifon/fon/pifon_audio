@@ -119,8 +119,8 @@ def main():
             # my connect
             if msg.int_cmd == 'connected':
               print("connected",file=sys.stderr)
-              d.post_state()
               d.set_event_handler(ev)
+              d.post_state()
             elif msg.ind_cmd == 'disconnected':
               print("disconnected",file=sys.stderr)
               d.set_event_handler(None)
