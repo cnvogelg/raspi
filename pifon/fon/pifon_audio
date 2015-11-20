@@ -92,7 +92,9 @@ def main():
   rec = recorder.Recorder(sample_rate, interval, channels)
   sim = simulator.Simulator()
 
-  print("start audio",file=sys.stderr);
+  print("starting audio",file=sys.stderr)
+  print("vumeter=",vu_cfg,file=sys.stderr)
+  print("audio=",bopts.get_values(),file=sys.stderr)
 
   # ----- main loop -----
   try:
