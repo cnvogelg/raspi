@@ -32,9 +32,10 @@ class BotOptField:
     try:
       value = args[2]
       if typ == bool:
-        if value == 'True':
+        v = value.lower()
+        if v in ('1','true','on'):
           value = True
-        elif value == 'False':
+        elif v in ('0','false','off'):
           value = False
         else:
           return None
@@ -78,10 +79,16 @@ class BotOptField:
   def set(self, value):
     # bool conversion
     if self.typ is bool:
-      if value == 'True':
-        value = True
-      elif value == 'False':
-        value = False
+      if isinstance(value, str):
+        v = value.lower()
+        if v in ('1','true','on'):
+          value = True
+        elif v in ('0','false','off'):
+          value = False
+        else:
+          return None
+      else:
+        value = bool(value)
     # int conversion
     elif self.typ is int:
       if isinstance(value, str):

@@ -10,7 +10,7 @@ import os
 import sys
 import inspect
 
-# add ../../tools and ../common to python path
+# add ../../tools to python path
 my_dir = os.path.split(inspect.getfile( inspect.currentframe() ))[0]
 tools_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","..","tools")))
 if tools_dir not in sys.path:
@@ -26,9 +26,12 @@ import simulator
 
 # ----- Options -----
 
+listen_url = 'http://your_server.com:8000/pifon.m3u'
+
 opts = [
   BotOptField('sim', bool, False, desc='enable level simulator'),
   BotOptField('trace', bool, False, desc='enable level tracing'),
+  BotOptField('listen_url', str, listen_url, desc='url of audio stream'),
   BotOptField('alevel', int, 1, val_range=[1,100], desc='audio level to reach in attack phase [1-100]'),
   BotOptField('slevel', int, 1, val_range=[1,100], desc='audio level to stay below in sustain phase [1-100]'),
   BotOptField('attack', int, 0, val_range=[1,10], desc='period [1s] of loudness required to start playback'),
@@ -75,13 +78,13 @@ def main():
   # setup bot
   bio = botio.BotIO()
   botcfg = bio.get_cfg()
-  bopts = botopts.BotOpts(bio,opts,cfg=botcfg)
+  bopts = botopts.BotOpts(bio,opts,cfg=botcfg,cfg_name="audio")
 
-  # get pifon options
-  cfg = botcfg.get_section("pifon", def_cfg)
-  sample_rate = cfg['sample_rate']
-  channels = cfg['channels']
-  interval = cfg['interval']
+  # get vumeter options
+  vu_cfg = botcfg.get_section("vumeter", def_cfg)
+  sample_rate = vu_cfg['sample_rate']
+  channels = vu_cfg['channels']
+  interval = vu_cfg['interval']
 
   # setup audio
   ev = DetectorEventHandler(bio)

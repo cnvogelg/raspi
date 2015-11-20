@@ -83,6 +83,11 @@ class BotCfg:
         return None
       else:
         return value
+    elif type(def_value) is bool:
+      if value.lower() in ('on','1','true'):
+        return True
+      else:
+        return False
     else:
       t = type(def_value)
       return t(value)
@@ -135,7 +140,8 @@ if __name__ == '__main__':
   cfg = BotCfg("test")
   my_sect = {
     'aint' : 42,
-    'abool' : True,
+    'abool' : False,
+    'bbool' : True,
     'astr' : "Hello, world!",
     'anone' : None
   }

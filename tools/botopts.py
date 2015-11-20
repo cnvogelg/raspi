@@ -5,18 +5,27 @@ import sys
 class BotOpts:
   """serve a set of bot options"""
 
-  def __init__(self, botio, opts, cfg=None):
+  def __init__(self, botio, opts, cfg=None, cfg_name=None):
     self.botio = botio
     self.opts = {}
     self.def_values = {}
-    self.cfg = cfg
     for o in opts:
       self.opts[o.name] = o
       self.def_values[o.name] = o.value
     self.notify = None
-    self.cfg_name = "bot_opts"
+    # set config
+    self.cfg = cfg
+    if cfg_name is None:
+      self.cfg_name = "bot_opts"
+    else:
+      self.cfg_name = cfg_name
     # load options from config if available
-    self.load()
+    if cfg is not None:
+      cfg.load()
+      vals = self.get_values()
+      new_vals = cfg.get_section(self.cfg_name, vals)
+      for key in new_vals:
+        self.set_value(key, new_vals[key])
 
   def set_notifier(self, notify):
     """set notifier callback. calls notifier(field)"""
