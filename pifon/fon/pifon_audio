@@ -7,9 +7,7 @@
 #
 
 import os
-import time
 import sys
-import select
 import inspect
 
 # add ../../tools and ../common to python path
@@ -21,12 +19,15 @@ if tools_dir not in sys.path:
 import botio
 import botopts
 from botoptfield import BotOptField
+
 import detector
 import recorder
+import simulator
 
 # ----- Options -----
 
 opts = [
+  BotOptField('sim', bool, False, desc='enable level simulator'),
   BotOptField('trace', bool, False, desc='enable level tracing'),
   BotOptField('alevel', int, 1, val_range=[1,100], desc='audio level to reach in attack phase [1-100]'),
   BotOptField('slevel', int, 1, val_range=[1,100], desc='audio level to stay below in sustain phase [1-100]'),
@@ -35,6 +36,12 @@ opts = [
   BotOptField('respite', int, 10, val_range=[0,60], desc='delay [1s] after playback to wait for next'),
   BotOptField('update', int, 5, val_range=[1,60], desc='update interval of current peak level [100ms]')
 ]
+
+def_cfg = {
+  'sample_rate' : 11025,
+  'channels' : 1,
+  'interval' : 250
+}
 
 # ----- Event Handler -----
 
@@ -46,42 +53,67 @@ class DetectorEventHandler:
   def level(self, max_level, cur_level):
     self.botio.write_line("audio_level %d %d" % (max_level, cur_level))
 
+
+def handle_msg(bio, msg):
+  args = msg.args
+  # answer pings
+  if args[0] == 'audio_ping':
+    bio.write_line('audio_pong', receivers=[msg.sender])
+    return True
+  # answer query audio state
+  elif args[0] == 'query_audio_state':
+    bio.write_line('audio_state '+ d.get_state_name(), receivers=[msg.sender])
+    return True
+  # unknown command
+  else:
+    return False
+
 # ---------- main ----------
 
 def main():
 
   # setup bot
   bio = botio.BotIO()
-  bopts = botopts.BotOpts(bio,opts)
+  botcfg = bio.get_cfg()
+  bopts = botopts.BotOpts(bio,opts,cfg=botcfg)
+
+  # get pifon options
+  cfg = botcfg.get_section("pifon", def_cfg)
+  sample_rate = cfg['sample_rate']
+  channels = cfg['channels']
+  interval = cfg['interval']
 
   # setup audio
   ev = DetectorEventHandler(bio)
   d = detector.Detector(ev, bopts)
-  rec = recorder.Recorder()
+  rec = recorder.Recorder(sample_rate, channels, interval)
+  sim = simulator.Simulator()
 
   print("start audio",file=sys.stderr);
 
   # ----- main loop -----
   try:
     while True:
-      # check audio data
+      # process audio data
       rms = rec.read_rms()
       if rms is None:
         break
+      # replace with sim data
+      if bopts.get_value('sim'):
+        rms = sim.read_rms()
+        print("sim",rms,file=sys.stderr)
+      # process rms value
       d.handle_rms(rms)
-      # check for bot command
+
+      # process bot messages
       msg = bio.read_args(timeout=0.0)
       if msg:
-        args = msg.args
-        # answer pings
-        if args[0] == 'audio_ping':
-          bio.write_line('audio_pong', receivers=[msg.sender])
-        # answer query audio state
-        elif args[0] == 'query_audio_state':
-          bio.write_line('audio_state '+ d.get_state_name(), receivers=[msg.sender])
-        # handle bot opts
+        if msg.is_internal:
+          pass
         else:
-          bopts.handle_command(msg)
+          ok = handle_msg(bio, msg)
+          if not ok:
+            bopts.handle_command(msg)
   except KeyboardInterrupt:
     print("\nbreak -> stopping audio",file=sys.stderr);
 

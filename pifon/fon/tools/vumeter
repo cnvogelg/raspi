@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS>
+
 SYSTEM=`uname -s`
 
 if [ "$SYSTEM" = "Linux" ]; then
@@ -7,20 +10,25 @@ if [ "$SYSTEM" = "Linux" ]; then
   export AUDIODEV=mixin
 fi
 
-# if not defined use default
-if [ "$SAMPLE_RATE" = "" ]; then
-  SAMPLE_RATE=22050
-fi
-
+# default options
+SAMPLE_RATE=22050
 INTERVAL=100
+CHANNELS=1
+
 FILTERS="highpass 500"
 DIRNAME="`dirname \"$0\"`"
 
 # optional give sample rate
 if [ "$1" != "" ]; then
   SAMPLE_RATE=$1
-  shift
+fi
+if [ "$2" != "" ]; then
+  INTERVAL=$2
+fi
+if [ "$3" != "" ]; then
+  CHANNELS=$3
 fi
 
 # run sox record and pipe to rms
-exec rec -q -c 1 -r ${SAMPLE_RATE} -b 16 -t raw - ${FILTERS} | ${DIRNAME}/rms -r ${SAMPLE_RATE} -i ${INTERVAL}
+exec rec -q -c ${CHANNELS} -r ${SAMPLE_RATE} -b 16 -t raw - ${FILTERS} | \
+  ${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL}

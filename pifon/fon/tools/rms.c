@@ -37,11 +37,12 @@ int main(int argc, char **argv)
   uint32_t sample_rate = 44100; /* sample rate of audio stream */
   uint32_t interval = 250; /* 1000ms = 1s report once per second */
   uint32_t block_size = 0; /* if no sample rate is given use this one */
+  uint32_t channels = 1; /* number of channels */
 
   /* parse arguments */
   int verbose = 0;
   int ch;
-  while ((ch = getopt(argc, argv, "r:i:b:s:v")) != -1) {
+  while ((ch = getopt(argc, argv, "r:i:b:s:c:v")) != -1) {
     switch (ch) {
       case 'r':
         sample_rate = atoi(optarg);
@@ -54,6 +55,9 @@ int main(int argc, char **argv)
         break;
       case 's':
         scale = atoi(optarg);
+        break;
+      case 'c':
+        channels = atoi(optarg);
         break;
       case 'v':
         verbose = 1;
@@ -73,7 +77,7 @@ int main(int argc, char **argv)
   }
 
   /* alloc buffer */
-  uint32_t byte_size = block_size * 2;
+  uint32_t byte_size = block_size * 2 * channels;
   int16_t *data = (int16_t *)malloc(byte_size);
   if(data == NULL) {
     fputs("no memory!\n", stderr);
@@ -102,7 +106,7 @@ int main(int argc, char **argv)
     /* calc PSNR */
     int i;
     int64_t sum = 0;
-    for(i=0;i<block_size;i++) {
+    for(i=0;i<block_size;i+=channels) {
       int16_t d = data[i];
       sum += d * d;
     }

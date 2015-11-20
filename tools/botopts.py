@@ -121,7 +121,7 @@ class BotOpts:
 
   # ----- parse bot command -----
 
-  def handle_command(self, msg):
+  def handle_command(self, msg, ignore_other=True):
     """parse a option command. return true if command was parsed"""
     # ignore internal commands
     if msg.int_cmd is not None:
@@ -168,7 +168,7 @@ class BotOpts:
     elif cmd in ('error', 'status'):
       # ignore errors
       pass
-    else:
+    elif not ignore_other:
       self._error("cmd? " + cmd)
       return False
 
