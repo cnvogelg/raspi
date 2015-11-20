@@ -315,11 +315,8 @@ if __name__ == '__main__':
     except Exception as e:
       print("ERROR:",e,file=sys.stderr)
     finally:
-      if not bot.is_stopped:
-        logging.info("bot: disconnecting")
-        bot.disconnect()
-      else:
-        logging.info("bot: no need to disconnect")
+      logging.info("bot: disconnect")
+      bot.disconnect()
 
   # shutdown proc?
   if pr.is_running():
