@@ -89,7 +89,7 @@ def main():
   # setup audio
   ev = DetectorEventHandler(bio)
   d = detector.Detector(ev, bopts)
-  rec = recorder.Recorder(sample_rate, channels, interval)
+  rec = recorder.Recorder(sample_rate, interval, channels)
   sim = simulator.Simulator()
 
   print("start audio",file=sys.stderr);
