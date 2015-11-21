@@ -55,6 +55,9 @@ class UICtl:
             self.ui.remap_audio_slot(old_pos, new_pos, inst)
         self._update_audio_slots()
 
+  def audio_update_src(self, i):
+    pass
+
   def audio_update_level(self, i):
     pass
 

@@ -221,7 +221,7 @@ if __name__ == '__main__':
 
   # load config for parameters
   cmd_name = get_cmd_name(cmd[0])
-  bot_cfg = botcfg.BotCfg(cmd_name)
+  bot_cfg = botcfg.BotCfg(cmd_name, force_cfg_file=args.config_file)
   path = bot_cfg.load()
   if path is not None:
     print("xmppbot config loaded from:",path,file=sys.stderr)

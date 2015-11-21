@@ -149,7 +149,7 @@ class PlayCtl:
   def audio_connect(self, server, server_url):
     """report that a server has connected"""
     # register server url
-    self.url_map[server] = server_url
+    self.url_map[server] = None
 
   def audio_disconnect(self, server):
     """report a server that is lost"""
@@ -172,6 +172,10 @@ class PlayCtl:
     new_srv = self._find_active()
     if new_srv is not None:
       self._play(new_srv)
+
+  def audio_src(self, server, listen_url):
+    """report the listen url of the server"""
+    self.url_map[server] = listen_url
 
   def audio_state(self, server, state):
     """report a new audio state from a server"""
@@ -214,6 +218,8 @@ class PlayCtl:
         return False
     # start streaming
     url = self.url_map[server]
+    if url is None:
+      return False
     ok = self.player.play(url)
     if not ok:
       return False

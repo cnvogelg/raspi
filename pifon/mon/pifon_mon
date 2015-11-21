@@ -97,6 +97,11 @@ class AudioSrvCallbacks:
     self.play_ctl.audio_state(i.name, i.state)
     self.ui_ctl.audio_update_state(i)
 
+  def audio_update_src(self, i):
+    print("update src", i, file=sys.stderr)
+    self.play_ctl.audio_src(i.name, i.listen_url)
+    self.ui_ctl.audio_update_src(i)
+
   def audio_ping(self, i, valid):
     print("ping", i, valid, file=sys.stderr)
     self.ui_ctl.audio_ping(i, valid)

@@ -15,11 +15,15 @@ class AudioInstance:
     self.level_ts = None
     self.got_ping = True
     self.ping_ts = 0
+    self.src_name = None
+    self.listen_url = None
+    self.src_ts = None
     self.opts = None
 
   def __str__(self):
-    return "[%s,%s,%s,%s,%s]" % \
-      (self.name, self.state, self.level, self.max_level, self.got_ping)
+    return "[%s,%s,%s,%s,%s,%s,%s]" % \
+      (self.name, self.state, self.level, self.max_level, self.got_ping,
+       self.src_name, self.listen_url)
 
 
 class AudioSrv:
@@ -69,6 +73,10 @@ class AudioSrv:
           return True
         elif cmd == 'audio_pong':
           self._got_pong(msg.ts, msg.sender)
+        elif cmd == 'audio_src' and n > 2:
+          src_name = args[1]
+          listen_url = args[2]
+          self._update_src(msg.ts, msg.sender, src_name, listen_url)
         else:
           self._handle_msg_in_instances(msg)
     return False
@@ -105,14 +113,22 @@ class AudioSrv:
       if self.callback is not None:
         self.callback.audio_ping(i, True)
 
+  def _update_src(self, ts, sender, src_name, listen_url):
+    i = self._get_instance(sender)
+    if i is not None:
+      i.src_name = src_name
+      i.src_ts = ts
+      i.listen_url = listen_url
+      self._mark_ping(i, ts)
+      if self.callback is not None:
+        self.callback.audio_update_src(i)
+
   def _update_state(self, ts, sender, state):
     i = self._get_instance(sender)
     if i is not None:
       i.state = state
       i.state_ts = ts
-      # also ping is true
-      i.ping_ts = ts
-      i.got_ping = True
+      self._mark_ping(i, ts)
       if self.callback is not None:
         self.callback.audio_update_state(i)
 
@@ -120,13 +136,13 @@ class AudioSrv:
     i = self._get_instance(sender)
     if i is not None:
       i.max_level = max_level
-      i.level = level
-      i.level_ts = ts
-      # also ping is true
-      i.ping_ts = ts
-      i.got_ping = True
+      self._mark_ping(i, ts)
       if self.callback is not None:
         self.callback.audio_update_level(i)
+
+  def _mark_ping(self, i, ts):
+    i.ping_ts = ts
+    i.got_ping = True
 
   def _get_instance(self, nick):
     if nick in self.instances:
@@ -189,6 +205,8 @@ if __name__ == '__main__':
       print("update_option", i, field, file=sys.stderr)
     def audio_update_all_options(self, i, fields):
       print("update_all_options", i, fields, file=sys.stderr)
+    def audio_update_src(self, i):
+      print("update_src", i, file=sys.stderr)
 
   bio = botio.BotIO()
   asrv = AudioSrv(bio)
