@@ -4,8 +4,8 @@ import os
 import sys
 
 class Recorder:
-  def __init__(self, rate=11025, interval=1000, channels=1):
-    cmd = ["tools/vumeter", str(rate), str(interval), str(channels)]
+  def __init__(self, rate=11025, interval=1000, channels=1, recorder="auto"):
+    cmd = ["tools/vumeter", str(rate), str(interval), str(channels), recorder]
     self.p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE)
 
   def read_rms(self):

@@ -3,23 +3,13 @@
 # Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS>
 
 SYSTEM=`uname -s`
-
-if [ "$SYSTEM" = "Linux" ]; then
-  # on linux use Alsa and "mixin" device
-  export AUDIODRIVER=alsa
-  export AUDIODEV=mixin
-  RECORD="arecord -q -Dplug:pcm.mixin -f S16_LE"
-else
-  RECORD="rec -q -b 16 -t raw"
-  POST_RECORD="- highpass 500"
-fi
+DIRNAME="`dirname \"$0\"`"
 
 # default options
-SAMPLE_RATE=22050
+SAMPLE_RATE=11025
 INTERVAL=100
 CHANNELS=1
-
-DIRNAME="`dirname \"$0\"`"
+RECORDER=auto
 
 # optional give sample rate
 if [ "$1" != "" ]; then
@@ -31,7 +21,38 @@ fi
 if [ "$3" != "" ]; then
   CHANNELS=$3
 fi
+if [ "$4" != "" ]; then
+  RECORDER=$4
+fi
+
+# auto select recorder
+if [ "$RECORDER" = "auto" ]; then
+  if [ "$SYSTEM" = "Linux" ]; then
+    RECORDER="arecord"
+  else
+    RECORDER="rec"
+  fi
+fi
+
+# use ALSA arecord
+if [ "$RECORDER" = "arecord" ]; then
+  RECORD="arecord -q -Dplug:pcm.mixin -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE} ${POST_RECORD}"
+elif [ "$RECORDER" = "rec" ]; then
+# use sox' rec
+  if [ "$SYSTEM" = "Linux" ]; then
+    export AUDIODRIVER=alsa
+    export AUDIODEV=mixin
+  fi
+  RECORD="rec -q -b 16 -t raw - rate -q ${SAMPLE_RATE} channels ${CHANNELS}"
+else
+  echo "Unknown RECORDER=${RECORDER}!"
+  exit 1
+fi
+
+# setup sox filter
+SOX="sox -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed - -t raw -"
+FILTER="${SOX} highpass 500"
 
 # run sox record and pipe to rms
-exec ${RECORD} -c ${CHANNELS} -r ${SAMPLE_RATE} ${POST_RECORD} | \
+exec ${RECORD} | ${FILTER} | \
   ${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL}

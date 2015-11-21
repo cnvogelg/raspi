@@ -43,7 +43,8 @@ opts = [
 def_cfg = {
   'sample_rate' : 11025,
   'channels' : 1,
-  'interval' : 250
+  'interval' : 250,
+  'recorder' : 'auto'
 }
 
 # ----- Event Handler -----
@@ -83,6 +84,7 @@ def main():
 
   # get vumeter options
   vu_cfg = botcfg.get_section("vumeter", def_cfg)
+  rec = vu_cfg['recorder']
   sample_rate = vu_cfg['sample_rate']
   channels = vu_cfg['channels']
   interval = vu_cfg['interval']
@@ -90,7 +92,7 @@ def main():
   # setup audio
   ev = DetectorEventHandler(bio)
   d = detector.Detector(bopts)
-  rec = recorder.Recorder(sample_rate, interval, channels)
+  rec = recorder.Recorder(sample_rate, interval, channels, rec)
   sim = simulator.Simulator()
 
   print("starting audio",file=sys.stderr)
