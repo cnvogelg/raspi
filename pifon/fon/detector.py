@@ -67,7 +67,11 @@ class Detector:
     # show level?
     show_level = trace or self.state != self.STATE_IDLE
     if show_level and self.event_handler is not None:
-      self.event_handler.level(max_level, cur_level)
+      if self.attack_begin_time is not None:
+        duration = t - self.attack_begin_time
+      else:
+        duration = 0
+      self.event_handler.level(max_level, cur_level, duration)
 
     # update state with current peak
     self.state_update(t, cur_level)

@@ -67,11 +67,11 @@ class DetectorEventHandler:
     # write audio_state
     self.botio.write_line("audio_state %s" % state)
 
-  def level(self, max_level, cur_level):
-    self.botio.write_line("audio_level %d %d" % (max_level, cur_level))
+  def level(self, max_level, cur_level, duration):
+    self.botio.write_line("audio_level %d %d %d" % (max_level, cur_level, duration))
 
 
-def handle_msg(bio, msg):
+def handle_msg(bio, msg, d):
   args = msg.args
   # answer pings
   if args[0] == 'audio_ping':
@@ -141,7 +141,7 @@ def main():
               print("disconnected",file=sys.stderr)
               d.set_event_handler(None)
         else:
-          ok = handle_msg(bio, msg)
+          ok = handle_msg(bio, msg, d)
           if not ok:
             bopts.handle_command(msg)
   except KeyboardInterrupt:
