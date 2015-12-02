@@ -4,8 +4,8 @@ from __future__ import print_function
 import time
 import sys
 
-from botio import BotIO
-from botcmd import BotCmd
+from io import BotIO
+from cmd import BotCmd
 
 class Bot:
   """main class for a bot instance"""
@@ -134,7 +134,7 @@ class Bot:
 
 # ----- test -----
 if __name__ == '__main__':
-  from botmod import BotMod
+  from mod import BotMod
   bot = Bot(True)
   bm = BotMod("test")
   bot.add_module(bm)

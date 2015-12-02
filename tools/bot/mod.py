@@ -21,7 +21,7 @@ class BotMod:
 # ----- test -----
 if __name__ == '__main__':
   from bot import Bot
-  from botcmd import BotCmd
+  from cmd import BotCmd
 
   class Test(BotMod):
     def __init__(self):

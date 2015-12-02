@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import sys
-from botoptfield import BotOptField
+from optfield import BotOptField
 
 class BotOptsCtl:
   """a bot options client"""
@@ -145,7 +145,7 @@ class BotOptsCtl:
 if __name__ == '__main__':
   import botio
   import time
-  from botoptfield import BotOptField
+  from optfield import BotOptField
 
   def log(*args):
     t =  time.time()

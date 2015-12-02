@@ -6,7 +6,7 @@ import select
 import sys
 import os
 import time
-import botcfg
+import cfg
 
 class BotIOMsg:
   def __init__(self, line, sender, receivers, is_internal):
@@ -68,7 +68,7 @@ class BotIO:
 
   def get_cfg(self):
     """return a config object that matches the one of xmppbot"""
-    return botcfg.BotCfg(self._cmd_name, self._cfg_path)
+    return cfg.BotCfg(self._cmd_name, self._cfg_path)
 
   def _parse_line(self, line):
     """split line from bot into message
