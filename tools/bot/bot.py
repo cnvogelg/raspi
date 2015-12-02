@@ -6,6 +6,7 @@ import sys
 
 from io import BotIO
 from cmd import BotCmd
+from opts import BotOpts
 
 class Bot:
   """main class for a bot instance"""
@@ -16,6 +17,7 @@ class Bot:
     self.cmd_name = None
     self.cfg_path = None
     self.verbose = verbose
+    self.opts = {}
 
   def add_module(self, module):
     """add a module to the bot"""
@@ -47,10 +49,26 @@ class Bot:
 
   def _setup_modules(self):
     for m in self.modules:
+      name = m.get_name()
+      self._log("bot: module",name,"found")
+      # set reply function for module
       def reply(args, to=None):
-        a = [m.get_name()] + args
+        a = [name] + list(args)
         self.bio.write_args(a, receivers=to)
       m.set_reply(reply)
+      # set log function
+      def log(*args):
+        a = [name + ":"] + list(args)
+        self._log(*a)
+      m.set_log(log)
+      # has options?
+      opts = m.get_opts()
+      if opts is not None:
+        cfg_name = m.get_opts_name()
+        bo = BotOpts(reply, opts, cfg=self.bio.get_cfg(), cfg_name=cfg_name)
+        self.opts[m] = bo
+        bo.set_notifier(m.on_update_opt_field)
+        self._log("bot: module",name,"opts:", bo.get_values())
 
   def _setup_cmds(self):
     self.cmds = [
@@ -124,11 +142,19 @@ class Bot:
   def _handle_mod_cmd(self, mod, args, to):
     """handle a module command"""
     cmd_name = args[0]
+    # check bot commands
     cmds = mod.get_commands()
     if cmds is not None:
       for c in cmds:
         if cmd_name == c.get_name():
           return c.handle_cmd(args, to)
+    # check options
+    if mod in self.opts:
+      bo = self.opts[mod]
+      res = bo.handle_command(args, to)
+      if res is not None:
+        return res
+    # nothing found
     return "huh? " + cmd_name
 
 

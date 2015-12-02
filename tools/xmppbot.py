@@ -191,6 +191,9 @@ def parse_args():
 
 def get_cmd_name(cmd):
   name = os.path.basename(cmd)
+  pos = name.rfind('.')
+  if pos != 0:
+    name = name[:pos]
   return name
 
 # default 'xmppbot' config section
