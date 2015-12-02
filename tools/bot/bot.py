@@ -18,6 +18,7 @@ class Bot:
     self.cfg_path = None
     self.verbose = verbose
     self.opts = {}
+    self.connected = False
 
   def add_module(self, module):
     """add a module to the bot"""
@@ -48,9 +49,11 @@ class Bot:
       (self.nick, self.cmd_name, self.cfg_path))
 
   def _setup_modules(self):
+    self.bot_tick_interval = 1
     for m in self.modules:
       name = m.get_name()
-      self._log("bot: module",name,"found")
+      tick = m.get_tick_interval()
+      self._log("bot: module",name,"tick",tick)
       # set reply function for module
       def reply(args, to=None):
         a = [name] + list(args)
@@ -69,6 +72,11 @@ class Bot:
         self.opts[m] = bo
         bo.set_notifier(m.on_update_opt_field)
         self._log("bot: module",name,"opts:", bo.get_values())
+      # update bot tick
+      if tick > 0 and tick < self.bot_tick_interval:
+        self.bot_tick_interval = tick
+    # report bot tick
+    self._log("bot: tick", self.bot_tick_interval)
 
   def _setup_cmds(self):
     self.cmds = [
@@ -81,20 +89,47 @@ class Bot:
       self._reply(["module", a.get_name()], to=[sender])
 
   def _main_loop(self):
+    self._init_tick()
+
+    # report start
+    for m in self.modules:
+      m.on_start()
+
     while True:
       try:
-        msg = self.bio.read_args(timeout=1)
+        # handle tick
+        self._tick()
+        # handle incoming messages
+        msg = self.bio.read_args(timeout=self.bot_tick_interval)
         if msg:
           if msg.is_internal:
-            if msg.int_cmd == 'exit':
-              self._log("bot: exit")
+            if not self._handle_internal_msg(msg):
               break
-            self._handle_internal_msg(msg)
           else:
             self._handle_msg(msg)
       except KeyboardInterrupt:
         self._log("bot: Break")
         break
+
+   # report stop
+    for m in self.modules:
+      m.on_stop()
+
+  def _init_tick(self):
+    ts = time.time()
+    for m in self.modules:
+      m.last_ts = ts
+
+  def _tick(self):
+    """call tick in modules"""
+    ts = time.time()
+    for m in self.modules:
+      tick = m.get_tick_interval()
+      if tick > 0:
+        delta = ts - m.last_ts
+        if delta >= tick:
+          m.on_tick(ts, delta)
+          m.last_ts = ts
 
   def _reply(self, args, to=None):
     self.bio.write_args(args, receivers=to)
@@ -104,7 +139,32 @@ class Bot:
 
   def _handle_internal_msg(self, msg):
     """handle internal message"""
-    pass
+    if msg.int_cmd == 'exit':
+      self._log("exit")
+      return False
+    # connected?
+    my_nick = self.bio.get_nick()
+    msg_nick = msg.int_nick
+    if msg.int_cmd == 'connected':
+      if msg.int_nick == my_nick:
+        if not self.connected:
+          self.connected = True
+          for m in self.modules:
+            m.on_connected()
+      else:
+        for m in self.modules:
+          m.on_peer_connected(msg_nick)
+    # disconnected?
+    elif msg.int_cmd == 'disconnected':
+      if msg.int_nick == my_nick:
+        if self.connected:
+          self.connected = False
+          for m in self.modules:
+            m.on_disconnected()
+      else:
+        for m in self.modules:
+          m.on_peer_disconnected(msg_nick)
+    return True
 
   def _handle_msg(self, msg):
     # get command name

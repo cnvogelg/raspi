@@ -28,6 +28,9 @@ class Test(BotMod):
   def get_opts(self):
     return self.opts
 
+  def get_tick_interval(self):
+    return 1
+
 bot = Bot(True)
 bot.add_module(Test())
 bot.run()

@@ -1,2 +1,2 @@
 #!/bin/sh
-exec ./xmppbot.py ./botio.py
+exec ./xmppbot.py ./sample.py
