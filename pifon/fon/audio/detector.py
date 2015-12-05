@@ -29,12 +29,16 @@ class Detector:
     self.cur_level = 0
     self.max_level = 0
     self.state = self.STATE_IDLE
+    self.active = False
 
   def set_event_handler(self, ev):
     self.event_handler = ev
 
   def get_state_name(self):
     return self.state_names[self.state]
+
+  def is_active(self):
+    return self.active
 
   def handle_rms(self, level):
     """check incoming audio buffer and derive loudness state
@@ -71,7 +75,7 @@ class Detector:
         duration = t - self.attack_begin_time
       else:
         duration = 0
-      self.event_handler.level(max_level, cur_level, duration)
+      self.event_handler.level(max_level, cur_level, int(duration))
 
     # update state with current peak
     self.state_update(t, cur_level)
@@ -84,6 +88,7 @@ class Detector:
     slevel = self.opts.get_value('slevel')
 
     old_state = self.state
+    old_active = self.active
 
     # ----- IDLE -----
     if self.state == self.STATE_IDLE:
@@ -100,6 +105,7 @@ class Detector:
         delta = (t - self.attack_begin_time) * 1000
         if delta >= attack:
           self.state = self.STATE_ACTIVE
+          self.active = True
       else:
         # fall back to idle
         self.state = self.STATE_IDLE
@@ -119,6 +125,7 @@ class Detector:
         delta = (t - self.sustain_begin_time) * 1000
         if delta >= sustain:
           self.state = self.STATE_RESPITE
+          self.active = False
           self.respite_begin_time = t
       else:
         # fall back to active
@@ -138,7 +145,13 @@ class Detector:
     # post a state update?
     if old_state != self.state:
       self.post_state()
+    if old_active != self.active:
+      self.post_active()
 
   def post_state(self):
     if self.event_handler is not None:
       self.event_handler.state(self.state_names[self.state])
+
+  def post_active(self):
+    if self.event_handler is not None:
+      self.event_handler.active(self.active)

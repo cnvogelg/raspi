@@ -2,10 +2,7 @@
 
 from __future__ import print_function
 
-from bot.bot import Bot
-from bot.cmd import BotCmd
-from bot.optfield import BotOptField
-from bot.mod import BotMod
+from bot import Bot, BotCmd, BotOptField, BotMod
 
 class Test(BotMod):
   def __init__(self):

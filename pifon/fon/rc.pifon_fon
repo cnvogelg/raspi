@@ -34,7 +34,7 @@ if [ -x $DARKICE ]; then
   $TMUX_RUN darkice $ACTION "$LOOPER $DARKICE"
 fi
 
-# run pifon_audio
-$TMUX_RUN audio $ACTION "$LOOPER $XMPPBOT ./pifon_audio"
+# run pifon_fon
+$TMUX_RUN fon $ACTION "$LOOPER $XMPPBOT ./pifon_fon"
 
 exit 0

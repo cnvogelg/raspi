@@ -8,19 +8,20 @@ class BotMod:
     self.name = name
     self.reply = None
     self.log = None
+    self.cfg = None
+    self.botopts = None
     self.last_tick = 0
 
   def get_name(self):
     """return name of bot"""
     return self.name
 
-  def set_reply(self, r):
-    """bot sets reply callable on init"""
-    self.reply = r
-
-  def set_log(self, l):
-    """bot sets the log function on init"""
-    self.log = l
+  def setup(self, reply, log, cfg, botopts=None):
+    """bot sets up the module and reports environment"""
+    self.reply = reply
+    self.log = log
+    self.cfg = cfg
+    self.botopts = botopts
 
   def get_commands(self):
     """return bot command array"""

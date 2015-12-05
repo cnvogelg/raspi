@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 from __future__ import print_function
+
 import sys
-from optfield import BotOptField
+
+from bot.optfield import BotOptField
 
 class BotOptsCtl:
   """a bot options client"""

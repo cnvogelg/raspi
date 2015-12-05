@@ -2,11 +2,13 @@
 # simple class to help reading stdin/stdio bot IO
 
 from __future__ import print_function
+
 import select
 import sys
 import os
 import time
-import cfg
+
+import bot.cfg
 
 class BotIOMsg:
   def __init__(self, line, sender, receivers, is_internal):
@@ -68,7 +70,7 @@ class BotIO:
 
   def get_cfg(self):
     """return a config object that matches the one of xmppbot"""
-    return cfg.BotCfg(self._cmd_name, self._cfg_path)
+    return bot.cfg.BotCfg(self._cmd_name, self._cfg_path)
 
   def _parse_line(self, line):
     """split line from bot into message
@@ -177,7 +179,8 @@ class BotIO:
     sys.stdout.flush()
 
   def write_args(self, args, receivers=None):
-    self.write_line(" ".join(args), receivers)
+    a = map(str, args)
+    self.write_line(" ".join(a), receivers)
 
 
 # ----- test -----

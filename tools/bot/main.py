@@ -4,9 +4,9 @@ from __future__ import print_function
 import time
 import sys
 
-from io import BotIO
-from cmd import BotCmd
-from opts import BotOpts
+from bot.io import BotIO
+from bot.cmd import BotCmd
+from bot.opts import BotOpts
 
 class Bot:
   """main class for a bot instance"""
@@ -17,7 +17,6 @@ class Bot:
     self.cmd_name = None
     self.cfg_path = None
     self.verbose = verbose
-    self.opts = {}
     self.connected = False
 
   def add_module(self, module):
@@ -52,29 +51,38 @@ class Bot:
     self.bot_tick_interval = 1
     for m in self.modules:
       name = m.get_name()
-      tick = m.get_tick_interval()
-      self._log("bot: module",name,"tick",tick)
+
       # set reply function for module
       def reply(args, to=None):
         a = [name] + list(args)
         self.bio.write_args(a, receivers=to)
-      m.set_reply(reply)
+
       # set log function
       def log(*args):
         a = [name + ":"] + list(args)
         self._log(*a)
-      m.set_log(log)
+
+      # get bot config
+      cfg = self.bio.get_cfg()
+
       # has options?
       opts = m.get_opts()
+      bo = None
       if opts is not None:
         cfg_name = m.get_opts_name()
-        bo = BotOpts(reply, opts, cfg=self.bio.get_cfg(), cfg_name=cfg_name)
-        self.opts[m] = bo
+        bo = BotOpts(reply, opts, cfg=cfg, cfg_name=cfg_name)
         bo.set_notifier(m.on_update_opt_field)
         self._log("bot: module",name,"opts:", bo.get_values())
-      # update bot tick
+
+      # setup bot
+      m.setup(reply, log, cfg, bo)
+
+      # get tick (after setup of bot)
+      tick = m.get_tick_interval()
+      self._log("bot: module",name,"tick",tick)
       if tick > 0 and tick < self.bot_tick_interval:
         self.bot_tick_interval = tick
+
     # report bot tick
     self._log("bot: tick", self.bot_tick_interval)
 
@@ -145,9 +153,11 @@ class Bot:
     # connected?
     my_nick = self.bio.get_nick()
     msg_nick = msg.int_nick
+    self._log("internal", msg_nick, msg.int_cmd)
     if msg.int_cmd == 'connected':
       if msg.int_nick == my_nick:
         if not self.connected:
+          self._log("I am connected")
           self.connected = True
           for m in self.modules:
             m.on_connected()
@@ -158,6 +168,7 @@ class Bot:
     elif msg.int_cmd == 'disconnected':
       if msg.int_nick == my_nick:
         if self.connected:
+          self._log("I am disconnected")
           self.connected = False
           for m in self.modules:
             m.on_disconnected()
@@ -209,8 +220,8 @@ class Bot:
         if cmd_name == c.get_name():
           return c.handle_cmd(args, to)
     # check options
-    if mod in self.opts:
-      bo = self.opts[mod]
+    bo = mod.botopts
+    if bo is not None:
       res = bo.handle_command(args, to)
       if res is not None:
         return res

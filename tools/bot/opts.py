@@ -2,7 +2,7 @@
 from __future__ import print_function
 import sys
 
-from cmd import BotCmd
+from bot.cmd import BotCmd
 
 class BotOpts:
   """serve a set of bot options"""
