@@ -24,10 +24,11 @@
 #include <inttypes.h>
 #include <getopt.h>
 #include <math.h>
+#include <sys/time.h>
 
 static void usage(void)
 {
-  fputs("Usage: psnr -r rate -i interval -b block_size -s scale -v\n", stderr);
+  fputs("Usage: rms -r rate -i interval -b block_size -s scale -v -d\n", stderr);
   exit(1);
 }
 
@@ -40,9 +41,10 @@ int main(int argc, char **argv)
   uint32_t channels = 1; /* number of channels */
 
   /* parse arguments */
+  int show_delta = 0;
   int verbose = 0;
   int ch;
-  while ((ch = getopt(argc, argv, "r:i:b:s:c:v")) != -1) {
+  while ((ch = getopt(argc, argv, "r:i:b:s:c:vd")) != -1) {
     switch (ch) {
       case 'r':
         sample_rate = atoi(optarg);
@@ -61,6 +63,9 @@ int main(int argc, char **argv)
         break;
       case 'v':
         verbose = 1;
+        break;
+      case 'd':
+        show_delta = 1;
         break;
       default:
         usage();
@@ -85,6 +90,8 @@ int main(int argc, char **argv)
   }
 
   /* main loop */
+  struct timeval last;
+  gettimeofday(&last, NULL);
   while(1) {
 
     /* fill buffer */
@@ -117,8 +124,23 @@ int main(int argc, char **argv)
     /* root */
     int32_t result = (int32_t)(sqrt(d) * (double)scale);
 
+    /* get time stamp */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    int32_t delta;
+    if(tv.tv_sec == last.tv_sec) {
+      delta = (int32_t)(tv.tv_usec - last.tv_usec);
+    } else {
+      delta = (int32_t)(tv.tv_usec + 1000000 - last.tv_usec);
+    }
+    last = tv;
+
     /* show result */
-    printf("%" PRIi32 "\n", result);
+    if(show_delta) {
+      printf("%" PRIi32 " %" PRIi32 "\n", delta, result);
+    } else {
+      printf("%" PRIi32 "\n", result);
+    }
     fflush(stdout);
   }
 }

@@ -7,7 +7,7 @@ DIRNAME="`dirname \"$0\"`"
 
 # default options
 SAMPLE_RATE=11025
-INTERVAL=100
+INTERVAL=250
 CHANNELS=1
 RECORDER=auto
 
@@ -25,6 +25,9 @@ if [ "$4" != "" ]; then
   RECORDER=$4
 fi
 
+# calc buffer size
+BUFFER_BYTES=$((${SAMPLE_RATE} * ${INTERVAL} / 1000))
+
 # auto select recorder
 if [ "$RECORDER" = "auto" ]; then
   if [ "$SYSTEM" = "Linux" ]; then
@@ -36,23 +39,23 @@ fi
 
 # use ALSA arecord
 if [ "$RECORDER" = "arecord" ]; then
-  RECORD="arecord -q -Dplug:pcm.mixin -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE} ${POST_RECORD}"
+  RECORD="arecord -q -Dplug:pcm.mixin -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE} -B ${INTERVAL}"
 elif [ "$RECORDER" = "rec" ]; then
 # use sox' rec
   if [ "$SYSTEM" = "Linux" ]; then
     export AUDIODRIVER=alsa
     export AUDIODEV=mixin
   fi
-  RECORD="rec -q -b 16 -t raw - rate -q ${SAMPLE_RATE} channels ${CHANNELS}"
+  RECORD="rec -q -b 16 -t raw --buffer ${BUFFER_BYTES} - rate -q ${SAMPLE_RATE} channels ${CHANNELS}"
 else
   echo "Unknown RECORDER=${RECORDER}!"
   exit 1
 fi
 
 # setup sox filter
-SOX="sox -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed - -t raw -"
+SOX="sox -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed --buffer ${BUFFER_BYTES} - -t raw -"
 FILTER="${SOX} highpass 500"
 
 # run sox record and pipe to rms
 exec ${RECORD} | ${FILTER} | \
-  ${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL}
+  ${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL} ${EXTRA_RMS}
