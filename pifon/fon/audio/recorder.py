@@ -14,9 +14,13 @@ class Recorder:
     if self.p.returncode != None:
       return None
     # read line
-    l = self.p.stdout.readline()
+    line = self.p.stdout.readline().strip()
     try:
-      return int(l)
+      items = line.split(" ")
+      if len(items) == 2:
+        items = map(int, items)
+        return(items[0] / 1000, items[1])
+      return None
     except:
       return None
 

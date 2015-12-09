@@ -55,6 +55,7 @@ fi
 # setup sox filter
 SOX="sox -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed --buffer ${BUFFER_BYTES} - -t raw -"
 FILTER="${SOX} highpass 500"
+EXTRA_RMS="-d"
 
 # run sox record and pipe to rms
 exec ${RECORD} | ${FILTER} | \

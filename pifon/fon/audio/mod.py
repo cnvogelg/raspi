@@ -7,6 +7,7 @@
 
 from __future__ import print_function
 
+import time
 from bot import Bot, BotCmd, BotOptField, BotMod
 
 import detector
@@ -72,13 +73,15 @@ class AudioMod(BotMod):
 
     self.log("init audio")
     self.log("options=",self.botopts.get_values())
+    self.last_ts = time.time()
 
   def _get_vumeter_cfg(self, cfg):
     def_cfg = {
       'sample_rate' : 11025,
       'channels' : 1,
       'interval' : 250,
-      'recorder' : 'auto'
+      'recorder' : 'auto',
+      'debug' : False
     }
     vu_cfg = cfg.get_section("vumeter", def_cfg)
     self.log("vumeter=",vu_cfg)
@@ -86,6 +89,7 @@ class AudioMod(BotMod):
     self.sample_rate = vu_cfg['sample_rate']
     self.channels = vu_cfg['channels']
     self.interval = vu_cfg['interval']
+    self.debug = vu_cfg['debug']
 
   # ----- commands -----
 
@@ -125,11 +129,23 @@ class AudioMod(BotMod):
     rms = self.rec.read_rms()
     if rms is None:
       return
+    level = rms[1]
+    delta = rms[0]
+    ts = time.time()
+    delta_ts = ts - self.last_ts
+    delta_ts = int(delta_ts * 1000)
+    last_ts = ts
+
     # replace with sim data
     if self.botopts.get_value('sim'):
-      rms = self.sim.read_rms()
-      self.log("sim", rms)
+      level = self.sim.read_rms()
+      tag = "sim"
     else:
-      self.log("rec", rms)
+      tag = 'rec'
+
+    # print values
+    if self.debug or level > 0:
+      self.log(tag, level, delta, self.interval, delta_ts)
+
     # process rms value
-    self.d.handle_rms(rms)
+    self.d.handle_rms(level)
