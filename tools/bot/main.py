@@ -74,7 +74,7 @@ class Bot:
         bo = BotOpts(reply, opts, cfg=cfg, cfg_name=cfg_name)
 
         def field_handler(field):
-          self._trigger_event(BotEvent.INTERNAL, BotEvent.UPDATE_FIELD, [field], m)
+          self._trigger_internal_event(BotEvent.UPDATE_FIELD, [field], m)
 
         bo.set_notifier(field_handler)
         self._log("bot: module",name,"opts:", bo.get_values())
@@ -105,7 +105,7 @@ class Bot:
     self._init_tick()
 
     # report start
-    self._trigger_event(BotEvent.INTERNAL, BotEvent.START)
+    self._trigger_internal_event(BotEvent.START)
 
     while True:
       try:
@@ -124,7 +124,7 @@ class Bot:
         break
 
     # report stop
-    self._trigger_event(BotEvent.INTERNAL, BotEvent.STOP)
+    self._trigger_internal_event(BotEvent.STOP)
   def _init_tick(self):
     ts = time.time()
     for m in self.modules:
@@ -138,7 +138,7 @@ class Bot:
       if tick > 0:
         delta = ts - m.last_ts
         if delta >= tick:
-          self._trigger_event(BotEvent.INTERNAL, BotEvent.TICK, [ts, delta])
+          self._trigger_internal_event(BotEvent.TICK, [ts, delta])
           m.last_ts = ts
 
   def _reply(self, args, to=None):
@@ -161,18 +161,18 @@ class Bot:
         if not self.connected:
           self._log("I am connected")
           self.connected = True
-          self._trigger_event(BotEvent.INTERNAL, BotEvent.CONNECT)
+          self._trigger_internal_event(BotEvent.CONNECT)
       else:
-        self._trigger_event(BotEvent.INTERNAL, BotEvent.PEER_CONNECT, [msg_nick])
+        self._trigger_internal_event(BotEvent.PEER_CONNECT, [msg_nick])
     # disconnected?
     elif msg.int_cmd == 'disconnected':
       if msg.int_nick == my_nick:
         if self.connected:
           self._log("I am disconnected")
           self.connected = False
-          self._trigger_event(BotEvent.INTERNAL, BotEvent.DISCONNECT)
+          self._trigger_internal_event(BotEvent.DISCONNECT)
       else:
-        self._trigger_event(BotEvent.INTERNAL, BotEvent.PEER_DISCONNECT, [msg_nick])
+        self._trigger_internal_event(BotEvent.PEER_DISCONNECT, [msg_nick])
     return True
 
   def _handle_msg(self, msg):
@@ -245,14 +245,14 @@ class Bot:
     # nothing found
     return "huh? " + cmd_name
 
-  def _trigger_event(self, mod_name, name, args=None, mods=None):
+  def _trigger_internal_event(self, name, args=None, mods=None):
     if mods is None:
       mods = self.modules
     for mod in mods:
       events = mod.get_events()
       if events is not None:
         for ev in events:
-          if ev.mod_name == mod_name and ev.name == name:
+          if ev.mod_name == BotEvent.INTERNAL and ev.name == name:
             callee = ev.callee
             if callee is not None:
               if args is None:

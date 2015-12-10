@@ -34,44 +34,49 @@ class BotEvent(BotCmd):
     return self.handle_cmd(args, sender)
 
 
-class PeerConnectEvent(BotEvent):
+class InternalEvent(BotEvent):
+  def __init__(self, name, callee=None):
+    BotEvent.__init__(self, BotEvent.INTERNAL, name, callee=callee)
+
+
+class PeerConnectEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.PEER_CONNECT, (str,), callee)
+    InternalEvent.__init__(self, BotEvent.PEER_CONNECT, callee)
 
 
-class PeerDisconnectEvent(BotEvent):
+class PeerDisconnectEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.PEER_DISCONNECT, (str,), callee)
+    InternalEvent.__init__(self, BotEvent.PEER_DISCONNECT, callee)
 
 
-class ConnectEvent(BotEvent):
+class ConnectEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.CONNECT, None, callee)
+    InternalEvent.__init__(self, BotEvent.CONNECT, callee)
 
 
-class DisconnectEvent(BotEvent):
+class DisconnectEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.DISCONNECT, None, callee)
+    InternalEvent.__init__(self, BotEvent.DISCONNECT, callee)
 
 
-class StartEvent(BotEvent):
+class StartEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.START, None, callee)
+    InternalEvent.__init__(self, BotEvent.START, callee)
 
 
-class StopEvent(BotEvent):
+class StopEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.STOP, None, callee)
+    InternalEvent.__init__(self, BotEvent.STOP, callee)
 
 
-class TickEvent(BotEvent):
+class TickEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.TICK, None, callee)
+    InternalEvent.__init__(self, BotEvent.TICK, callee)
 
 
-class UpdateFieldEvent(BotEvent):
+class UpdateFieldEvent(InternalEvent):
   def __init__(self, callee=None):
-    BotEvent.__init__(self, BotEvent.INTERNAL, BotEvent.UPDATE_FIELD, None, callee)
+    InternalEvent.__init__(self, BotEvent.UPDATE_FIELD, callee)
 
 
 # ----- test -----
