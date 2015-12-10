@@ -194,7 +194,8 @@ class Bot:
         res = cmd.handle_cmd(a, msg.sender)
         if type(res) is str:
           self._error(cmd_name + ": " + res, to)
-        return
+        if res:
+          return
     # is it a module prefix
     for mod in self.modules:
       if cmd_name == mod.get_name():
@@ -206,9 +207,30 @@ class Bot:
           res = self._handle_mod_cmd(mod, a[1:], msg.sender)
           if type(res) is str:
             self._error(cmd_name + ": " + res, to)
+          if res:
+            return
+      # is it an event?
+      res = self._handle_mod_event(mod, a, to)
+      if type(res) is str:
+        self._error(cmd_name + ": " + res, to)
+      if res:
         return
     # unknown
     #self._error("Unknown command: " + cmd_name, to)
+
+  def _handle_mod_event(self, mod, args, to):
+    """handle a module event"""
+    if len(args) < 2:
+      return False
+    # check events
+    events = mod.get_events()
+    if events is not None:
+      for ev in events:
+        if ev.mod_name == args[0] and ev.name == args[1]:
+          res = ev.handle_event(args, to)
+          if type(res) is str:
+            self._error(ev.mod_name + " " + ev.name + ": " + res, to)
+          return
 
   def _handle_mod_cmd(self, mod, args, to):
     """handle a module command"""

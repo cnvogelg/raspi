@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from bot import Bot, BotCmd, BotOptField, BotMod
+from bot import Bot, BotCmd, BotOptField, BotMod, BotEvent
 
 class Test(BotMod):
   def __init__(self):
@@ -15,15 +15,24 @@ class Test(BotMod):
       BotOptField("anint",int,42, val_range=[1,100], desc="an integer"),
       BotOptField("astr",str,"hoo!", desc="a string")
     ]
+    self.events = [
+      BotEvent("foo","bar",callee=self.event_foo_bar)
+    ]
 
   def cmd_hello(self, sender):
     self.reply(["answer"], to=[sender])
+
+  def event_foo_bar(self, sender):
+    self.reply(['yuck!'])
 
   def get_commands(self):
     return self.cmds
 
   def get_opts(self):
     return self.opts
+
+  def get_events(self):
+    return self.events
 
   def get_tick_interval(self):
     return 1
