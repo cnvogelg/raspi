@@ -59,10 +59,13 @@ class Detector:
     # process levels?
     delta = (t - self.last_update_time) * 1000
     if delta >= update:
-      self.process_levels(t, self.max_level, self.cur_level)
+      res = self.process_levels(t, self.max_level, self.cur_level)
       self.last_update_time = t
       # reset current level for next block
       self.cur_level = 0
+      return res
+    else:
+      return (None, None)
 
   def process_levels(self, t, max_level, cur_level):
     # trace flag
@@ -78,7 +81,7 @@ class Detector:
       self.event_handler.level(max_level, cur_level, int(duration))
 
     # update state with current peak
-    self.state_update(t, cur_level)
+    return self.state_update(t, cur_level)
 
   def state_update(self, t, peak):
     """determine new state of detector"""
@@ -143,10 +146,15 @@ class Detector:
         self.max_level = 0
 
     # post a state update?
+    up_state = None
     if old_state != self.state:
       self.post_state()
+      up_state = self.state
+    up_active = None
     if old_active != self.active:
       self.post_active()
+      up_active = self.active
+    return (up_state, up_active)
 
   def post_state(self):
     if self.event_handler is not None:

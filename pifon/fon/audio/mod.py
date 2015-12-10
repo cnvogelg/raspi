@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import time
 from bot import Bot, BotCmd, BotOptField, BotMod
+from bot.event import *
 
 import detector
 import recorder
@@ -61,6 +62,11 @@ class AudioMod(BotMod):
       BotOptField('respite', int, 10, val_range=[0,60], desc='delay [1s] after playback to wait for next'),
       BotOptField('update', int, 5, val_range=[1,60], desc='update interval of current peak level [100ms]')
     ]
+    self.events = [
+      ConnectEvent(self.on_connected),
+      DisconnectEvent(self.on_disconnected),
+      TickEvent(self.on_tick)
+    ]
 
   def setup(self, reply, log, cfg, botopts):
     BotMod.setup(self, reply, log, cfg, botopts)
@@ -108,6 +114,9 @@ class AudioMod(BotMod):
   def get_opts(self):
     return self.opts
 
+  def get_events(self):
+    return self.events
+
   # ----- tick -----
 
   def get_tick_interval(self):
@@ -148,4 +157,8 @@ class AudioMod(BotMod):
       self.log(tag, level, delta, self.interval, delta_ts)
 
     # process rms value
-    self.d.handle_rms(level)
+    up_state, up_active = self.d.handle_rms(level)
+    if up_state is not None:
+      self.log("state", up_state)
+    if up_active is not None:
+      self.log("active", up_active)

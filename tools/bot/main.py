@@ -74,7 +74,7 @@ class Bot:
         bo = BotOpts(reply, opts, cfg=cfg, cfg_name=cfg_name)
 
         def field_handler(field):
-          self._trigger_event(BotEvent.INTERNAL, BotEvent.UPDATE_FIELD, field, m)
+          self._trigger_event(BotEvent.INTERNAL, BotEvent.UPDATE_FIELD, [field], m)
 
         bo.set_notifier(field_handler)
         self._log("bot: module",name,"opts:", bo.get_values())
@@ -138,7 +138,7 @@ class Bot:
       if tick > 0:
         delta = ts - m.last_ts
         if delta >= tick:
-          self._trigger_event(BotEvent.INTERNAL, BotEvent.TICK, ts)
+          self._trigger_event(BotEvent.INTERNAL, BotEvent.TICK, [ts, delta])
           m.last_ts = ts
 
   def _reply(self, args, to=None):
@@ -256,9 +256,9 @@ class Bot:
             callee = ev.callee
             if callee is not None:
               if args is None:
-                callee(self.nick)
+                callee()
               else:
-                callee(self.nick, args)
+                callee(*args)
 
 
 # ----- test -----

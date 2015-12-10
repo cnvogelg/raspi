@@ -23,14 +23,14 @@ class Test(BotMod):
       TickEvent(self.on_tick)
     ]
 
-  def on_connect(self, sender):
+  def on_connect(self):
     self.log("on_connect")
 
-  def on_disconnect(self, sender):
+  def on_disconnect(self):
     self.log("on_disconnect")
 
-  def on_tick(self, sender, ts):
-    self.log("tick", ts)
+  def on_tick(self, ts, delta):
+    self.log("tick", ts, delta)
 
   def cmd_hello(self, sender):
     self.reply(["answer"], to=[sender])
