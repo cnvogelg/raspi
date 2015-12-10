@@ -2,7 +2,8 @@
 
 from __future__ import print_function
 
-from bot import Bot, BotCmd, BotOptField, BotMod, BotEvent
+from bot import Bot, BotCmd, BotOptField, BotMod
+from bot.event import *
 
 class Test(BotMod):
   def __init__(self):
@@ -16,8 +17,20 @@ class Test(BotMod):
       BotOptField("astr",str,"hoo!", desc="a string")
     ]
     self.events = [
-      BotEvent("foo","bar",callee=self.event_foo_bar)
+      BotEvent("foo","bar",callee=self.event_foo_bar),
+      ConnectEvent(self.on_connect),
+      DisconnectEvent(self.on_disconnect),
+      TickEvent(self.on_tick)
     ]
+
+  def on_connect(self, sender):
+    self.log("on_connect")
+
+  def on_disconnect(self, sender):
+    self.log("on_disconnect")
+
+  def on_tick(self, sender, ts):
+    self.log("tick", ts)
 
   def cmd_hello(self, sender):
     self.reply(["answer"], to=[sender])

@@ -7,6 +7,7 @@ import sys
 from bot.io import BotIO
 from bot.cmd import BotCmd
 from bot.opts import BotOpts
+from bot.event import BotEvent
 
 class Bot:
   """main class for a bot instance"""
@@ -71,7 +72,11 @@ class Bot:
       if opts is not None:
         cfg_name = m.get_opts_name()
         bo = BotOpts(reply, opts, cfg=cfg, cfg_name=cfg_name)
-        bo.set_notifier(m.on_update_opt_field)
+
+        def field_handler(field):
+          self._trigger_event(BotEvent.INTERNAL, BotEvent.UPDATE_FIELD, field, m)
+
+        bo.set_notifier(field_handler)
         self._log("bot: module",name,"opts:", bo.get_values())
 
       # setup bot
@@ -100,8 +105,7 @@ class Bot:
     self._init_tick()
 
     # report start
-    for m in self.modules:
-      m.on_start()
+    self._trigger_event(BotEvent.INTERNAL, BotEvent.START)
 
     while True:
       try:
@@ -119,10 +123,8 @@ class Bot:
         self._log("bot: Break")
         break
 
-   # report stop
-    for m in self.modules:
-      m.on_stop()
-
+    # report stop
+    self._trigger_event(BotEvent.INTERNAL, BotEvent.STOP)
   def _init_tick(self):
     ts = time.time()
     for m in self.modules:
@@ -136,7 +138,7 @@ class Bot:
       if tick > 0:
         delta = ts - m.last_ts
         if delta >= tick:
-          m.on_tick(ts, delta)
+          self._trigger_event(BotEvent.INTERNAL, BotEvent.TICK, ts)
           m.last_ts = ts
 
   def _reply(self, args, to=None):
@@ -159,22 +161,18 @@ class Bot:
         if not self.connected:
           self._log("I am connected")
           self.connected = True
-          for m in self.modules:
-            m.on_connected()
+          self._trigger_event(BotEvent.INTERNAL, BotEvent.CONNECT)
       else:
-        for m in self.modules:
-          m.on_peer_connected(msg_nick)
+        self._trigger_event(BotEvent.INTERNAL, BotEvent.PEER_CONNECT, [msg_nick])
     # disconnected?
     elif msg.int_cmd == 'disconnected':
       if msg.int_nick == my_nick:
         if self.connected:
           self._log("I am disconnected")
           self.connected = False
-          for m in self.modules:
-            m.on_disconnected()
+          self._trigger_event(BotEvent.INTERNAL, BotEvent.DISCONNECT)
       else:
-        for m in self.modules:
-          m.on_peer_disconnected(msg_nick)
+        self._trigger_event(BotEvent.INTERNAL, BotEvent.PEER_DISCONNECT, [msg_nick])
     return True
 
   def _handle_msg(self, msg):
@@ -194,8 +192,7 @@ class Bot:
         res = cmd.handle_cmd(a, msg.sender)
         if type(res) is str:
           self._error(cmd_name + ": " + res, to)
-        if res:
-          return
+          return res
     # is it a module prefix
     for mod in self.modules:
       if cmd_name == mod.get_name():
@@ -207,14 +204,12 @@ class Bot:
           res = self._handle_mod_cmd(mod, a[1:], msg.sender)
           if type(res) is str:
             self._error(cmd_name + ": " + res, to)
-          if res:
-            return
+            return res
       # is it an event?
       res = self._handle_mod_event(mod, a, to)
       if type(res) is str:
         self._error(cmd_name + ": " + res, to)
-      if res:
-        return
+        return res
     # unknown
     #self._error("Unknown command: " + cmd_name, to)
 
@@ -230,7 +225,7 @@ class Bot:
           res = ev.handle_event(args, to)
           if type(res) is str:
             self._error(ev.mod_name + " " + ev.name + ": " + res, to)
-          return
+            return res
 
   def _handle_mod_cmd(self, mod, args, to):
     """handle a module command"""
@@ -249,6 +244,21 @@ class Bot:
         return res
     # nothing found
     return "huh? " + cmd_name
+
+  def _trigger_event(self, mod_name, name, args=None, mods=None):
+    if mods is None:
+      mods = self.modules
+    for mod in mods:
+      events = mod.get_events()
+      if events is not None:
+        for ev in events:
+          if ev.mod_name == mod_name and ev.name == name:
+            callee = ev.callee
+            if callee is not None:
+              if args is None:
+                callee(self.nick)
+              else:
+                callee(self.nick, args)
 
 
 # ----- test -----

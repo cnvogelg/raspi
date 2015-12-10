@@ -43,33 +43,6 @@ class BotMod:
     """return the interval in s the tick will be triggered. Use 0 for no tick"""
     return 0
 
-  # ----- events -----
-
-  def on_start(self):
-    self.log("start")
-
-  def on_stop(self):
-    self.log("stop")
-
-  def on_update_opt_field(self, field):
-    """callback whenever a field changes"""
-    self.log("update_opt_field:", field)
-
-  def on_tick(self, ts, delta):
-    self.log("tick", ts, delta)
-
-  def on_connected(self):
-    self.log("connected")
-
-  def on_disconnected(self):
-    self.log("disconnected")
-
-  def on_peer_connected(self, nick):
-    self.log("peer connected", nick)
-
-  def on_peer_disconnected(self, nick):
-    self.log("peer disconnected", nick)
-
 
 # ----- test -----
 if __name__ == '__main__':
