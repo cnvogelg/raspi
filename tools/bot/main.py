@@ -4,7 +4,7 @@ from __future__ import print_function
 import time
 import sys
 
-from bot.io import BotIO
+from bot.io import BotIO, BotIOMsg
 from bot.cmd import BotCmd
 from bot.opts import BotOpts
 from bot.event import BotEvent
@@ -48,20 +48,36 @@ class Bot:
     self._log("bot: got nick='%s' cmd_name='%s' cfg_path='%s'" % \
       (self.nick, self.cmd_name, self.cfg_path))
 
+  def _gen_funcs(self, name, other_mod):
+    # set reply function for module
+    def reply(args, to=None):
+      a = [name] + list(args)
+      self.bio.write_args(a, receivers=to)
+      # internal loop back
+      if to is None or self.nick in to:
+        msg = BotIOMsg(" ".join(a), self.nick, to, False)
+        msg.split_args()
+        self._handle_msg(msg, other_mod)
+
+    # set log function
+    def log(*args):
+      a = [name + ":"] + list(args)
+      self._log(*a)
+
+    return reply, log
+
   def _setup_modules(self):
     self.bot_tick_interval = 1
     for m in self.modules:
       name = m.get_name()
 
-      # set reply function for module
-      def reply(args, to=None):
-        a = [name] + list(args)
-        self.bio.write_args(a, receivers=to)
+      # other modules
+      other_mod = []
+      for m2 in self.modules:
+        if m2 != m:
+          other_mod.append(m2)
 
-      # set log function
-      def log(*args):
-        a = [name + ":"] + list(args)
-        self._log(*a)
+      reply, log = self._gen_funcs(name, other_mod)
 
       # get bot config
       cfg = self.bio.get_cfg()
@@ -118,7 +134,7 @@ class Bot:
             if not self._handle_internal_msg(msg):
               break
           else:
-            self._handle_msg(msg)
+            self._handle_msg(msg, self.modules)
       except KeyboardInterrupt:
         self._log("bot: Break")
         break
@@ -175,7 +191,7 @@ class Bot:
         self._trigger_internal_event(BotEvent.PEER_DISCONNECT, [msg_nick])
     return True
 
-  def _handle_msg(self, msg):
+  def _handle_msg(self, msg, modules):
     # get command name
     a = msg.args
     n = len(a)
@@ -194,7 +210,7 @@ class Bot:
           self._error(cmd_name + ": " + res, to)
           return res
     # is it a module prefix
-    for mod in self.modules:
+    for mod in modules:
       if cmd_name == mod.get_name():
         # need a sub command!
         if n == 1:

@@ -17,7 +17,7 @@ class Test(BotMod):
       BotOptField("astr",str,"hoo!", desc="a string")
     ]
     self.events = [
-      BotEvent("foo","bar",callee=self.event_foo_bar),
+      BotEvent("echo","hello",callee=self.event_foo_bar),
       ConnectEvent(self.on_connect),
       DisconnectEvent(self.on_disconnect),
       TickEvent(self.on_tick)
@@ -50,6 +50,22 @@ class Test(BotMod):
   def get_tick_interval(self):
     return 1
 
+
+class Echo(BotMod):
+  def __init__(self):
+    BotMod.__init__(self, "echo")
+    self.cmds = [
+      BotCmd("echo",callee=self.cmd_echo)
+    ]
+
+  def cmd_echo(self, sender):
+    self.reply(["hello"])
+
+  def get_commands(self):
+    return self.cmds
+
+
 bot = Bot(True)
 bot.add_module(Test())
+bot.add_module(Echo())
 bot.run()
