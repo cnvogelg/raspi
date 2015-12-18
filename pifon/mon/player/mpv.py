@@ -1,8 +1,11 @@
 import subprocess
 import sys
 
-class PlayerMPV:
+from base import BasePlayer
+
+class PlayerMPV(BasePlayer):
   def __init__(self, mpv=None):
+    BasePlayer.__init__(self)
     if mpv is not None:
       self.mpv = mpv
     else:

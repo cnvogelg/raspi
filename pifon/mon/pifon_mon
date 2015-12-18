@@ -2,16 +2,15 @@
 #
 # pifon_mon
 #
-# monitor tool to listen for pifon events and plays the audio streams
+# controls the audio player
+# shows audio events
 #
 
 from __future__ import print_function
+
 import os
 import sys
-import ConfigParser
 import inspect
-import traceback
-import time
 
 # add ../../tools to python path
 my_dir = os.path.split(inspect.getfile( inspect.currentframe() ))[0]
@@ -19,154 +18,9 @@ tools_dir = os.path.realpath(os.path.abspath(os.path.join(my_dir,"..","..","tool
 if tools_dir not in sys.path:
   sys.path.insert(0, tools_dir)
 
-# my modules
-import botio
-import audiosrv
-import playctl
+import bot
 import player
-import ui
 
-# ----- config -----
-
-def_cfg = {
-  'audio_srv' : {
-    'ping_interval' : 2
-  },
-  'player' :  {
-    'name' : 'dummy',
-    'mpc' : None,
-    'mpv' : None,
-    'host' : None
-  },
-  'play_ctl' : {
-    'chime_start' : None,
-    'chime_stop' : None
-  },
-  'ui' : {
-    'name' : 'lcd',
-    'sim' : False,
-    'font_path' : 'font'
-  }
-}
-
-def read_config():
-  """read configuration file"""
-  cfg_file = os.path.join(os.path.dirname(sys.argv[0]),'pifon_mon.cfg')
-  parser = ConfigParser.SafeConfigParser()
-  parser.read([cfg_file])
-  # default config
-  cfg = def_cfg
-  # overwrite own settings
-  for sect in cfg:
-    if parser.has_section(sect):
-      subcfg = cfg[sect]
-      for i in parser.items(sect):
-        key = i[0]
-        if key in subcfg:
-          old_val = subcfg[key]
-          if old_val is None:
-            t = str
-          else:
-            t = type(old_val)
-          subcfg[key] = t(i[1])
-  return cfg
-
-# ----- AudioSrv Callbacks -----
-
-class AudioSrvCallbacks:
-  def __init__(self, play_ctl, ui_ctl):
-    self.play_ctl = play_ctl
-    self.ui_ctl = ui_ctl
-
-  def audio_add_instance(self, i):
-    print("add_instance", i, file=sys.stderr)
-    self.play_ctl.audio_connect(i.name, "bla")
-    self.ui_ctl.audio_add_instance(i)
-
-  def audio_del_instance(self, i):
-    print("del_instance", i, file=sys.stderr)
-    self.play_ctl.audio_disconnect(i.name)
-    self.ui_ctl.audio_del_instance(i)
-
-  def audio_update_level(self, i):
-    print("update_level", i, file=sys.stderr)
-    self.ui_ctl.audio_update_level(i)
-
-  def audio_update_state(self, i):
-    print("update state", i, file=sys.stderr)
-    self.play_ctl.audio_state(i.name, i.state)
-    self.ui_ctl.audio_update_state(i)
-
-  def audio_update_src(self, i):
-    print("update src", i, file=sys.stderr)
-    self.play_ctl.audio_src(i.name, i.listen_url)
-    self.ui_ctl.audio_update_src(i)
-
-  def audio_ping(self, i, valid):
-    print("ping", i, valid, file=sys.stderr)
-    self.ui_ctl.audio_ping(i, valid)
-
-  def audio_update_option(self, i, field):
-    print("update_option", i, field, file=sys.stderr)
-    self.ui_ctl.audio_update_option(i, field)
-
-  def audio_update_all_options(self, i, fields):
-    print("update_all_options", i, fields, file=sys.stderr)
-    self.ui_ctl.audio_update_all_options(i, fields)
-
-# ---------- main ----------
-
-def main():
-
-  # first parse config
-  cfg = read_config()
-  print("pifon_mon: starting config:", cfg, file=sys.stderr)
-
-  # setup bot
-  bio = botio.BotIO()
-  audio_srv = audiosrv.AudioSrv(bio, cfg['audio_srv']['ping_interval'])
-
-  # create player
-  ply_cfg = cfg['player']
-  ply = player.create_player(**ply_cfg)
-  play_ctl = playctl.PlayCtl(ply)
-
-  # create ui
-  ui_cfg = cfg['ui']
-  my_ui = ui.create_ui(**ui_cfg)
-  my_ui_ctl = ui.UICtl(my_ui)
-
-  # callback
-  asc = AudioSrvCallbacks(play_ctl, my_ui_ctl)
-  audio_srv.set_callback(asc)
-
-  # ----- main loop -----
-  print("pifon_mon: started",file=sys.stderr)
-  timeout = 0.1
-  exit_flag = None
-  try:
-    stay = True
-    while stay:
-      # read args from stdin with timeout
-      msg = bio.read_args(timeout)
-      if msg:
-        audio_srv.handle_msg(msg)
-      # handle ui events
-      ts = time.time()
-      stay = my_ui_ctl.handle_events(ts)
-  except KeyboardInterrupt:
-    print("\npifon_mon: break -> shutting down",file=sys.stderr)
-  except Exception as e:
-    print("\nFATAL CRASH!", e, file=sys.stderr)
-    traceback.print_exc(file=sys.stderr)
-    exit_flag = True
-
-  # shutdown
-  print("pifon_mon: shutting down", file=sys.stderr)
-  play_ctl.exit()
-
-  print("pifon_mon: exit", file=sys.stderr)
-  sys.exit(0)
-
-if __name__ == '__main__':
-  main()
+b = bot.Bot(True)
+b.add_module(player.PlayerMod())
+b.run()

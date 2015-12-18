@@ -2,8 +2,11 @@ import subprocess
 import sys
 import os
 
-class PlayerMPD:
+from base import BasePlayer
+
+class PlayerMPD(BasePlayer):
   def __init__(self, mpc=None, host=None):
+    BasePlayer.__init__(self)
     # setup mpc binary
     if mpc is not None:
       self.mpc = mpc

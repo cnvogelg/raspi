@@ -55,6 +55,7 @@ class Bot:
       self.bio.write_args(a, receivers=to)
       # internal loop back
       if to is None or self.nick in to:
+        a = map(str, a)
         msg = BotIOMsg(" ".join(a), self.nick, to, False)
         msg.split_args()
         self._handle_msg(msg, other_mod)

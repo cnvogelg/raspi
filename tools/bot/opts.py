@@ -190,7 +190,7 @@ class BotOpts:
       if cmd_name == cmd.get_name():
         res = cmd.handle_cmd(args, sender)
         if type(res) is str:
-          self._error(cmd_name + ": " + res, to)
+          self._error(cmd_name + ": " + res, sender)
           return False
         else:
           return True
