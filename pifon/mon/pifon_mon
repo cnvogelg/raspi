@@ -20,7 +20,9 @@ if tools_dir not in sys.path:
 
 import bot
 import player
+import ping
 
 b = bot.Bot(True)
 b.add_module(player.PlayerMod())
+b.add_module(ping.PingerMod())
 b.run()

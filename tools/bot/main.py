@@ -50,8 +50,11 @@ class Bot:
 
   def _gen_funcs(self, name, other_mod):
     # set reply function for module
-    def reply(args, to=None):
-      a = [name] + list(args)
+    def reply(args, to=None, main=False):
+      if main:
+        a = list(args)
+      else:
+        a = [name] + list(args)
       self.bio.write_args(a, receivers=to)
       # internal loop back
       if to is None or self.nick in to:
@@ -110,13 +113,17 @@ class Bot:
 
   def _setup_cmds(self):
     self.cmds = [
-      BotCmd("lsmod",callee=self._cmd_lsmod)
+      BotCmd("lsmod",callee=self._cmd_lsmod),
+      BotCmd("ping",callee=self._cmd_ping)
     ]
 
   def _cmd_lsmod(self, sender):
     self._log("cmd: lsmod")
     for a in self.modules:
       self._reply(["module", a.get_name()], to=[sender])
+
+  def _cmd_ping(self, sender):
+    self._reply(["pong"], to=[sender])
 
   def _main_loop(self):
     self._init_tick()
@@ -232,17 +239,18 @@ class Bot:
 
   def _handle_mod_event(self, mod, args, to):
     """handle a module event"""
-    if len(args) < 2:
+    if len(args) < 1:
       return False
     # check events
     events = mod.get_events()
     if events is not None:
       for ev in events:
-        if ev.mod_name == args[0] and ev.name == args[1]:
-          res = ev.handle_event(args, to)
-          if type(res) is str:
-            self._error(ev.mod_name + " " + ev.name + ": " + res, to)
-            return res
+        if (ev.mod_name == args[0] and ev.name == args[1]) or \
+           (ev.mod_name == BotEvent.MAIN and ev.name == args[0]):
+            res = ev.handle_event(args, to)
+            if type(res) is str:
+              self._error(ev.mod_name + " " + ev.name + ": " + res, to)
+              return res
 
   def _handle_mod_cmd(self, mod, args, to):
     """handle a module command"""

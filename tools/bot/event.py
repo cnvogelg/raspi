@@ -1,11 +1,13 @@
 from __future__ import print_function
 
+import sys
 from bot.cmd import BotCmd
 
 class BotEvent(BotCmd):
 
   # special mod name
   INTERNAL = "__internal__"
+  MAIN = "__main__"
 
   # internal names
   PEER_CONNECT = "peer_connect"
@@ -23,15 +25,22 @@ class BotEvent(BotCmd):
     self.mod_name = mod_name
 
   def handle_event(self, args, sender):
-    if len(args) < 2:
-      return "no event"
-    # check module name
-    mod_name = args[0]
-    if mod_name != self.mod_name:
-      return False
-    # remainder of args
-    args = args[1:]
-    return self.handle_cmd(args, sender)
+    # a main module event?
+    if self.mod_name == self.MAIN:
+      if len(args) < 1:
+        return False
+      return self.handle_cmd(args, sender)
+    # a regular mod event
+    else:
+      if len(args) < 2:
+        return False
+      # check module name
+      mod_name = args[0]
+      if mod_name != self.mod_name:
+        return False
+      # remainder of args
+      args = args[1:]
+      return self.handle_cmd(args, sender)
 
 
 class InternalEvent(BotEvent):
