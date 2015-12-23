@@ -80,6 +80,7 @@ class AudioMod(BotMod):
     self.log("init audio")
     self.log("options=",self.botopts.get_values())
     self.last_ts = time.time()
+    self.last_alive_ts = time.time()
 
   def _get_vumeter_cfg(self, cfg):
     def_cfg = {
@@ -96,6 +97,7 @@ class AudioMod(BotMod):
     self.channels = vu_cfg['channels']
     self.interval = vu_cfg['interval']
     self.debug = vu_cfg['debug']
+    self.tick_interval = self.interval / 1000.0
 
   # ----- commands -----
 
@@ -120,7 +122,7 @@ class AudioMod(BotMod):
   # ----- tick -----
 
   def get_tick_interval(self):
-    return self.interval / 1000.0
+    return self.tick_interval
 
   def on_connected(self):
     self.log("CONNECT")
@@ -134,6 +136,15 @@ class AudioMod(BotMod):
     self.d.set_event_handler(None)
 
   def on_tick(self, ts, delta):
+    # report alive
+    last_delta = ts - self.last_alive_ts
+    if last_delta > 10:
+      self.log("alive!")
+      self.last_alive_ts = ts
+    # check delta
+    if delta > 2 * self.tick_interval:
+      self.log("slow tick is=",delta,"want=",self.tick_interval)
+
     # process audio data
     rms = self.rec.read_rms()
     if rms is None:
@@ -159,6 +170,6 @@ class AudioMod(BotMod):
     # process rms value
     up_state, up_active = self.d.handle_rms(level)
     if up_state is not None:
-      self.log("state", up_state)
+      self.log("state", up_state, self.d.state_names[up_state])
     if up_active is not None:
       self.log("active", up_active)
