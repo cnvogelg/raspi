@@ -8,6 +8,12 @@
 from __future__ import print_function
 
 import time
+import threading
+try:
+  import queue
+except ImportError:
+  import Queue as queue
+
 from bot import Bot, BotCmd, BotOptField, BotMod
 from bot.event import *
 
@@ -79,8 +85,12 @@ class AudioMod(BotMod):
 
     self.log("init audio")
     self.log("options=",self.botopts.get_values())
-    self.last_ts = time.time()
-    self.last_alive_ts = time.time()
+
+    # setup threading
+    self.queue = queue.Queue()
+    self.thread = threading.Thread(target=self.thread_run, name="audiorec")
+    self.do_run = True
+    self.thread.start()
 
   def _get_vumeter_cfg(self, cfg):
     def_cfg = {
@@ -135,37 +145,75 @@ class AudioMod(BotMod):
     self.log("DISCONNECT")
     self.d.set_event_handler(None)
 
+  def thread_run(self):
+    """audio record thread"""
+    self.log("starting audio thread")
+
+    # init
+    last_ts = time.time()
+    last_alive_ts = last_ts
+    tick = int(self.tick_interval * 1000) # convert to ms
+
+    # main loop
+    while self.do_run:
+      # calculate the delta time of our loop
+      ts = time.time()
+      delta = ts - last_ts
+      last_ts = ts
+      delta = int(delta * 1000.0) # convert to ms
+
+      # report alive
+      alive_delta = ts - last_alive_ts
+      if alive_delta > 10:
+        self.log("alive!")
+        last_alive_ts = ts
+
+      # check delta
+      if delta > 2 * tick:
+        self.log("slow tick is=",delta,"want=",tick)
+
+      # process audio data
+      rms = self.rec.read_rms()
+      if rms is None:
+        return
+      level = rms[1]
+      rec_delta = rms[0]
+      rec_delta = rec_delta
+
+      # check recording delta
+      jitter = rec_delta - delta
+      if jitter > delta or jitter < -delta:
+        self.log("large jitter=", jitter)
+
+      # replace with sim data
+      if self.botopts.get_value('sim'):
+        level = self.sim.read_rms()
+        tag = "sim"
+      else:
+        tag = 'rec'
+
+      # print values
+      if self.debug or level > 0:
+        self.log(tag, level, delta, self.interval, rec_delta)
+
+      # finally put result into queue
+      self.queue.put(level)
+
   def on_tick(self, ts, delta):
-    # report alive
-    last_delta = ts - self.last_alive_ts
-    if last_delta > 10:
-      self.log("alive!")
-      self.last_alive_ts = ts
-    # check delta
-    if delta > 2 * self.tick_interval:
-      self.log("slow tick is=",delta,"want=",self.tick_interval)
-
-    # process audio data
-    rms = self.rec.read_rms()
-    if rms is None:
+    """tick handler of bot"""
+    # check queue size
+    size = self.queue.qsize()
+    if size == 0:
+      self.log("queue empty!")
       return
-    level = rms[1]
-    delta = rms[0]
-    ts = time.time()
-    delta_ts = ts - self.last_ts
-    delta_ts = int(delta_ts * 1000)
-    last_ts = ts
+    elif size > 1:
+      self.log("queue size:", size)
+      # drain queue
+      for i in range(size-1):
+        self.queue.get()
 
-    # replace with sim data
-    if self.botopts.get_value('sim'):
-      level = self.sim.read_rms()
-      tag = "sim"
-    else:
-      tag = 'rec'
-
-    # print values
-    if self.debug or level > 0:
-      self.log(tag, level, delta, self.interval, delta_ts)
+    # get next element
+    level = self.queue.get()
 
     # process rms value
     up_state, up_active = self.d.handle_rms(level)
