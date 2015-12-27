@@ -96,15 +96,15 @@ class Control:
           self.play_srv = server
           # report
           if self.reply is not None:
-            self.reply(['playing',url])
+            self.reply(['play', server, url])
           return True
     return False
 
   def _stop(self):
     if self.player.stop():
-      self.play_srv = None
       if self.reply is not None:
-        self.reply(['playing','False'])
+        self.reply(['stop', self.play_srv])
+      self.play_srv = None
       return True
     return False
 

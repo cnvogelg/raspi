@@ -149,6 +149,7 @@ class Bot:
 
     # report stop
     self._trigger_internal_event(BotEvent.STOP)
+
   def _init_tick(self):
     ts = time.time()
     for m in self.modules:
@@ -162,7 +163,8 @@ class Bot:
       if tick > 0:
         delta = ts - m.last_ts
         if delta >= tick:
-          self._trigger_internal_event(BotEvent.TICK, [ts, delta])
+          #self._log("bot: do tick", m.name)
+          self._trigger_internal_event(BotEvent.TICK, [ts, delta], mods=[m])
           m.last_ts = ts
 
   def _reply(self, args, to=None):
