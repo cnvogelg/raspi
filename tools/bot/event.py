@@ -11,6 +11,7 @@ class BotEvent(BotCmd):
   # internal names
   PEER_CONNECT = "peer_connect"
   PEER_DISCONNECT = "peer_disconnect"
+  PEER_MOD_LIST = "peer_mod_list"
 
   CONNECT = "connect"
   DISCONNECT = "disconnect"
@@ -18,6 +19,7 @@ class BotEvent(BotCmd):
   STOP = "stop"
   TICK = "tick"
   UPDATE_FIELD = "update_field"
+  MOD_LIST = "mod_list"
 
   def __init__(self, mod_name, name, arg_types=None, callee=None):
     BotCmd.__init__(self, name, arg_types, callee)
@@ -50,6 +52,11 @@ class PeerDisconnectEvent(InternalEvent):
     InternalEvent.__init__(self, BotEvent.PEER_DISCONNECT, callee)
 
 
+class PeerModListEvent(InternalEvent):
+  def __init__(self, callee=None):
+    InternalEvent.__init__(self, BotEvent.PEER_MOD_LIST, callee)
+
+
 class ConnectEvent(InternalEvent):
   def __init__(self, callee=None):
     InternalEvent.__init__(self, BotEvent.CONNECT, callee)
@@ -58,6 +65,11 @@ class ConnectEvent(InternalEvent):
 class DisconnectEvent(InternalEvent):
   def __init__(self, callee=None):
     InternalEvent.__init__(self, BotEvent.DISCONNECT, callee)
+
+
+class ModListEvent(InternalEvent):
+  def __init__(self, callee=None):
+    InternalEvent.__init__(self, BotEvent.MOD_LIST, callee)
 
 
 class StartEvent(InternalEvent):

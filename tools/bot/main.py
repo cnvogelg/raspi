@@ -19,6 +19,7 @@ class Bot:
     self.cfg_path = None
     self.verbose = verbose
     self.connected = False
+    self.rem_mods = {}
 
   def add_module(self, module):
     """add a module to the bot"""
@@ -116,15 +117,49 @@ class Bot:
       BotCmd("lsmod",callee=self._cmd_lsmod),
       BotCmd("ping",callee=self._cmd_ping)
     ]
+    self.events = [
+      BotEvent("bot","module",arg_types=(str,str),callee=self._event_bot_module),
+      BotEvent("bot","end_module",callee=self._event_bot_end_module)
+    ]
 
   def _cmd_lsmod(self, sender):
     self._log("cmd: lsmod")
     for a in self.modules:
-      self._reply(["bot", "module", a.get_name()], to=[sender])
+      self._reply(["bot", "module", a.get_name(), a.get_version()], to=[sender])
     self._reply(["bot", "end_module"], to=[sender])
 
   def _cmd_ping(self, sender):
     self._reply(["bot", "pong"], to=[sender])
+
+  def _get_mod_set(self, sender):
+    if sender in self.rem_mods:
+      return self.rem_mods[sender]
+    else:
+      s = {}
+      self.rem_mods[sender] = s
+      return s
+
+  def _event_bot_module(self, sender, args):
+    mod_name = args[0]
+    mod_ver = args[1]
+    self._log("bot module", sender, mod_name, mod_ver)
+    s = self._get_mod_set(sender)
+    s[mod_name] = mod_ver
+
+  def _event_bot_end_module(self, sender):
+    self._log("bot end_module", sender)
+    s = self._get_mod_set(sender)
+    l = s.items()
+    # post a peer mod list event
+    self._trigger_internal_event(BotEvent.PEER_MOD_LIST, [sender, l])
+
+  def _send_my_mod_list(self):
+    l = []
+    for m in self.modules:
+      name = m.get_name()
+      ver = m.get_version()
+      l.append((name, ver))
+    self._trigger_internal_event(BotEvent.MOD_LIST, [l])
 
   def _main_loop(self):
     self._init_tick()
@@ -189,8 +224,12 @@ class Bot:
           self._log("I am connected")
           self.connected = True
           self._trigger_internal_event(BotEvent.CONNECT)
+          # send my mod list
+          self._send_my_mod_list()
       else:
         self._trigger_internal_event(BotEvent.PEER_CONNECT, [msg_nick])
+        # request module list
+        self._reply(['bot','lsmod'], to=[msg_nick])
     # disconnected?
     elif msg.int_cmd == 'disconnected':
       if msg.int_nick == my_nick:
@@ -232,19 +271,23 @@ class Bot:
           self._error(cmd_name + ": " + res, to)
           return res
       # is it an event?
-      res = self._handle_mod_event(mod, a, to)
+      res = self._handle_mod_event(mod.get_events(), a, to)
       if type(res) is str:
         self._error(cmd_name + ": " + res, to)
         return res
+    # check for an bot event?
+    res = self._handle_mod_event(self.events, a, to)
+    if type(res) is str:
+      self._error(cmd_name + ": " + res, to)
+      return res
     # unknown
     #self._error("Unknown command: " + cmd_name, to)
 
-  def _handle_mod_event(self, mod, args, to):
+  def _handle_mod_event(self, events, args, to):
     """handle a module event"""
     if len(args) < 1:
       return False
     # check events
-    events = mod.get_events()
     if events is not None:
       for ev in events:
         if ev.mod_name == args[0] and ev.name == args[1]:

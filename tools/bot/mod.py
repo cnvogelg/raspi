@@ -23,6 +23,10 @@ class BotMod:
     self.cfg = cfg
     self.botopts = botopts
 
+  def get_version(self):
+    """return a version string"""
+    return "1.0"
+
   def get_commands(self):
     """return bot command array"""
     return None
