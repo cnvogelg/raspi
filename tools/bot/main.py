@@ -120,10 +120,11 @@ class Bot:
   def _cmd_lsmod(self, sender):
     self._log("cmd: lsmod")
     for a in self.modules:
-      self._reply(["module", a.get_name()], to=[sender])
+      self._reply(["bot", "module", a.get_name()], to=[sender])
+    self._reply(["bot", "end_module"], to=[sender])
 
   def _cmd_ping(self, sender):
-    self._reply(["pong"], to=[sender])
+    self._reply(["bot", "pong"], to=[sender])
 
   def _main_loop(self):
     self._init_tick()
@@ -207,30 +208,29 @@ class Bot:
     n = len(a)
     to = msg.sender
     # no command given?
-    if n == 0:
+    if n < 2:
       self._error("huh?", to)
       return
-    # get command name
-    cmd_name = a[0]
-    # check internal command
-    for cmd in self.cmds:
-      if cmd_name == cmd.get_name():
-        res = cmd.handle_cmd(a, msg.sender)
-        if type(res) is str:
-          self._error(cmd_name + ": " + res, to)
-          return res
-    # is it a module prefix
-    for mod in modules:
-      if cmd_name == mod.get_name():
-        # need a sub command!
-        if n == 1:
-          self._error(cmd_name + ": huh?", to)
-        else:
-          # parse module command
-          res = self._handle_mod_cmd(mod, a[1:], msg.sender)
+    # is it a bot command?
+    mod_name = a[0]
+    if mod_name == 'bot':
+      # get command name
+      cmd_name = a[1]
+      # check internal command
+      for cmd in self.cmds:
+        if cmd_name == cmd.get_name():
+          res = cmd.handle_cmd(a[1:], msg.sender)
           if type(res) is str:
             self._error(cmd_name + ": " + res, to)
             return res
+    # is it a module prefix
+    for mod in modules:
+      if mod_name == mod.get_name():
+        # parse module command
+        res = self._handle_mod_cmd(mod, a[1:], msg.sender)
+        if type(res) is str:
+          self._error(cmd_name + ": " + res, to)
+          return res
       # is it an event?
       res = self._handle_mod_event(mod, a, to)
       if type(res) is str:
@@ -247,8 +247,7 @@ class Bot:
     events = mod.get_events()
     if events is not None:
       for ev in events:
-        if (ev.mod_name == args[0] and ev.name == args[1]) or \
-           (ev.mod_name == BotEvent.MAIN and ev.name == args[0]):
+        if ev.mod_name == args[0] and ev.name == args[1]:
             res = ev.handle_event(args, to)
             if type(res) is str:
               self._error(ev.mod_name + " " + ev.name + ": " + res, to)

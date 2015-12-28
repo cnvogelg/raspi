@@ -40,7 +40,7 @@ class PingerMod(BotMod):
       BotOptField("interval",int,10,desc="check interval for pings"),
     ]
     self.events = [
-      BotEvent(BotEvent.MAIN,"pong",callee=self.event_pong),
+      BotEvent("bot","pong",callee=self.event_pong),
       PeerConnectEvent(self.on_peer_connect),
       PeerDisconnectEvent(self.on_peer_disconnect),
       TickEvent(self.on_tick)
@@ -93,7 +93,7 @@ class PingerMod(BotMod):
       self._report_peer_status(sender, status)
 
   def _send_ping(self, to):
-    self.reply(["ping"], to=[to], main=True)
+    self.reply(["bot","ping"], to=[to], main=True)
 
   def _report_peer_status(self, peer, status, to=None):
     name = status.get_state_name()
