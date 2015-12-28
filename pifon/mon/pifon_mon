@@ -26,5 +26,5 @@ import info
 b = bot.Bot(True)
 b.add_module(player.PlayerMod())
 b.add_module(ping.PingerMod())
-b.add_module(info.ServerInfoMod())
+b.add_module(info.InfoMod())
 b.run()

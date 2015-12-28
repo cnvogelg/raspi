@@ -1,1 +1,1 @@
-from info.mod import ServerInfoMod
+from info.mod import InfoMod
