@@ -5,12 +5,12 @@ import time
 from bot import Bot, BotCmd, BotOptField, BotMod
 from bot.event import *
 
-import audio
-import player
+from audioinfo import AudioInfo
+from playerinfo import PlayerInfo
 
 class InfoMod(BotMod):
-  def __init__(self, listener=None, tick=1):
-    BotMod.__init__(self, "info")
+  def __init__(self, name="info", listener=None, tick=1):
+    BotMod.__init__(self, name)
     self.events = [
       ConnectEvent(self.on_connect),
       DisconnectEvent(self.on_disconnect),
@@ -79,41 +79,41 @@ class InfoMod(BotMod):
     if sender in self.audios:
       si = self.audios[sender]
     else:
-      si = audio.AudioInfo(sender)
+      si = AudioInfo(sender)
       self.audios[sender] = si
     return si
 
   def event_audio_level(self, sender, args):
     si = self._get_audio(sender)
     si.audio_level = args
-    self._call('update_audio', si, audio.AudioInfo.FLAG_AUDIO_LEVEL)
+    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_LEVEL)
 
   def event_audio_state(self, sender, args):
     si = self._get_audio(sender)
     si.audio_state = args[0]
-    self._call('update_audio', si, audio.AudioInfo.FLAG_AUDIO_STATE)
+    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_STATE)
 
   def event_audio_active(self, sender, args):
     si = self._get_audio(sender)
     si.audio_active = args[0]
-    self._call('update_audio', si, audio.AudioInfo.FLAG_AUDIO_ACTIVE)
+    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_ACTIVE)
 
   def event_audio_listen_src(self, sender, args):
     si = self._get_audio(sender)
     si.audio_listen_src = args
-    self._call('update_audio', si, audio.AudioInfo.FLAG_AUDIO_LISTEN_SRC)
+    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_LISTEN_SRC)
 
   def event_pinger_check(self, sender, args):
     peer = args[0]
     si = self._get_audio(sender)
     si.ping = args[1]
-    self._call('update_audio', si, audio.AudioInfo.FLAG_PING)
+    self._call('update_audio', si, AudioInfo.FLAG_PING)
 
   # player events
 
   def _get_player(self, sender):
     if sender not in self.players:
-      p = player.PlayerInfo(sender)
+      p = PlayerInfo(sender)
       self.players[sender] = p
     else:
       p = self.players[sender]
@@ -135,7 +135,7 @@ class InfoMod(BotMod):
       p = sip[1]
       si.is_playing = True
       p.play_server = si
-      self._call('update_player', p, si, player.PlayerInfo.FLAG_PLAY_SERVER)
+      self._call('update_player', p, si, PlayerInfo.FLAG_PLAY_SERVER)
 
   def event_player_stop(self, sender, args):
     sip = self._get_si_player(sender, args[0])
@@ -144,9 +144,9 @@ class InfoMod(BotMod):
       p = sip[1]
       si.is_playing = True
       p.play_server = None
-      self._call('update_player', p, si, player.PlayerInfo.FLAG_PLAY_SERVER)
+      self._call('update_player', p, si, PlayerInfo.FLAG_PLAY_SERVER)
 
   def event_player_mode(self, sender, args):
     p = self._get_player(sender)
     p.mode = args[0]
-    self._call('update_player', p, None, player.PlayerInfo.FLAG_MODE)
+    self._call('update_player', p, None, PlayerInfo.FLAG_MODE)

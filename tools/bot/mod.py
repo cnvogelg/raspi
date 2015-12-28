@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-class BotMod:
+class BotMod(object):
   """base class for bot modules"""
   def __init__(self, name):
     self.name = name
