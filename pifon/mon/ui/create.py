@@ -1,5 +1,5 @@
 import lcd
-from ctl import UICtl
+import dummy
 
 def _check_cfg(cfg_dict, valid):
   res = {}
@@ -26,6 +26,8 @@ def create_lcd_ui(**kw_args):
 def create_ui(name, **kw_args):
   if name == 'lcd':
     return lcd.UI(**kw_args)
+  elif name == 'dummy':
+    return dummy.UI(**kw_args)
   else:
     return None
 

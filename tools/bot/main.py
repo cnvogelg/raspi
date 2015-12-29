@@ -101,6 +101,7 @@ class Bot:
         self._log("bot: module",name,"opts:", bo.get_values())
 
       # setup bot
+      m.nick = self.nick
       m.setup(reply, log, cfg, bo)
 
       # get tick (after setup of bot)
@@ -149,17 +150,16 @@ class Bot:
   def _event_bot_end_module(self, sender):
     self._log("bot end_module", sender)
     s = self._get_mod_set(sender)
-    l = s.items()
     # post a peer mod list event
-    self._trigger_internal_event(BotEvent.PEER_MOD_LIST, [sender, l])
+    self._trigger_internal_event(BotEvent.PEER_MOD_LIST, [sender, s])
 
   def _send_my_mod_list(self):
-    l = []
+    s = {}
     for m in self.modules:
       name = m.get_name()
       ver = m.get_version()
-      l.append((name, ver))
-    self._trigger_internal_event(BotEvent.MOD_LIST, [l])
+      s[name] = ver
+    self._trigger_internal_event(BotEvent.MOD_LIST, [s])
 
   def _main_loop(self):
     self._init_tick()

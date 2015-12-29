@@ -11,10 +11,13 @@ class UIMod(info.InfoMod):
     # now create ui
     ui_cfg = self._get_ui_cfg(cfg)
     self.ui = create.create_ui(**ui_cfg)
+    # fetch tick interval from ui
+    self.tick = self.ui.get_tick_interval()
+    self.listener = self.ui
 
   def _get_ui_cfg(self, cfg):
     def_cfg = {
-      'name' : 'lcd',
+      'name' : 'dummy',
       'sim' : True,
       'font_path' : './font'
     }

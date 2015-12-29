@@ -11,6 +11,7 @@ class BotMod(object):
     self.cfg = None
     self.botopts = None
     self.last_tick = 0
+    self.nick = None
 
   def get_name(self):
     """return name of bot"""

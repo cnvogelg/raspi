@@ -16,6 +16,8 @@ class InfoMod(BotMod):
       DisconnectEvent(self.on_disconnect),
       PeerConnectEvent(self.on_peer_connect),
       PeerDisconnectEvent(self.on_peer_disconnect),
+      ModListEvent(self.on_modlist),
+      PeerModListEvent(self.on_peer_modlist),
       TickEvent(self.on_tick),
       # custom events
       BotEvent("audio", "level", arg_types=(int,int,int), callee=self.event_audio_level),
@@ -45,7 +47,7 @@ class InfoMod(BotMod):
       return
     # check if listener has method
     if hasattr(self.listener, name):
-      func = self.listener.getattr(name)
+      func = getattr(self.listener, name)
       func(*args)
     else:
       self.log("call", name, *args)
@@ -62,12 +64,30 @@ class InfoMod(BotMod):
 
   def on_peer_disconnect(self, peer):
     if peer in self.audios:
-      si = self.audios[peer]
-      self._call("gone_audio",si)
+      a = self.audios[peer]
+      self._call("audio_del",a)
       del self.audios[peer]
     if peer in self.players:
       p = self.players[peer]
-      self._call("gone_player",p)
+      self._call("player_del",p)
+
+  def on_peer_modlist(self, sender, modlist):
+    for mod in modlist:
+      self._add_mod(mod, sender)
+
+  def on_modlist(self, my_modlist):
+    for mod in my_modlist:
+      self._add_mod(mod, self.nick)
+
+  def _add_mod(self, mod_name, peer):
+    if mod_name == 'audio':
+      a = self._create_audio(peer)
+      self.log("added audio from", peer)
+      self._call('audio_add', a)
+    elif mod_name == 'player':
+      p = self._create_player(peer)
+      self.log("added player from",peer)
+      self._call('player_add', p)
 
   def on_tick(self, ts, delta):
     # forward to listener
@@ -75,78 +95,85 @@ class InfoMod(BotMod):
 
   # audio events
 
+  def _create_audio(self, sender):
+    a = AudioInfo(sender)
+    self.audios[sender] = a
+    return a
+
   def _get_audio(self, sender):
     if sender in self.audios:
-      si = self.audios[sender]
+      return self.audios[sender]
     else:
-      si = AudioInfo(sender)
-      self.audios[sender] = si
-    return si
+      return None
 
   def event_audio_level(self, sender, args):
-    si = self._get_audio(sender)
-    si.audio_level = args
-    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_LEVEL)
+    a = self._get_audio(sender)
+    if a is not None:
+      a.audio_level = args
+      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LEVEL)
 
   def event_audio_state(self, sender, args):
-    si = self._get_audio(sender)
-    si.audio_state = args[0]
-    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_STATE)
+    a = self._get_audio(sender)
+    if a is not None:
+      a.audio_state = args[0]
+      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_STATE)
 
   def event_audio_active(self, sender, args):
-    si = self._get_audio(sender)
-    si.audio_active = args[0]
-    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_ACTIVE)
+    a = self._get_audio(sender)
+    if a is not None:
+      a.audio_active = args[0]
+      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_ACTIVE)
 
   def event_audio_listen_src(self, sender, args):
-    si = self._get_audio(sender)
-    si.audio_listen_src = args
-    self._call('update_audio', si, AudioInfo.FLAG_AUDIO_LISTEN_SRC)
+    a = self._get_audio(sender)
+    if a is not None:
+      a.audio_listen_src = args
+      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LISTEN_SRC)
 
   def event_pinger_check(self, sender, args):
     peer = args[0]
-    si = self._get_audio(sender)
-    si.ping = args[1]
-    self._call('update_audio', si, AudioInfo.FLAG_PING)
+    a = self._get_audio(peer)
+    if a is not None:
+      a.ping = args[1]
+      self._call('audio_update', a, AudioInfo.FLAG_PING)
 
   # player events
 
-  def _get_player(self, sender):
-    if sender not in self.players:
-      p = PlayerInfo(sender)
-      self.players[sender] = p
-    else:
-      p = self.players[sender]
+  def _create_player(self, sender):
+    p = PlayerInfo(sender)
+    self.players[sender] = p
     return p
 
-  def _get_si_player(self, sender, peer):
-    if peer in self.audios:
-      si = self.audios[peer]
-      p = self._get_player(sender)
-      # find player
-      return (si, p)
+  def _get_player(self, sender):
+    if sender in self.players:
+      return self.players[sender]
     else:
       return None
 
   def event_player_play(self, sender, args):
-    sip = self._get_si_player(sender, args[0])
-    if sip is not None:
-      si = sip[0]
-      p = sip[1]
-      si.is_playing = True
-      p.play_server = si
-      self._call('update_player', p, si, PlayerInfo.FLAG_PLAY_SERVER)
+    audio = args[0]
+    a = self._get_audio(audio)
+    p = self._get_player(sender)
+    if a is not None:
+      a.is_playing = True
+      self._call('audio_update', a, AudioInfo.FLAG_IS_PLAYING)
+    if p is not None:
+      p.play_server = a
+      self._call('player_update', p, PlayerInfo.FLAG_PLAY_SERVER)
 
   def event_player_stop(self, sender, args):
-    sip = self._get_si_player(sender, args[0])
-    if sip is not None:
-      si = sip[0]
-      p = sip[1]
-      si.is_playing = True
+    audio = args[0]
+    a = self._get_audio(audio)
+    p = self._get_player(sender)
+    if a is not None:
+      a.is_playing = False
+      self._call('audio_update', a, AudioInfo.FLAG_IS_PLAYING)
+    if p is not None and a is not None:
       p.play_server = None
-      self._call('update_player', p, si, PlayerInfo.FLAG_PLAY_SERVER)
+      self._call('player_update', p, PlayerInfo.FLAG_PLAY_SERVER)
 
   def event_player_mode(self, sender, args):
     p = self._get_player(sender)
-    p.mode = args[0]
-    self._call('update_player', p, None, PlayerInfo.FLAG_MODE)
+    if p is not None:
+      p.mode = args[0]
+      self._call('player_update', p, PlayerInfo.FLAG_MODE)

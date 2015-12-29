@@ -22,6 +22,7 @@ import bot
 import player
 import ping
 import ui
+import info
 
 b = bot.Bot(True)
 b.add_module(player.PlayerMod())
