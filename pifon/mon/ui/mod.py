@@ -17,7 +17,7 @@ class UIMod(info.InfoMod):
 
   def _get_ui_cfg(self, cfg):
     def_cfg = {
-      'name' : 'dummy',
+      'name' : 'lcd',
       'sim' : True,
       'font_path' : './font'
     }

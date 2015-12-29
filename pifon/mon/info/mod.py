@@ -44,14 +44,14 @@ class InfoMod(BotMod):
     # no listener
     if self.listener is None:
       self.log("call", name, *args)
-      return
+      return None
     # check if listener has method
     if hasattr(self.listener, name):
       func = getattr(self.listener, name)
-      func(*args)
+      return func(*args)
     else:
       self.log("call", name, *args)
-      return
+      return None
 
   def on_connect(self):
     self._call('on_connect')
@@ -91,7 +91,11 @@ class InfoMod(BotMod):
 
   def on_tick(self, ts, delta):
     # forward to listener
-    self._call('on_tick', ts, delta)
+    res = self._call('on_tick', ts, delta)
+    # shutdown?
+    if res == False:
+      self.log("requesting shutdown on behalf of listener")
+      self.bot.request_shutdown()
 
   # audio events
 

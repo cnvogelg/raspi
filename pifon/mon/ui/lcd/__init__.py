@@ -1,1 +1,1 @@
-from ui import UI
+from lcdui import UI

@@ -102,6 +102,7 @@ class Bot:
 
       # setup bot
       m.nick = self.nick
+      m.bot = self
       m.setup(reply, log, cfg, bo)
 
       # get tick (after setup of bot)
@@ -161,13 +162,18 @@ class Bot:
       s[name] = ver
     self._trigger_internal_event(BotEvent.MOD_LIST, [s])
 
+  def request_shutdown(self):
+    self._log("requesting shutdown")
+    self.stay = False
+
   def _main_loop(self):
     self._init_tick()
 
     # report start
     self._trigger_internal_event(BotEvent.START)
 
-    while True:
+    self.stay = True
+    while self.stay:
       try:
         # handle tick
         self._tick()
