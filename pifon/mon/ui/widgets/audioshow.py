@@ -2,11 +2,12 @@ from __future__ import print_function
 import sys
 
 class AudioShow(object):
-  def __init__(self, a, hb_chars="?!o.", play_chars=">|!"):
+  def __init__(self, a, hb_chars="?!o.", play_chars=">|!", level_chars="01234567#"):
     self.audio = a
     # config chars
     self.hb_chars = hb_chars
     self.play_chars = play_chars
+    self.level_chars = level_chars
     # text state
     self.hb = None
     self.play = None
@@ -46,19 +47,29 @@ class AudioShow(object):
   def _get_level(self):
     level = self.audio.audio_level
     if level is not None:
-      return "%d/%d+%d" % (level[1], level[0], level[2])
+      l = level[1]
+      t = level[2]
+      if l < 8:
+        lc = self.level_chars[l]
+      else:
+        lc = self.level_chars[8]
+      if t < 100:
+        tc = "%02d" % t
+      else:
+        tc = "^^"
+      return lc + "+" + tc
     else:
-      return ""
+      return "_+__"
 
   def _get_state(self):
     state = self.audio.audio_state
     if state is not None:
       char = state[0].upper()
       if char == 'I': # idle
-        char = " "
+        char = "_"
       return char
     else:
-      return " "
+      return "_"
 
   def get_text(self):
     res = []

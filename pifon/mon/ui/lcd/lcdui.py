@@ -4,24 +4,38 @@ import sys
 import lcd
 import ui.widgets
 
+
+
 class UI:
 
   FLAG_CLEAR = 1
   FLAG_CLOCK = 2
   FLAG_SCROLLER = 4
   FLAG_AUDIO = 8
+  FLAG_PLAYER = 16
 
   def __init__(self, font_path=".", sim=False):
     self.lcd = lcd.LCD16x2(font_path=font_path, sim=sim)
     self.clock = ui.widgets.Clock()
-    self.scroller = ui.widgets.Scroller(8)
-    self.redraw_flag = 0
+    # audio
     self.audio_map = {}
     self.audio_list = []
+    self.audio_fill = " " * 16
     self.hb_chars = "?!" + self.lcd.heart_a_char + self.lcd.heart_b_char
     self.play_chars = self.lcd.play_char + self.lcd.bell_char + " "
-    self.audio_fill = " " * 16
-    self.scroller.add_message("Welcome to pifon!")
+    # player
+    self.player_map = {}
+    self.player_list = []
+    self.player_fill = " " * 7
+    self.player_chars = self.lcd.play_char + self.lcd.stop_char
+    self.mode_chars = self.lcd.note_char + self.lcd.hourglass_char + \
+      self.lcd.speaker_char + " "
+    # welcome
+    self.scroller = ui.widgets.Scroller(16)
+    self.scroller.add_message("Welcome to pifon2!")
+    # flag
+    self.redraw_flag = 0
+    self.show_scroller = False
 
   def _p(self, *args, **kwargs):
     a = ["**UI**"] + list(args)
@@ -51,6 +65,12 @@ class UI:
     # scroller needs redraw?
     if self.scroller.tick():
       self.redraw_flag |= self.FLAG_SCROLLER
+      self.show_scroller = True
+    else:
+      # disable scroller and force redraw of clock and player
+      if self.show_scroller:
+        self.redraw_flag |= self.FLAG_CLOCK | self.FLAG_PLAYER
+        self.show_scroller = False
 
   def _redraw(self):
     f = self.redraw_flag
@@ -59,14 +79,21 @@ class UI:
     if f & self.FLAG_CLEAR == self.FLAG_CLEAR:
       self.lcd.clear()
 
-    # update clock?
-    if f & self.FLAG_CLOCK == self.FLAG_CLOCK:
-      txt = self.clock.get_text()
-      self.lcd.text(0,0,txt)
-    # update scroller?
-    if f & self.FLAG_SCROLLER == self.FLAG_SCROLLER:
-      txt = self.scroller.get_text()
-      self.lcd.text(8,0,txt)
+    # no scroller?
+    if self.show_scroller:
+      # update scroller?
+      if f & self.FLAG_SCROLLER == self.FLAG_SCROLLER:
+        txt = self.scroller.get_text()
+        self.lcd.text(0,0,txt)
+    else:
+      # update clock?
+      if f & self.FLAG_CLOCK == self.FLAG_CLOCK:
+        txt = self.clock.get_text()
+        self.lcd.text(0,0,txt)
+      # update player
+      if f & self.FLAG_PLAYER == self.FLAG_PLAYER:
+        txt = " " + self._get_player_text()
+        self.lcd.text(8,0,txt)
 
     # update audio
     if f & self.FLAG_AUDIO == self.FLAG_AUDIO:
@@ -101,7 +128,8 @@ class UI:
 
   def audio_add(self, a):
     self._p("audio_add", a)
-    aw = ui.widgets.AudioShow(a, hb_chars=self.hb_chars, play_chars=self.play_chars)
+    aw = ui.widgets.AudioShow(a,
+      hb_chars=self.hb_chars, play_chars=self.play_chars)
     self.audio_map[a] = aw
     self.audio_list.append(a)
     self.redraw_flag |= self.FLAG_AUDIO
@@ -131,11 +159,40 @@ class UI:
 
   # player calls
 
+  def _index_mapper(self, a):
+    n = len(self.audio_list)
+    for i in range(n):
+      if self.audio_list[i] == a:
+        return str(i)
+    return " "
+
   def player_add(self, p):
     self._p("player_add", p)
+    pw = ui.widgets.PlayerShow(p, self._index_mapper,
+      play_chars=self.player_chars, mode_chars=self.mode_chars)
+    self.player_map[p] = pw
+    self.player_list.append(p)
+    self.redraw_flag |= self.FLAG_PLAYER
 
   def player_del(self, p):
     self._p("player_del", p)
+    if p in self.player_map:
+      del self.player_map[p]
+      self.player_list.remove(p)
+      self.redraw_flag |= self.FLAG_PLAYER
 
   def player_update(self, p, flags):
     self._p("player_update", p, flags)
+    if p in self.player_map:
+      pw = self.player_map[p]
+      pw.update()
+      self.redraw_flag |= self.FLAG_PLAYER
+
+  def _get_player_text(self):
+    res = []
+    for p in self.player_list:
+      pw = self.player_map[p]
+      res.append(pw.get_text())
+    txt = " ".join(res) + self.player_fill
+    txt = txt[0:len(self.player_fill)]
+    return txt
