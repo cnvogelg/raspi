@@ -7,6 +7,7 @@ class AudioInfo:
   FLAG_AUDIO_ACTIVE = 8
   FLAG_AUDIO_LISTEN_SRC = 16
   FLAG_IS_PLAYING = 32
+  FLAG_ALL = 63
 
   def __init__(self, name):
     self.name = name

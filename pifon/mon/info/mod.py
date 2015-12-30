@@ -22,7 +22,7 @@ class InfoMod(BotMod):
       # custom events
       BotEvent("audio", "level", arg_types=(int,int,int), callee=self.event_audio_level),
       BotEvent("audio", "state", arg_types=(str,), callee=self.event_audio_state),
-      BotEvent("audio", "active", arg_types=(str,), callee=self.event_audio_active),
+      BotEvent("audio", "active", arg_types=(bool,), callee=self.event_audio_active),
       BotEvent("audio", "listen_src", arg_types=(str, str), callee=self.event_audio_listen_src),
       BotEvent("pinger", "check", arg_types=(str, str), callee=self.event_pinger_check),
       BotEvent("player", "play", arg_types=(str, str), callee=self.event_player_play),
@@ -60,9 +60,10 @@ class InfoMod(BotMod):
     self._call('on_disconnect')
 
   def on_peer_connect(self, peer):
-    pass
+    self.log("on_peer_connect", peer)
 
   def on_peer_disconnect(self, peer):
+    self.log("on_peer_disconnect", peer)
     if peer in self.audios:
       a = self.audios[peer]
       self._call("audio_del",a)
@@ -72,10 +73,12 @@ class InfoMod(BotMod):
       self._call("player_del",p)
 
   def on_peer_modlist(self, sender, modlist):
+    self.log("on_peer_modlist", sender, modlist)
     for mod in modlist:
       self._add_mod(mod, sender)
 
   def on_modlist(self, my_modlist):
+    self.log("on_modlist", my_modlist)
     for mod in my_modlist:
       self._add_mod(mod, self.nick)
 
@@ -119,8 +122,13 @@ class InfoMod(BotMod):
   def event_audio_state(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
-      a.audio_state = args[0]
-      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_STATE)
+      state = args[0]
+      flags = AudioInfo.FLAG_AUDIO_STATE
+      a.audio_state = state
+      if state == 'idle':
+        a.audio_level = None
+        flags |= AudioInfo.FLAG_AUDIO_LEVEL
+      self._call('audio_update', a, flags)
 
   def event_audio_active(self, sender, args):
     a = self._get_audio(sender)
