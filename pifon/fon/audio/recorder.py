@@ -4,8 +4,10 @@ import os
 import sys
 
 class Recorder:
-  def __init__(self, rate=48000, interval=250, channels=1, recorder="rec", device="mixin"):
-    cmd = ["tools/vumeter", str(rate), str(interval), str(channels), recorder, device]
+  def __init__(self, rate=48000, interval=250, channels=1, recorder="rec", device="mixin", tool="tools/vumeter"):
+    if not os.path.isfile(tool):
+      raise ValueError("Given tool script '%s' not found!")
+    cmd = [tool, str(rate), str(interval), str(channels), recorder, device]
     self.p = subprocess.Popen(cmd, bufsize=1, shell=False, stdout=subprocess.PIPE)
 
   def read_rms(self):

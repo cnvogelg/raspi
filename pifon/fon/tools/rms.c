@@ -109,7 +109,7 @@ int main(int argc, char **argv)
         gettimeofday(&tv, NULL);
         uint64_t ts = tv.tv_sec * 1000000U + tv.tv_usec;
         int32_t offset = (int32_t)(ts - last_ts);
-        fprintf(stderr, " +%d r%d/%d ", offset, n, rem);
+        fprintf(stderr, " +%d r%zd/%d ", offset, n, rem);
       }
 
       if(n == -1) {

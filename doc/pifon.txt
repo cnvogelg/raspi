@@ -6,6 +6,23 @@ pifon.txt - installation guide for your pifon setup
      or
    - cheap USB sound card with analog input and analog microphone
 
+2. Software
+
+   - Python 3.x e.g. 3.5 and 2.x e.g. 2.7
+   - SleekXMPP
+   - PyGame (for mon simulator)
+
+   On OSX use MacPorts:
+
+   # port install python35
+   # port select --set python3 python35
+   # port install py35-pip
+   # pip-3.5 install sleekxmpp
+
+   # port install python27
+   # port select --set python2 python27
+   # port install py27-game
+
 
 2. Video (via WebCam, experimental)
 
