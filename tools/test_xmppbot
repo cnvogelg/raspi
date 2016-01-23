@@ -1,2 +1,2 @@
 #!/bin/sh
-exec ./xmppbot.py ./sample.py
+exec ./xmppbot.py -c ./sample.cfg ./runbot.py

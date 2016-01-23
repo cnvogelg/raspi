@@ -3,6 +3,7 @@
 from __future__ import print_function
 import time
 import sys
+import importlib
 
 from bot.io import BotIO, BotIOMsg
 from bot.cmd import BotCmd
@@ -34,9 +35,8 @@ class Bot:
 
   def run(self):
     """run the bot"""
-    if len(self.modules) == 0:
-      raise Error("No modules added!")
     self._setup()
+    self._auto_add_modules()
     self._setup_modules()
     self._setup_cmds()
     self._main_loop()
@@ -72,7 +72,37 @@ class Bot:
 
     return reply, log
 
+  def _auto_add_modules(self):
+    """auto add modules from config"""
+    cfg = self.bio.get_cfg()
+    def_cfg = {
+      'auto_load' : None
+    }
+    mod_cfg = cfg.get_section("modules", def_cfg)
+    auto_load = mod_cfg['auto_load']
+    if auto_load:
+      mod_list = auto_load.split(',')
+      for mod in mod_list:
+        # expect package.Class name
+        dot = mod.rfind('.')
+        if dot == -1:
+          raise RuntimeError("Invalid module name: " + mod)
+        pkg = mod[:dot]
+        clz = mod[dot+1:]
+        self._log("bot: auto load module:", pkg, clz)
+        # get python module
+        pmod = importlib.import_module(pkg)
+        pdict = pmod.__dict__
+        if clz not in pdict:
+          raise RuntimeError("Class '%s' not found in Module '%s'" % (pkg, clz))
+        # create instance
+        pclz = pdict[clz]
+        my_mod = pclz()
+        self.modules.append(my_mod)
+
   def _setup_modules(self):
+    if len(self.modules) == 0:
+      raise RuntimeError("No modules added!")
     self.bot_tick_interval = 1
     for m in self.modules:
       name = m.get_name()

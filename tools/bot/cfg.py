@@ -16,6 +16,10 @@ class BotCfg:
     self.cwd_cfg_file = file_name
     self.cfg = SafeConfigParser()
 
+  def __repr__(self):
+    return "[BotCfg:read=%s,write=%s,%s]" % \
+      (self.get_read_file(), self.get_write_file(), self.cfg.sections())
+
   def get_read_file(self):
     if self.force_cfg_file is not None:
       # force file is readble

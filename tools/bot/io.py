@@ -58,6 +58,9 @@ class BotIO:
         (self._nick, self._cmd_name, self._cfg_path), file=sys.stderr)
     # init roster
     self._roster = {}
+    # setup config
+    self._cfg = bot.cfg.BotCfg(self._cmd_name, self._cfg_path)
+    self._cfg.load()
 
   def get_nick(self):
     return self._nick
@@ -70,7 +73,7 @@ class BotIO:
 
   def get_cfg(self):
     """return a config object that matches the one of xmppbot"""
-    return bot.cfg.BotCfg(self._cmd_name, self._cfg_path)
+    return self._cfg
 
   def _parse_line(self, line):
     """split line from bot into message
