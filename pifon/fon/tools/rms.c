@@ -78,7 +78,8 @@ int main(int argc, char **argv)
     block_size = sample_rate * interval / 1000;
   }
   if(verbose) {
-    fprintf(stderr, "block size %d\n", block_size);
+    fprintf(stderr, "sample rate %d, interval %d, block size %d, scale %d, channels %d\n",
+      sample_rate, interval, block_size, scale, channels);
   }
 
   /* alloc buffer */
@@ -89,9 +90,12 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  /* main loop */
+  /* start time */
   struct timeval last;
   gettimeofday(&last, NULL);
+  uint64_t last_ts = last.tv_sec * 1000000U + last.tv_usec;
+
+  /* main loop */
   while(1) {
 
     /* fill buffer */
@@ -99,6 +103,15 @@ int main(int argc, char **argv)
     char *ptr = (char *)data;
     while(rem > 0) {
       ssize_t n = read(STDIN_FILENO, ptr, rem);
+
+      if(verbose) {
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        uint64_t ts = tv.tv_sec * 1000000U + tv.tv_usec;
+        int32_t offset = (int32_t)(ts - last_ts);
+        fprintf(stderr, " +%d r%d/%d ", offset, n, rem);
+      }
+
       if(n == -1) {
         if(errno != EAGAIN) {
           perror("read failed!");
@@ -127,13 +140,15 @@ int main(int argc, char **argv)
     /* get time stamp */
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    int32_t delta;
-    if(tv.tv_sec == last.tv_sec) {
-      delta = (int32_t)(tv.tv_usec - last.tv_usec);
-    } else {
-      delta = (int32_t)(tv.tv_usec + 1000000 - last.tv_usec);
+    uint64_t ts = tv.tv_sec * 1000000U + tv.tv_usec;
+
+    /* calc delta */
+    int32_t delta = (int32_t)(ts - last_ts);
+    last_ts = ts;
+
+    if(verbose) {
+      fprintf(stderr, " -> dt %d\n", delta);
     }
-    last = tv;
 
     /* show result */
     if(show_delta) {

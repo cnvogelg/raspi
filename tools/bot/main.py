@@ -28,7 +28,8 @@ class Bot:
   def _log(self, *args):
     if self.verbose:
       t = time.time()
-      a = ["%10.3f" % t] + list(args)
+      millis = int(t * 1000) % 1000
+      a = ["%s.%03d" % (time.strftime("%d.%m.%Y %H:%M:%S", time.localtime(t)), millis)] + list(args)
       print(*a,file=sys.stderr)
 
   def run(self):

@@ -1,15 +1,26 @@
 #!/bin/sh
 #
-# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS>
+# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS> <RECORDER> <DEVICE>
 
 SYSTEM=`uname -s`
 DIRNAME="`dirname \"$0\"`"
 
 # default options
-SAMPLE_RATE=11025
-INTERVAL=250
-CHANNELS=1
-RECORDER=auto
+if [ "$SAMPLE_RATE" = "" ]; then
+  SAMPLE_RATE=48000
+fi
+if [ "$INTERVAL" = "" ]; then
+  INTERVAL=250
+fi
+if [ "$CHANNELS" = "" ]; then
+  CHANNELS=1
+fi
+if [ "$RECORDER" = "" ]; then
+  RECORDER=rec
+fi
+if [ "$DEVICE" = "" ]; then
+  DEVICE=mixin
+fi
 
 # optional give sample rate
 if [ "$1" != "" ]; then
@@ -24,39 +35,59 @@ fi
 if [ "$4" != "" ]; then
   RECORDER=$4
 fi
-
-# calc buffer size
-BUFFER_BYTES=$((${SAMPLE_RATE} * ${INTERVAL} / 1000))
-
-# auto select recorder
-if [ "$RECORDER" = "auto" ]; then
-  if [ "$SYSTEM" = "Linux" ]; then
-    RECORDER="arecord"
-  else
-    RECORDER="rec"
-  fi
+if [ "$5" != "" ]; then
+  DEVICE=$5
 fi
 
-# use ALSA arecord
+# show options
+if [ "$DEBUG" != "" ]; then
+  echo "SAMPLE_RATE=$SAMPLE_RATE INTERVAL=$INTERVAL CHANNELS=$CHANNELS RECORDER=$RECORDER DEVICE=$DEVICE" 2>&1
+fi
+
+if [ "$DEBUG" = "" ]; then
+  QUIET="-q"
+fi
+
+# setup recorder
 if [ "$RECORDER" = "arecord" ]; then
-  RECORD="arecord -q -Dplug:pcm.mixin -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE} -B ${INTERVAL}"
+  # ALSA arecord
+  RECORD="arecord $QUIET -D ${DEVICE} -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE}"
 elif [ "$RECORDER" = "rec" ]; then
-# use sox' rec
+  # use sox' rec
   if [ "$SYSTEM" = "Linux" ]; then
     export AUDIODRIVER=alsa
-    export AUDIODEV=mixin
+    export AUDIODEV=${DEVICE}
   fi
-  RECORD="rec -q -b 16 -t raw --buffer ${BUFFER_BYTES} - rate -q ${SAMPLE_RATE} channels ${CHANNELS}"
+  RECORD="rec $QUIET -b 16 -t raw -c ${CHANNELS} -r ${SAMPLE_RATE} -"
 else
   echo "Unknown RECORDER=${RECORDER}!"
   exit 1
 fi
 
 # setup sox filter
-SOX="sox -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed --buffer ${BUFFER_BYTES} - -t raw -"
+SOX="sox $SOX_EXTRA -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed - -t raw -"
 FILTER="${SOX} highpass 500"
+
+# setup rms tools
 EXTRA_RMS="-d"
+if [ "$VERBOSE" != "" ]; then
+  EXTRA_RMS="$EXTRA_RMS -v"
+fi
+RMS="${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL} ${EXTRA_RMS}"
 
 # run sox record and pipe to rms
-exec ${RECORD} | ${FILTER} | \
-  ${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL} ${EXTRA_RMS}
+if [ "$FILTER" != "" -a "$NO_FILTER" = "" ] ; then
+  if [ "$DEBUG" != "" ]; then
+    echo "$RECORD | $FILTER | $RMS"
+  fi
+  if [ "$DRYRUN" = "" ]; then
+    exec ${RECORD} | ${FILTER} | ${RMS}
+  fi
+else
+  if [ "$DEBUG" != "" ]; then
+    echo "$RECORD | $RMS"
+  fi
+  if [ "$DRYRUN" = "" ]; then
+    exec ${RECORD} | ${RMS}
+  fi
+fi

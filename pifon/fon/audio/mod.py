@@ -80,7 +80,7 @@ class AudioMod(BotMod):
 
     self.ev = DetectorEventHandler(self.reply, self.botopts)
     self.d = detector.Detector(self.botopts)
-    self.rec = recorder.Recorder(self.sample_rate, self.interval, self.channels, self.rec)
+    self.rec = recorder.Recorder(self.sample_rate, self.interval, self.channels, self.rec, self.dev)
     self.sim = simulator.Simulator()
 
     self.log("init audio")
@@ -94,15 +94,17 @@ class AudioMod(BotMod):
 
   def _get_vumeter_cfg(self, cfg):
     def_cfg = {
-      'sample_rate' : 11025,
+      'sample_rate' : 48000,
       'channels' : 1,
       'interval' : 250,
-      'recorder' : 'auto',
-      'debug' : False
+      'recorder' : 'rec',
+      'device' : 'mixin',
+      'debug' : False,
     }
     vu_cfg = cfg.get_section("vumeter", def_cfg)
     self.log("vumeter=",vu_cfg)
     self.rec = vu_cfg['recorder']
+    self.dev = vu_cfg['device']
     self.sample_rate = vu_cfg['sample_rate']
     self.channels = vu_cfg['channels']
     self.interval = vu_cfg['interval']
@@ -153,6 +155,9 @@ class AudioMod(BotMod):
     last_ts = time.time()
     last_alive_ts = last_ts
     tick = int(self.tick_interval * 1000) # convert to ms
+    max_rec_delta = 0
+    min_rec_delta = 10 * self.interval
+    first = True
 
     # main loop
     while self.do_run:
@@ -165,7 +170,9 @@ class AudioMod(BotMod):
       # report alive
       alive_delta = ts - last_alive_ts
       if alive_delta > 10:
-        self.log("alive!")
+        self.log("alive! rec_delta=", [min_rec_delta, max_rec_delta])
+	max_rec_delta = 0
+        min_rec_delta = 10 * self.interval
         last_alive_ts = ts
 
       # check delta
@@ -173,17 +180,24 @@ class AudioMod(BotMod):
         self.log("slow tick is=",delta,"want=",tick)
 
       # process audio data
+      begin = time.time()
       rms = self.rec.read_rms()
+      end = time.time()
+      rec_d = int((end - begin) * 1000)
       if rms is None:
         return
       level = rms[1]
       rec_delta = rms[0]
-      rec_delta = rec_delta
+      if rec_delta > max_rec_delta:
+        max_rec_delta = rec_delta
+      if rec_delta < min_rec_delta:
+        min_rec_delta = rec_delta
 
       # check recording delta
-      jitter = rec_delta - delta
-      if jitter > delta or jitter < -delta:
-        self.log("large jitter=", jitter)
+      jitter = abs(rec_delta - self.interval)
+      jit_prc = int(jitter * 100 / self.interval)
+      if jit_prc > 10 or self.debug:
+        self.log("jitter=", jitter, jit_prc)
 
       # replace with sim data
       if self.botopts.get_value('sim'):
@@ -193,11 +207,15 @@ class AudioMod(BotMod):
         tag = 'rec'
 
       # print values
-      if self.debug or level > 0:
-        self.log(tag, level, delta, self.interval, rec_delta)
+      trace = self.botopts.get_value('trace')
+      if self.debug or level > 0 or trace:
+        self.log(tag, level, "delta", delta, "rec_delta", rec_delta, "of", self.interval, "rec_d", rec_d)
 
       # finally put result into queue
-      self.queue.put(level)
+      if first:
+        first = False
+      else:
+        self.queue.put(level)
 
   def on_tick(self, ts, delta):
     """tick handler of bot"""
