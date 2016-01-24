@@ -40,12 +40,13 @@ int main(int argc, char **argv)
   uint32_t block_size = 0; /* if no sample rate is given use this one */
   uint32_t channels = 1; /* number of channels */
   int32_t zero_range = 0; /* clip values below this value to zero */
+  int32_t wait_above = 2; /* wait if read time is smaller than expected interval of more than x ms */
 
   /* parse arguments */
   int show_delta = 0;
   int verbose = 0;
   int ch;
-  while ((ch = getopt(argc, argv, "r:i:b:s:c:z:vd")) != -1) {
+  while ((ch = getopt(argc, argv, "r:i:b:s:c:z:w:vd")) != -1) {
     switch (ch) {
       case 'r':
         sample_rate = atoi(optarg);
@@ -64,6 +65,9 @@ int main(int argc, char **argv)
         break;
       case 'z':
         zero_range = atoi(optarg);
+        break;
+      case 'w':
+        wait_above = atoi(optarg);
         break;
       case 'v':
         verbose = 1;
@@ -176,18 +180,40 @@ int main(int argc, char **argv)
     gettimeofday(&tv, NULL);
     uint64_t ts = tv.tv_sec * 1000000U + tv.tv_usec;
 
-    /* calc delta */
+    /* calc delta in ms */
     int32_t delta = (int32_t)(ts - last_ts);
+    delta = (delta + 500) / 1000;
+
+    /* is too fast? wait a bit */
+    int32_t wait_ms = 0;
+    if(delta < interval) {
+      wait_ms = interval - delta;
+
+      /* perform wait by sleeping */
+      if((wait_above >= 0) && (wait_ms >= wait_above)) {
+        usleep(wait_ms * 1000);
+
+        /* update timestamp */
+        struct timeval tv;
+        gettimeofday(&tv, NULL);
+        ts = tv.tv_sec * 1000000U + tv.tv_usec;
+        delta = (int32_t)(ts - last_ts);
+        delta = (delta + 500) / 1000;
+      }
+    }
+
+    /* update last_ts */
     last_ts = ts;
 
     if(verbose) {
-      fprintf(stderr, " -> dt %d  [min=%d, max=%d, zero=%d/%d]\n", delta, dmin, dmax, num_zero, block_size);
+      fprintf(stderr, " -> dt %d  wait %d [min=%d, max=%d, zero=%d/%d]\n",
+        delta, wait_ms, dmin, dmax, num_zero, block_size);
     }
 
     /* show result */
     int size;
     if(show_delta) {
-      size = snprintf(output, max_output-1, "%10" PRIi32 " %04" PRIi32 "\n", delta, result);
+      size = snprintf(output, max_output-1, "%6" PRIi32 " %04" PRIi32 "\n", delta, result);
     } else {
       size = snprintf(output, max_output-1, "%04" PRIi32 "\n", result);
     }

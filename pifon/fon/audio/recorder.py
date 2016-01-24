@@ -8,7 +8,8 @@ class Recorder:
     if not os.path.isfile(tool):
       raise ValueError("Given tool script '%s' not found!")
     cmd = [tool, str(rate), str(interval), str(channels), recorder, device]
-    self.p = subprocess.Popen(cmd, bufsize=1, shell=False, stdout=subprocess.PIPE)
+    self.line_size = 0 # 12 # fixed size of rms output
+    self.p = subprocess.Popen(cmd, bufsize=self.line_size, shell=False, stdout=subprocess.PIPE)
 
   def read_rms(self):
     """read the next rms value"""
@@ -16,12 +17,16 @@ class Recorder:
     if self.p.returncode != None:
       return None
     # read line
-    line = self.p.stdout.readline().strip()
+    stdout = self.p.stdout
+    if self.line_size == 0:
+      line = stdout.readline()
+    else:
+      line = stdout.read(self.line_size)
+    line = line.strip()
     try:
       items = line.split(" ")
       if len(items) == 2:
-        items = map(int, items)
-        return(items[0] / 1000, items[1])
+        return map(int, items)
       return None
     except:
       return None
