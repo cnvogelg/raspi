@@ -39,12 +39,13 @@ int main(int argc, char **argv)
   uint32_t interval = 250; /* 1000ms = 1s report once per second */
   uint32_t block_size = 0; /* if no sample rate is given use this one */
   uint32_t channels = 1; /* number of channels */
+  int32_t zero_range = 0; /* clip values below this value to zero */
 
   /* parse arguments */
   int show_delta = 0;
   int verbose = 0;
   int ch;
-  while ((ch = getopt(argc, argv, "r:i:b:s:c:vd")) != -1) {
+  while ((ch = getopt(argc, argv, "r:i:b:s:c:z:vd")) != -1) {
     switch (ch) {
       case 'r':
         sample_rate = atoi(optarg);
@@ -60,6 +61,9 @@ int main(int argc, char **argv)
         break;
       case 'c':
         channels = atoi(optarg);
+        break;
+      case 'z':
+        zero_range = atoi(optarg);
         break;
       case 'v':
         verbose = 1;
@@ -78,8 +82,8 @@ int main(int argc, char **argv)
     block_size = sample_rate * interval / 1000;
   }
   if(verbose) {
-    fprintf(stderr, "sample rate %d, interval %d, block size %d, scale %d, channels %d\n",
-      sample_rate, interval, block_size, scale, channels);
+    fprintf(stderr, "sample rate %d, interval %d, block size %d, scale %d, channels %d, zero_range %d\n",
+      sample_rate, interval, block_size, scale, channels, zero_range);
   }
 
   /* alloc buffer */
@@ -94,6 +98,9 @@ int main(int argc, char **argv)
   struct timeval last;
   gettimeofday(&last, NULL);
   uint64_t last_ts = last.tv_sec * 1000000U + last.tv_usec;
+
+  const int32_t max_output = 80;
+  char output[max_output];
 
   /* main loop */
   while(1) {
@@ -126,13 +133,40 @@ int main(int argc, char **argv)
     /* calc PSNR */
     int i;
     int64_t sum = 0;
+    int16_t dmin = 32767;
+    int16_t dmax = -32768;
+    int num_zero = 0;
     for(i=0;i<block_size;i+=channels) {
       int16_t d = data[i];
+
+      /* calc min/max */
+      if(d < dmin) {
+        dmin = d;
+      }
+      if(d > dmax) {
+        dmax = d;
+      }
+
+      /* zero out? */
+      if((d <= zero_range) && (d >= -zero_range)) {
+        d = 0;
+        num_zero++;
+      }
+      /* adjust non-zero values */
+      else if(d < 0) {
+        d += zero_range;
+      } else {
+        d -= zero_range;
+      }
+
+      /* sum up values */
       sum += d * d;
     }
     sum /= block_size;
 
-    double d = (double)sum / (32768.0 * 32768.0);
+    int32_t max_val = 32768 - zero_range;
+
+    double d = (double)sum / (double)(max_val * max_val);
 
     /* root */
     int32_t result = (int32_t)(sqrt(d) * (double)scale);
@@ -147,16 +181,21 @@ int main(int argc, char **argv)
     last_ts = ts;
 
     if(verbose) {
-      fprintf(stderr, " -> dt %d\n", delta);
+      fprintf(stderr, " -> dt %d  [min=%d, max=%d, zero=%d/%d]\n", delta, dmin, dmax, num_zero, block_size);
     }
 
     /* show result */
+    int size;
     if(show_delta) {
-      printf("%" PRIi32 " %" PRIi32 "\n", delta, result);
+      size = snprintf(output, max_output-1, "%10" PRIi32 " %04" PRIi32 "\n", delta, result);
     } else {
-      printf("%" PRIi32 "\n", result);
+      size = snprintf(output, max_output-1, "%04" PRIi32 "\n", result);
     }
-    fflush(stdout);
+    int res = write(STDOUT_FILENO, output, size);
+    if(res == -1) {
+      perror("write failed!");
+      return 1;
+    }
   }
 }
 

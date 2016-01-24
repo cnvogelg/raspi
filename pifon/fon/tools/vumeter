@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS> <RECORDER> <DEVICE>
+# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS> <RECORDER> <DEVICE> <ZERO_RANGE>
 
 SYSTEM=`uname -s`
 DIRNAME="`dirname \"$0\"`"
@@ -21,6 +21,9 @@ fi
 if [ "$DEVICE" = "" ]; then
   DEVICE=mixin
 fi
+if [ "$ZERO_RANGE" = "" ]; then
+  ZERO_RANGE=2000
+fi
 
 # optional give sample rate
 if [ "$1" != "" ]; then
@@ -38,10 +41,13 @@ fi
 if [ "$5" != "" ]; then
   DEVICE=$5
 fi
+if [ "$6" != "" ]; then
+  ZERO_RANGE=$6
+fi
 
 # show options
 if [ "$DEBUG" != "" ]; then
-  echo "SAMPLE_RATE=$SAMPLE_RATE INTERVAL=$INTERVAL CHANNELS=$CHANNELS RECORDER=$RECORDER DEVICE=$DEVICE" 2>&1
+  echo "SAMPLE_RATE=$SAMPLE_RATE INTERVAL=$INTERVAL CHANNELS=$CHANNELS RECORDER=$RECORDER DEVICE=$DEVICE ZERO_RANGE=$ZERO_RANGE" 2>&1
 fi
 
 if [ "$DEBUG" = "" ]; then
@@ -51,7 +57,7 @@ fi
 # setup recorder
 if [ "$RECORDER" = "arecord" ]; then
   # ALSA arecord
-  RECORD="arecord $QUIET -D ${DEVICE} -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE}"
+  RECORD="arecord $QUIET -D ${DEVICE} -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE} highpass 500"
 elif [ "$RECORDER" = "rec" ]; then
   # use sox' rec
   if [ "$SYSTEM" = "Linux" ]; then
@@ -64,30 +70,17 @@ else
   exit 1
 fi
 
-# setup sox filter
-SOX="sox $SOX_EXTRA -t raw -b 16 -c ${CHANNELS} -r ${SAMPLE_RATE} -e signed - -t raw -"
-FILTER="${SOX} highpass 500"
-
 # setup rms tools
-EXTRA_RMS="-d"
+EXTRA_RMS="-d -z $ZERO_RANGE"
 if [ "$VERBOSE" != "" ]; then
   EXTRA_RMS="$EXTRA_RMS -v"
 fi
 RMS="${DIRNAME}/rms -c ${CHANNELS} -r ${SAMPLE_RATE} -i ${INTERVAL} ${EXTRA_RMS}"
 
 # run sox record and pipe to rms
-if [ "$FILTER" != "" -a "$NO_FILTER" = "" ] ; then
-  if [ "$DEBUG" != "" ]; then
-    echo "$RECORD | $FILTER | $RMS"
-  fi
-  if [ "$DRYRUN" = "" ]; then
-    exec ${RECORD} | ${FILTER} | ${RMS}
-  fi
-else
-  if [ "$DEBUG" != "" ]; then
-    echo "$RECORD | $RMS"
-  fi
-  if [ "$DRYRUN" = "" ]; then
-    exec ${RECORD} | ${RMS}
-  fi
+if [ "$DEBUG" != "" ]; then
+  echo "$RECORD | $RMS"
+fi
+if [ "$DRYRUN" = "" ]; then
+  exec ${RECORD} | ${RMS}
 fi
