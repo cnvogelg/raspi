@@ -14,8 +14,9 @@ class UI:
   FLAG_AUDIO = 8
   FLAG_PLAYER = 16
 
-  def __init__(self, font_path=".", sim=False):
-    self.lcd = lcd.LCD16x2(font_path=font_path, sim=sim)
+  def __init__(self, cfg):
+    self.cfg = cfg
+    self.lcd = self._setup_lcd()
     self.clock = ui.widgets.Clock()
     # audio
     self.audio_map = {}
@@ -36,6 +37,16 @@ class UI:
     # flag
     self.redraw_flag = 0
     self.show_scroller = False
+
+  def _setup_lcd(self):
+    def_cfg = {
+      'sim' : True,
+      'font_path' : 'font'
+    }
+    lcd_cfg = self.cfg.get_section('ui_lcd', def_cfg)
+    font_path = lcd_cfg['font_path']
+    sim = lcd_cfg['sim']
+    return  lcd.LCD16x2(font_path=font_path, sim=sim)
 
   def _p(self, *args, **kwargs):
     a = ["**UI**"] + list(args)

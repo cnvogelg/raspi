@@ -15,7 +15,6 @@ SCRIPT_DIR=$(dirname $0)
 TOOLS_DIR=../../tools
 TMUX_RUN=$TOOLS_DIR/tmux_run
 LOOPER=$TOOLS_DIR/looper
-XMPPBOT=$TOOLS_DIR/xmppbot.py
 
 # check action
 if [ $# -lt 1 ]; then
@@ -28,6 +27,6 @@ ACTION="$1"
 cd $SCRIPT_DIR
 
 # run mon
-$TMUX_RUN mon $ACTION "$LOOPER $XMPPBOT ./pifon_mon"
+$TMUX_RUN mon $ACTION "$LOOPER ./pifon_mon"
 
 exit 0

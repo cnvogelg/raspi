@@ -1,6 +1,5 @@
 import info
-
-import create
+import importlib
 
 class UIMod(info.InfoMod):
   def __init__(self):
@@ -10,17 +9,24 @@ class UIMod(info.InfoMod):
     super(UIMod, self).setup(reply, log, cfg, botopts)
     # now create ui
     ui_cfg = self._get_ui_cfg(cfg)
-    self.ui = create.create_ui(**ui_cfg)
+    self.ui = self._create_ui(ui_cfg, cfg)
     # fetch tick interval from ui
     self.tick = self.ui.get_tick_interval()
     self.listener = self.ui
 
   def _get_ui_cfg(self, cfg):
     def_cfg = {
-      'name' : 'lcd',
-      'sim' : True,
-      'font_path' : './font'
+      'name' : 'dummy'
     }
-    ui_cfg = cfg.get_section("vumeter", def_cfg)
+    ui_cfg = cfg.get_section("ui", def_cfg)
     self.log("cfg ui=",ui_cfg)
     return ui_cfg
+
+  def _create_ui(self, ui_cfg, cfg):
+    pkg_name = "ui." + ui_cfg['name']
+    pkg = importlib.import_module(pkg_name)
+    pdict = pkg.__dict__
+    if 'UI' not in pdict:
+      raise RuntimeError("no 'UI' class in pkg found: " + pkg_name)
+    clz = pdict['UI']
+    return clz(cfg)

@@ -5,8 +5,8 @@ import sys
 class UI:
   """mini 'UI' to demonstrate the UI interface"""
 
-  def __init__(self, **kwargs):
-    pass
+  def __init__(self, cfg):
+    self.cfg = cfg
 
   def _p(self, *args, **kwargs):
     a = ["**dummy**"] + list(args)
