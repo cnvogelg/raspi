@@ -2,7 +2,7 @@ from __future__ import print_function
 import sys
 
 class AudioShow(object):
-  def __init__(self, a, hb_chars="?!o.", play_chars=">|!", level_chars="01234567#"):
+  def __init__(self, a, hb_chars="?!o.", play_chars=">!-", level_chars="01234567#"):
     self.audio = a
     # config chars
     self.hb_chars = hb_chars

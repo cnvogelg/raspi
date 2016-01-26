@@ -22,15 +22,10 @@ class UI:
     self.audio_map = {}
     self.audio_list = []
     self.audio_fill = " " * 16
-    self.hb_chars = "?!" + self.lcd.heart_a_char + self.lcd.heart_b_char
-    self.play_chars = self.lcd.play_char + self.lcd.bell_char + " "
     # player
     self.player_map = {}
     self.player_list = []
     self.player_fill = " " * 7
-    self.player_chars = self.lcd.play_char + self.lcd.stop_char
-    self.mode_chars = self.lcd.note_char + self.lcd.hourglass_char + \
-      self.lcd.speaker_char + " "
     # welcome
     self.scroller = ui.widgets.Scroller(16)
     self.scroller.add_message("Welcome to pifon2!")
@@ -139,8 +134,7 @@ class UI:
 
   def audio_add(self, a):
     self._p("audio_add", a)
-    aw = ui.widgets.AudioShow(a,
-      hb_chars=self.hb_chars, play_chars=self.play_chars)
+    aw = ui.widgets.AudioShow(a, level_chars=self.lcd.bar_chars)
     self.audio_map[a] = aw
     self.audio_list.append(a)
     self.redraw_flag |= self.FLAG_AUDIO
@@ -179,8 +173,7 @@ class UI:
 
   def player_add(self, p):
     self._p("player_add", p)
-    pw = ui.widgets.PlayerShow(p, self._index_mapper,
-      play_chars=self.player_chars, mode_chars=self.mode_chars)
+    pw = ui.widgets.PlayerShow(p, self._index_mapper)
     self.player_map[p] = pw
     self.player_list.append(p)
     self.redraw_flag |= self.FLAG_PLAYER
