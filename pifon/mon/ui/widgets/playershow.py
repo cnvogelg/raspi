@@ -1,52 +1,50 @@
-class PlayerShow(object):
-  def __init__(self, p, mapper, play_chars="ps", mode_chars="oxl?"):
-    self.player = p
+from widget import Widget
+
+class PlayerShow(Widget):
+  def __init__(self, pos, mapper):
+    Widget.__init__(self, pos, 2)
+    self.player = None
     self.mapper = mapper
-    self.play_chars = play_chars
-    self.mode_chars = mode_chars
-    # text state
-    self.play = None
-    self.index = None
-    self.mode = None
+    self.text = None
     # initial update
     self.update()
 
-  def update(self):
-    self.play = self._get_play()
-    self.index = self._get_index()
-    self.mode = self._get_mode()
+  def set_player(self, p):
+    self.player = p
+    self.update()
 
-  def _get_play(self):
-    ps = self.player.play_server
-    if ps is not None:
-      return self.play_chars[0]
+  def update(self):
+    if self.player is None:
+      self.text = "??"
     else:
-      return self.play_chars[1]
+      mode = self._get_mode()
+      idx = self._get_index()
+      self.mode = self._get_mode()
+      self.text = mode + idx
+    self.set_dirty()
 
   def _get_index(self):
     ps = self.player.play_server
     if ps is not None:
       return self.mapper(ps)
     else:
-      return " "
+      return "_"
 
   def _get_mode(self):
     m = self.player.mode
     if m == 'monitor':
-      return self.mode_chars[0]
+      ps = self.player.play_server
+      if ps is not None:
+        return "P"
+      else:
+        return "m"
     elif m == 'mute':
-      return self.mode_chars[1]
+      return "u"
     elif m == 'listen':
-      return self.mode_chars[2]
+      return "L"
     else:
-      return self.mode_chars[3]
+      return "_"
 
   def get_text(self):
-    res = []
-    if self.play is not None:
-      res.append(self.play)
-    if self.mode is not None:
-      res.append(self.mode)
-    if self.index is not None:
-      res.append(self.index)
-    return "".join(res)
+    return self.text
+

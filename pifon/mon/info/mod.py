@@ -19,6 +19,7 @@ class InfoMod(BotMod):
       ModListEvent(self.on_modlist),
       PeerModListEvent(self.on_peer_modlist),
       TickEvent(self.on_tick),
+      StartEvent(self.on_start),
       # custom events
       BotEvent("audio", "level", arg_types=(int,int,int), callee=self.event_audio_level),
       BotEvent("audio", "state", arg_types=(str,), callee=self.event_audio_state),
@@ -52,6 +53,9 @@ class InfoMod(BotMod):
     else:
       self.log("call", name, *args)
       return None
+
+  def on_start(self):
+    self._call('on_start', self.nick)
 
   def on_connect(self):
     self._call('on_connect')
@@ -91,6 +95,8 @@ class InfoMod(BotMod):
       p = self._create_player(peer)
       self.log("added player from",peer)
       self._call('player_add', p)
+      # request mode
+      self.reply(['player','query_mode'],to=[peer],main=True)
 
   def on_tick(self, ts, delta):
     # forward to listener

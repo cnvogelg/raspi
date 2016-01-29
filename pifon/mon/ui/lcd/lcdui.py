@@ -4,34 +4,27 @@ import sys
 import lcd
 import ui.widgets
 
-
-
 class UI:
-
-  FLAG_CLEAR = 1
-  FLAG_CLOCK = 2
-  FLAG_SCROLLER = 4
-  FLAG_AUDIO = 8
-  FLAG_PLAYER = 16
 
   def __init__(self, cfg):
     self.cfg = cfg
     self.lcd = self._setup_lcd()
-    self.clock = ui.widgets.Clock()
+    self.widgets = []
+    # clock
+    self.clock = ui.widgets.Clock((0,0))
+    self.widgets.append(self.clock)
+    # scroller
+    self.scroller = ui.widgets.Scroller((0,0),16)
+    self.scroller.add_message("pifon2")
+    self.scroller.show(False)
+    self.widgets.append(self.scroller)
     # audio
     self.audio_map = {}
     self.audio_list = []
-    self.audio_fill = " " * 16
     # player
-    self.player_map = {}
-    self.player_list = []
-    self.player_fill = " " * 7
-    # welcome
-    self.scroller = ui.widgets.Scroller(16)
-    self.scroller.add_message("Welcome to pifon2!")
-    # flag
-    self.redraw_flag = 0
-    self.show_scroller = False
+    self.player = None
+    self.player_show = ui.widgets.PlayerShow((14,1), self._index_mapper)
+    self.widgets.append(self.player_show)
 
   def _setup_lcd(self):
     def_cfg = {
@@ -52,62 +45,60 @@ class UI:
 
   def on_tick(self, ts, delta):
     """tick timer for ui. called every 0.25s"""
+    if not self._handle_buttons():
+      return False
+    # tick update all widgets
+    self._tick_widgets(ts, delta)
+    # what to show in first line?
+    if self.scroller.is_busy():
+      # show scroller if its busy
+      self.scroller.show(True)
+      self.clock.show(False)
+    else:
+      # if nothing todo then show clock
+      self.scroller.show(False)
+      self.clock.show(True)
+    # perform redraw
+    self._redraw_widgets()
+
+  def on_start(self, nick):
+    self.nick = nick
+    self.scroller.add_message(nick)
+
+  def on_connect(self):
+    self.scroller.add_message("Connected!")
+
+  def on_disconnect(self):
+    self.scroller.add_message("Disconnected:(")
+
+  def on_peer_connect(self, peer):
+    self.scroller.add_message("'%s' connected." % peer)
+
+  def on_peer_disconnect(self, peer):
+    self.scroller.add_message("'%s' disconnected." % peer)
+
+  def _tick_widgets(self, ts, delta):
+    for w in self.widgets:
+      w.tick(ts, delta)
+
+  def _clear_screen(self):
+    self.lcd.clear()
+
+  def _draw_func(self, pos, txt):
+    self.lcd.text(pos[0], pos[1], txt)
+
+  def _redraw_widgets(self, force=False):
+    for w in self.widgets:
+      w.redraw(self._draw_func)
+
+  def _handle_buttons(self):
     b = self._read_buttons()
     if b is not None:
       self._p("buttons:", b)
       # quit bot?
       if 'q' in b:
         return False
-    # update widgets
-    self._update_widgets()
-    # redraw?
-    if self.redraw_flag:
-      self._redraw()
-
-  def _update_widgets(self):
-    # clock needs redraw?
-    if self.clock.tick():
-      self.redraw_flag |= self.FLAG_CLOCK
-    # scroller needs redraw?
-    if self.scroller.tick():
-      self.redraw_flag |= self.FLAG_SCROLLER
-      self.show_scroller = True
-    else:
-      # disable scroller and force redraw of clock and player
-      if self.show_scroller:
-        self.redraw_flag |= self.FLAG_CLOCK | self.FLAG_PLAYER
-        self.show_scroller = False
-
-  def _redraw(self):
-    f = self.redraw_flag
-
-    # clear lcd screen?
-    if f & self.FLAG_CLEAR == self.FLAG_CLEAR:
-      self.lcd.clear()
-
-    # no scroller?
-    if self.show_scroller:
-      # update scroller?
-      if f & self.FLAG_SCROLLER == self.FLAG_SCROLLER:
-        txt = self.scroller.get_text()
-        self.lcd.text(0,0,txt)
-    else:
-      # update clock?
-      if f & self.FLAG_CLOCK == self.FLAG_CLOCK:
-        txt = self.clock.get_text()
-        self.lcd.text(0,0,txt)
-      # update player
-      if f & self.FLAG_PLAYER == self.FLAG_PLAYER:
-        txt = " " + self._get_player_text()
-        self.lcd.text(8,0,txt)
-
-    # update audio
-    if f & self.FLAG_AUDIO == self.FLAG_AUDIO:
-      txt = self._get_audio_text()
-      self.lcd.text(0,1,txt)
-
-    # done
-    self.redraw_flag = 0
+    return True
 
   def _read_buttons(self):
     """return either string with pressed buttons or None if no button
@@ -134,24 +125,23 @@ class UI:
 
   def audio_add(self, a):
     self._p("audio_add", a)
-    aw = ui.widgets.AudioShow(a, level_chars=self.lcd.bar_chars)
+    idx = len(self.audio_list)
+    x = idx * 5
+    aw = ui.widgets.AudioShow((x,1), idx, a, level_chars=self.lcd.bar_chars)
     self.audio_map[a] = aw
     self.audio_list.append(a)
-    self.redraw_flag |= self.FLAG_AUDIO
 
   def audio_del(self, a):
     self._p("audio_del", a)
     if a in self.audio_map:
       del self.audio_map[a]
       self.audio_list.remove(a)
-      self.redraw_flag |= self.FLAG_AUDIO
 
   def audio_update(self, a, flags):
     self._p("audio_update", a)
     if a in self.audio_map:
       aw = self.audio_map[a]
       aw.update()
-      self.redraw_flag |= self.FLAG_AUDIO
 
   def _get_audio_text(self):
     res = []
@@ -164,39 +154,31 @@ class UI:
 
   # player calls
 
-  def _index_mapper(self, a):
+  def _index_mapper(self, ai):
+    """map an audio info to a list index"""
     n = len(self.audio_list)
     for i in range(n):
-      if self.audio_list[i] == a:
+      if self.audio_list[i] == ai:
         return str(i)
     return " "
 
+  def _is_my_player(self, name):
+    """check if given player is my associated player"""
+    return name == self.nick
+
   def player_add(self, p):
     self._p("player_add", p)
-    pw = ui.widgets.PlayerShow(p, self._index_mapper)
-    self.player_map[p] = pw
-    self.player_list.append(p)
-    self.redraw_flag |= self.FLAG_PLAYER
+    if self._is_my_player(p.name):
+      self.player = p
+      self.player_show.set_player(p)
 
   def player_del(self, p):
     self._p("player_del", p)
-    if p in self.player_map:
-      del self.player_map[p]
-      self.player_list.remove(p)
-      self.redraw_flag |= self.FLAG_PLAYER
+    if p == self.player:
+      self.player = None
+      self.player_show.set_player(None)
 
   def player_update(self, p, flags):
     self._p("player_update", p, flags)
-    if p in self.player_map:
-      pw = self.player_map[p]
-      pw.update()
-      self.redraw_flag |= self.FLAG_PLAYER
-
-  def _get_player_text(self):
-    res = []
-    for p in self.player_list:
-      pw = self.player_map[p]
-      res.append(pw.get_text())
-    txt = " ".join(res) + self.player_fill
-    txt = txt[0:len(self.player_fill)]
-    return txt
+    if p == self.player:
+      self.player_show.update()

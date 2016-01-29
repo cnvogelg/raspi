@@ -12,7 +12,7 @@ class Detector:
   state_names = (
     "idle",
     "attack",
-    "active",
+    "busy",
     "sustain",
     "respite"
   )

@@ -1,89 +1,68 @@
-from __future__ import print_function
-import sys
+from widget import Widget
 
-class AudioShow(object):
-  def __init__(self, a, hb_chars="?!o.", play_chars=">!-", level_chars="01234567#"):
+class AudioShow(Widget):
+  def __init__(self, pos, idx, a, level_chars="01234567#"):
+    Widget.__init__(self, pos, 4)
+    self.idx = idx
     self.audio = a
-    # config chars
-    self.hb_chars = hb_chars
-    self.play_chars = play_chars
-    self.level_chars = level_chars
-    # text state
-    self.hb = None
-    self.play = None
-    self.level = None
-    self.state = None
+    self.text = None
+    self.level_cahrs = level_chars
     # first update
     self.update()
 
   def update(self):
     """return True if text was changed"""
-    self.hb = self._get_heartbeat()
-    self.play = self._get_play()
-    self.level = self._get_level()
-    self.state = self._get_state()
+    # 1. index of source
+    idx = chr(ord('0')+self.idx)
+    # 2. state
+    state = self._get_state()
+    # 3. active/ping
+    active = self._get_active_and_ping()
+    # 4. level
+    level = self._get_level()
+    self.text = idx + state + active + level
+    self.set_dirty()
 
-  def _get_heartbeat(self):
-    ping = self.audio.ping
-    if ping is None:
-      return self.hb_chars[0]
-    elif ping == 'requested':
-      return self.hb_chars[2]
-    elif ping == 'alive':
-      return self.hb_chars[3]
+  def _get_state(self):
+    state = self.audio.audio_state
+    if state is not None:
+      return state[0].upper()
     else:
-      return self.hb_chars[1]
+      return "_"
+
+  def _get_active_and_ping(self):
+    ping = self.audio.ping
+    if ping == 'requested':
+      return "."
+    elif ping == 'alive':
+      p = self._get_play()
+      if p is not None:
+        return p
+      return "o"
+    else: # timeout
+      return "?"
 
   def _get_play(self):
     is_playing = self.audio.is_playing
     active = self.audio.audio_active
     if is_playing:
-      return self.play_chars[0]
+      return "P"
     elif active:
-      return self.play_chars[1]
+      return "*"
     else:
-      return self.play_chars[2]
+      return None
 
   def _get_level(self):
     level = self.audio.audio_level
     if level is not None:
       l = level[1]
-      t = level[2]
       if l < 8:
         lc = self.level_chars[l]
       else:
         lc = self.level_chars[8]
-      if t < 100:
-        tc = "%02d" % t
-      else:
-        tc = "^^"
-      return lc + "+" + tc
+      return lc
     else:
-      return "_+__"
-
-  def _get_state(self):
-    state = self.audio.audio_state
-    if state is not None:
-      char = state[0].upper()
-      if char == 'I': # idle
-        char = "_"
-      return char
-    else:
-      return "_"
+      return " "
 
   def get_text(self):
-    res = []
-    # heartbeat
-    if self.hb is not None:
-      res.append(self.hb)
-    # play state
-    if self.play is not None:
-      res.append(self.play)
-    # state
-    if self.state is not None:
-      res.append(self.state)
-    # level
-    if self.level is not None:
-      res.append(self.level)
-    txt = "".join(res)
-    return txt
+    return self.text

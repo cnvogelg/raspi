@@ -1,20 +1,29 @@
-class Scroller(object):
+from widget import Widget
+
+class Scroller(Widget):
 
   IDLE = 31
 
-  def __init__(self, length):
+  def __init__(self, pos, length, prefix=None):
+    Widget.__init__(self, pos, length)
     self.buffer = bytearray(length)
     self.queue = []
     self.current = None
+    if prefix is None:
+      self.prefix = chr(0x7e) + " "
+    else:
+      self.prefix = prefix
     # set all to idle
     for i in range(length):
       self.buffer[i] = self.IDLE
 
-  def is_idle(self):
+  def is_busy(self):
+    if len(self.queue) > 0:
+      return True
     for b in self.buffer:
       if b != self.IDLE:
-        return False
-    return True
+        return True
+    return False
 
   def add_message(self, msg):
     self.queue.append(msg)
@@ -28,17 +37,15 @@ class Scroller(object):
         r.append(chr(b))
     return "".join(r)
 
-  def tick(self):
-    idle = self.is_idle()
+  def tick(self, ts, delta):
+    busy = self.is_busy()
     c = self._get_next_char()
     if c is not None:
       self._scroll(c)
-      return True
-    elif not idle:
+      self.set_dirty()
+    elif busy:
       self._scroll(self.IDLE)
-      return True
-    else:
-      return False
+      self.set_dirty()
 
   def _scroll(self, new):
     for i in range(len(self.buffer)-1):
@@ -50,7 +57,7 @@ class Scroller(object):
     # fill current message?
     if self.current is None:
       if len(self.queue) > 0:
-        self.current = self.queue.pop(0)
+        self.current = self.prefix + self.queue.pop(0)
       else:
         return None
     # current scroll
@@ -64,7 +71,7 @@ class Scroller(object):
 
 # test
 if __name__ == '__main__':
-  s = Scroller(8)
+  s = Scroller((0,0),8)
   print(s.is_idle())
   print("'%s'" % s.get_text())
   if s.tick():
@@ -73,7 +80,8 @@ if __name__ == '__main__':
     print("IDLE")
   s.add_message("hello")
   for i in range(15):
-    if s.tick():
+    s.tick()
+    if s.is_dirty:
       print("'%s'" % s.get_text())
     else:
       print("IDLE")
