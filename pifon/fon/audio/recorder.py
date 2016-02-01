@@ -4,10 +4,12 @@ import os
 import sys
 
 class Recorder:
-  def __init__(self, rate=48000, interval=250, channels=1, recorder="rec", device="mixin", tool="tools/vumeter"):
+  def __init__(self, rate=48000, interval=250, channels=1, recorder="rec",
+               device="mixin", tool="tools/vumeter",
+               zero_range=0, sox_filter="highpass 500"):
     if not os.path.isfile(tool):
-      raise ValueError("Given tool script '%s' not found!")
-    cmd = [tool, str(rate), str(interval), str(channels), recorder, device]
+      raise ValueError("Given tool script '%s' not found!" % tool)
+    cmd = [tool, str(rate), str(interval), str(channels), recorder, device, str(zero_range), sox_filter]
     self.line_size = 0 # 12 # fixed size of rms output
     self.p = subprocess.Popen(cmd, bufsize=self.line_size, shell=False, stdout=subprocess.PIPE)
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS> <RECORDER> <DEVICE> <ZERO_RANGE>
+# Usage: vumeter <SAMPLE_RATE> <INTERVAL> <CHANNELS> <RECORDER> <DEVICE> <ZERO_RANGE> <SOX_FILTER>
 
 SYSTEM=`uname -s`
 DIRNAME="`dirname \"$0\"`"
@@ -22,7 +22,10 @@ if [ "$DEVICE" = "" ]; then
   DEVICE=mixin
 fi
 if [ "$ZERO_RANGE" = "" ]; then
-  ZERO_RANGE=2000
+  ZERO_RANGE=0
+fi
+if [ "$SOX_FILTER" = "" ]; then
+  SOX_FILTER="highpass 500"
 fi
 
 # optional give sample rate
@@ -43,6 +46,14 @@ if [ "$5" != "" ]; then
 fi
 if [ "$6" != "" ]; then
   ZERO_RANGE=$6
+fi
+if [ "$7" != "" ]; then
+  SOX_FILTER="$7"
+fi
+
+# allow to disable sox filter
+if [ "$SOX_FILTER" = "none" ]; then
+  SOX_FILTER=""
 fi
 
 # detect sample rate/channels?
@@ -65,7 +76,7 @@ fi
 
 # show options
 if [ "$DEBUG" != "" ]; then
-  echo "SAMPLE_RATE=$SAMPLE_RATE INTERVAL=$INTERVAL CHANNELS=$CHANNELS RECORDER=$RECORDER DEVICE=$DEVICE ZERO_RANGE=$ZERO_RANGE" 2>&1
+  echo "SAMPLE_RATE=$SAMPLE_RATE INTERVAL=$INTERVAL CHANNELS=$CHANNELS RECORDER=$RECORDER DEVICE=$DEVICE ZERO_RANGE=$ZERO_RANGE SOX_FILTER=$SOX_FILTER" 2>&1
 fi
 
 if [ "$DEBUG" = "" ]; then
@@ -75,14 +86,14 @@ fi
 # setup recorder
 if [ "$RECORDER" = "arecord" ]; then
   # ALSA arecord
-  RECORD="arecord $QUIET -D ${DEVICE} -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE} highpass 500"
+  RECORD="arecord $QUIET -D ${DEVICE} -f S16_LE -c ${CHANNELS} -r ${SAMPLE_RATE}"
 elif [ "$RECORDER" = "rec" ]; then
   # use sox' rec
   if [ "$SYSTEM" = "Linux" ]; then
     export AUDIODRIVER=alsa
     export AUDIODEV=${DEVICE}
   fi
-  RECORD="rec $QUIET -b 16 -t raw -c ${CHANNELS} -r ${SAMPLE_RATE} -"
+  RECORD="rec $QUIET -b 16 -t raw -c ${CHANNELS} -r ${SAMPLE_RATE} - ${SOX_FILTER}"
 else
   echo "Unknown RECORDER=${RECORDER}!"
   exit 1

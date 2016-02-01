@@ -80,7 +80,8 @@ class AudioMod(BotMod):
 
     self.ev = DetectorEventHandler(self.reply, self.botopts)
     self.d = detector.Detector(self.botopts)
-    self.rec = recorder.Recorder(self.sample_rate, self.interval, self.channels, self.rec, self.dev)
+    self.rec = recorder.Recorder(self.sample_rate, self.interval, self.channels,
+                                 self.rec, self.dev, self.tool, self.zero_range, self.sox_filter)
     self.sim = simulator.Simulator()
 
     self.log("init audio")
@@ -100,6 +101,9 @@ class AudioMod(BotMod):
       'recorder' : 'rec',
       'device' : 'mixin',
       'debug' : False,
+      'zero_range' : 0,
+      'sox_filter' : 'highpass 500',
+      'tool' : 'tools/vumeter'
     }
     vu_cfg = cfg.get_section("vumeter", def_cfg)
     self.log("vumeter=",vu_cfg)
@@ -109,6 +113,9 @@ class AudioMod(BotMod):
     self.channels = vu_cfg['channels']
     self.interval = vu_cfg['interval']
     self.debug = vu_cfg['debug']
+    self.zero_range = vu_cfg['zero_range']
+    self.sox_filter = vu_cfg['sox_filter']
+    self.tool = vu_cfg['tool']
     self.tick_interval = self.interval / 1000.0
 
   # ----- commands -----
@@ -171,7 +178,7 @@ class AudioMod(BotMod):
       alive_delta = ts - last_alive_ts
       if alive_delta > 10:
         self.log("alive! rec_delta=", [min_rec_delta, max_rec_delta])
-	max_rec_delta = 0
+        max_rec_delta = 0
         min_rec_delta = 10 * self.interval
         last_alive_ts = ts
 
