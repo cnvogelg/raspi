@@ -84,7 +84,7 @@ class AudioMod(BotMod):
                                  self.rec, self.dev, self.tool, self.zero_range, self.sox_filter)
     self.sim = simulator.Simulator()
 
-    self.log("init audio")
+    self.log("init audio: cmd=", self.rec.cmd)
     self.log("options=",self.botopts.get_values())
 
     # setup threading

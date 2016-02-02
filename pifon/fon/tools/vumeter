@@ -61,16 +61,16 @@ if [ "$SAMPLE_RATE" = "0" ]; then
   if [ "$SYSTEM" = "Linux" ]; then
     SAMPLE_RATE=`arecord --dump-hw-params -D $DEVICE 2>&1 | grep RATE: | sed -e 's/RATE: //g'`
   else
-    echo "Can't autodetect sample_rate on $SYSTEM"
-    exit 1
+    echo "Can't autodetect sample_rate on $SYSTEM... using 44100" 1>&2
+    SAMPLE_RATE=44100
   fi
 fi
 if [ "$CHANNELS" = "0" ]; then
   if [ "$SYSTEM" = "Linux" ]; then
     CHANNELS=`arecord --dump-hw-params -D $DEVICE 2>&1 | grep CHANNELS: | sed -e 's/CHANNELS: //g'`
   else
-    echo "Can't autodetect channels on $SYSTEM"
-    exit 1
+    echo "Can't autodetect channels on $SYSTEM... using 2" 1>&2
+    CHANNELS=2
   fi
 fi
 
