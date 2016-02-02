@@ -2,7 +2,7 @@ from widget import Widget
 
 class PlayerShow(Widget):
   def __init__(self, pos, mapper):
-    Widget.__init__(self, pos, 2)
+    Widget.__init__(self, pos, 1)
     self.player = None
     self.mapper = mapper
     self.text = None
@@ -15,20 +15,11 @@ class PlayerShow(Widget):
 
   def update(self):
     if self.player is None:
-      self.text = "??"
+      self.text = "?"
     else:
       mode = self._get_mode()
-      idx = self._get_index()
-      self.mode = self._get_mode()
-      self.text = mode + idx
+      self.text = self._get_mode()
     self.set_dirty()
-
-  def _get_index(self):
-    ps = self.player.play_server
-    if ps is not None:
-      return self.mapper(ps)
-    else:
-      return "_"
 
   def _get_mode(self):
     m = self.player.mode

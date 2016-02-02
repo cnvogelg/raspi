@@ -1,26 +1,36 @@
 from widget import Widget
 
 class AudioShow(Widget):
-  def __init__(self, pos, idx, a, level_chars="01234567#"):
+  def __init__(self, pos, idx, level_chars="01234567#"):
     Widget.__init__(self, pos, 4)
     self.idx = idx
-    self.audio = a
+    self.audio = None
     self.text = None
-    self.level_cahrs = level_chars
+    self.level_chars = level_chars
     # first update
     self.update()
 
+  def set_audio(self, audio):
+    self.audio = audio
+    self.update()
+
+  def get_audio(self):
+    return self.audio
+
   def update(self):
     """return True if text was changed"""
-    # 1. index of source
-    idx = chr(ord('0')+self.idx)
-    # 2. state
-    state = self._get_state()
-    # 3. active/ping
-    active = self._get_active_and_ping()
-    # 4. level
-    level = self._get_level()
-    self.text = idx + state + active + level
+    if self.audio is None:
+      self.text = "    "
+    else:
+      # 1. index of source
+      idx = chr(ord('0')+self.idx)
+      # 2. state
+      state = self._get_state()
+      # 3. active/ping
+      active = self._get_active_and_ping()
+      # 4. level
+      level = self._get_level()
+      self.text = idx + state + active + level
     self.set_dirty()
 
   def _get_state(self):
@@ -28,17 +38,17 @@ class AudioShow(Widget):
     if state is not None:
       return state[0].upper()
     else:
-      return "_"
+      return " "
 
   def _get_active_and_ping(self):
     ping = self.audio.ping
     if ping == 'requested':
-      return "."
+      return "!"
     elif ping == 'alive':
       p = self._get_play()
       if p is not None:
         return p
-      return "o"
+      return "."
     else: # timeout
       return "?"
 

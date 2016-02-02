@@ -91,6 +91,9 @@ class InfoMod(BotMod):
       a = self._create_audio(peer)
       self.log("added audio from", peer)
       self._call('audio_add', a)
+      # request state
+      self.reply(['audio','query_state'],to=[peer],main=True)
+      self.reply(['audio','query_active'],to=[peer],main=True)
     elif mod_name == 'player':
       p = self._create_player(peer)
       self.log("added player from",peer)

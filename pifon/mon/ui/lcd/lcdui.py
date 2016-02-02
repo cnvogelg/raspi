@@ -18,12 +18,16 @@ class UI:
     self.scroller.add_message("pifon2")
     self.scroller.show(False)
     self.widgets.append(self.scroller)
-    # audio
+    # audio - reserve two instances
+    a0 = ui.widgets.AudioShow((0,1), 0, self.lcd.bar_chars)
+    a1 = ui.widgets.AudioShow((5,1), 1, self.lcd.bar_chars)
+    a2 = ui.widgets.AudioShow((10,1), 1, self.lcd.bar_chars)
+    self.widgets += [a0,a1,a2]
+    self.audio_list = [a0,a1,a2]
     self.audio_map = {}
-    self.audio_list = []
     # player
     self.player = None
-    self.player_show = ui.widgets.PlayerShow((14,1), self._index_mapper)
+    self.player_show = ui.widgets.PlayerShow((15,1), self._index_mapper)
     self.widgets.append(self.player_show)
 
   def _setup_lcd(self):
@@ -125,42 +129,43 @@ class UI:
 
   def audio_add(self, a):
     self._p("audio_add", a)
-    idx = len(self.audio_list)
-    x = idx * 5
-    aw = ui.widgets.AudioShow((x,1), idx, a, level_chars=self.lcd.bar_chars)
-    self.audio_map[a] = aw
-    self.audio_list.append(a)
+    # find free slot
+    for ai in self.audio_list:
+      if ai.get_audio() is None:
+        ai.set_audio(a)
+        idx = ai.idx
+        self.audio_map[a] = ai
+        self.scroller.add_message("add %d:%s" % (idx, a.name))
+        return
+    # no slot free
+    self.scroller.add_message("skip: " + a.name)
 
   def audio_del(self, a):
     self._p("audio_del", a)
     if a in self.audio_map:
+      ai = self.audio_map[a]
+      idx = ai.idx
       del self.audio_map[a]
-      self.audio_list.remove(a)
+      ai.set_audio(None)
+      self.scroller.add_message("rem %d:%s" % (idx, a.name))
+      return
+    # no slot assigned
+    self.scroller.add_message("lost: " + a.name)
 
   def audio_update(self, a, flags):
     self._p("audio_update", a)
     if a in self.audio_map:
-      aw = self.audio_map[a]
-      aw.update()
-
-  def _get_audio_text(self):
-    res = []
-    for a in self.audio_list:
-      aw = self.audio_map[a]
-      res.append(aw.get_text())
-    txt = " ".join(res) + self.audio_fill
-    txt = txt[0:len(self.audio_fill)]
-    return txt
+      ai = self.audio_map[a]
+      ai.update()
 
   # player calls
 
   def _index_mapper(self, ai):
     """map an audio info to a list index"""
-    n = len(self.audio_list)
-    for i in range(n):
-      if self.audio_list[i] == ai:
-        return str(i)
-    return " "
+    for a in self.audio_list:
+      if a.get_audio() == ai:
+        return str(a.idx)
+    return None
 
   def _is_my_player(self, name):
     """check if given player is my associated player"""
