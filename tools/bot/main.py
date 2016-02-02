@@ -289,9 +289,8 @@ class Bot:
       return
     # is it a bot command?
     mod_name = a[0]
+    cmd_name = a[1]
     if mod_name == 'bot':
-      # get command name
-      cmd_name = a[1]
       # check internal command
       for cmd in self.cmds:
         if cmd_name == cmd.get_name():
