@@ -2,6 +2,7 @@ from __future__ import print_function
 import sys
 
 import lcd
+import backlight
 import ui.widgets
 
 class UI:
@@ -25,10 +26,13 @@ class UI:
     self.widgets += [a0,a1,a2]
     self.audio_list = [a0,a1,a2]
     self.audio_map = {}
+    self.ping_lost = set()
     # player
     self.player = None
-    self.player_show = ui.widgets.PlayerShow((15,1), self._index_mapper)
+    self.player_show = ui.widgets.PlayerShow((15,1), self._index_mapper, self.lcd.play_char)
     self.widgets.append(self.player_show)
+    # backlight
+    self.backlight = backlight.Backlight(self.lcd)
 
   def _setup_lcd(self):
     def_cfg = {
@@ -71,9 +75,11 @@ class UI:
 
   def on_connect(self):
     self.scroller.add_message("Connected!")
+    self.backlight.set_connected(True)
 
   def on_disconnect(self):
     self.scroller.add_message("Disconnected:(")
+    self.backlight.set_connected(False)
 
   def on_peer_connect(self, peer):
     self.scroller.add_message("'%s' connected." % peer)
@@ -136,6 +142,7 @@ class UI:
         idx = ai.idx
         self.audio_map[a] = ai
         self.scroller.add_message("add %d:%s" % (idx, a.name))
+        self._check_ping(a)
         return
     # no slot free
     self.scroller.add_message("skip: " + a.name)
@@ -148,6 +155,7 @@ class UI:
       del self.audio_map[a]
       ai.set_audio(None)
       self.scroller.add_message("rem %d:%s" % (idx, a.name))
+      self._remove_ping(a)
       return
     # no slot assigned
     self.scroller.add_message("lost: " + a.name)
@@ -157,6 +165,18 @@ class UI:
     if a in self.audio_map:
       ai = self.audio_map[a]
       ai.update()
+      self._check_ping(a)
+
+  def _check_ping(self, a):
+    if a.ping == "timeout":
+      self.ping_lost.add(a)
+    elif a in self.ping_lost:
+      self.ping_lost.remove(a)
+    self.backlight.set_ping_lost(len(self.ping_lost)>0)
+
+  def _remove_ping(self, a):
+    if a in self.ping_lost:
+      self.ping_lost.remove(a)
 
   # player calls
 
@@ -176,14 +196,17 @@ class UI:
     if self._is_my_player(p.name):
       self.player = p
       self.player_show.set_player(p)
+      self.backlight.set_active(p.play_server is not None)
 
   def player_del(self, p):
     self._p("player_del", p)
     if p == self.player:
       self.player = None
       self.player_show.set_player(None)
+      self.backlight.set_active(False)
 
   def player_update(self, p, flags):
     self._p("player_update", p, flags)
     if p == self.player:
       self.player_show.update()
+      self.backlight.set_active(p.play_server is not None)

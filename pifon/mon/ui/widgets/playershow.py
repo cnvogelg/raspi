@@ -1,11 +1,12 @@
 from widget import Widget
 
 class PlayerShow(Widget):
-  def __init__(self, pos, mapper):
+  def __init__(self, pos, mapper, play_char=">"):
     Widget.__init__(self, pos, 1)
     self.player = None
     self.mapper = mapper
     self.text = None
+    self.play_char = play_char
     # initial update
     self.update()
 
@@ -26,7 +27,7 @@ class PlayerShow(Widget):
     if m == 'monitor':
       ps = self.player.play_server
       if ps is not None:
-        return "P"
+        return self.play_char
       else:
         return "m"
     elif m == 'mute':
