@@ -129,8 +129,14 @@ class LCDSim:
       self.data.append(ba)
 
   def setCursor(self, cx, cy):
-    self.cx = cx
-    self.cy = cy
+    if cx < self.width:
+      self.cx = cx
+    else:
+      self.cx = self.width -1
+    if cy < self.height:
+      self.cy = cy
+    else:
+      self.cy = self.height - 1
 
   def message(self, txt):
     l = self.width - self.cx

@@ -38,14 +38,15 @@ class Scroller(Widget):
     return "".join(r)
 
   def tick(self, ts, delta):
-    busy = self.is_busy()
-    c = self._get_next_char()
-    if c is not None:
-      self._scroll(c)
-      self.set_dirty()
-    elif busy:
-      self._scroll(self.IDLE)
-      self.set_dirty()
+    if self.is_shown:
+      busy = self.is_busy()
+      c = self._get_next_char()
+      if c is not None:
+        self._scroll(c)
+        self.set_dirty()
+      elif busy:
+        self._scroll(self.IDLE)
+        self.set_dirty()
 
   def _scroll(self, new):
     for i in range(len(self.buffer)-1):

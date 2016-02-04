@@ -19,6 +19,18 @@ class UI:
     self.scroller.add_message("pifon2")
     self.scroller.show(False)
     self.widgets.append(self.scroller)
+    # alarm group
+    self.alarm_group = ui.widgets.Group((0,0),16)
+    self.room_label = ui.widgets.Label((0,0),8)
+    self.duration_label = ui.widgets.Label((8,0),2,align=ui.widgets.Label.ALIGN_RIGHT)
+    self.level_label = ui.widgets.Label((14,0),2,align=ui.widgets.Label.ALIGN_RIGHT)
+    self.level_fifo = ui.widgets.Fifo((10,0),4)
+    self.alarm_group.add_widget(self.room_label)
+    self.alarm_group.add_widget(self.duration_label)
+    self.alarm_group.add_widget(self.level_label)
+    self.alarm_group.add_widget(self.level_fifo)
+    self.alarm_group.show(False)
+    self.widgets.append(self.alarm_group)
     # audio - reserve two instances
     a0 = ui.widgets.AudioShow((0,1), 0, self.lcd.bar_chars)
     a1 = ui.widgets.AudioShow((5,1), 1, self.lcd.bar_chars)
@@ -27,8 +39,10 @@ class UI:
     self.audio_list = [a0,a1,a2]
     self.audio_map = {}
     self.ping_lost = set()
+    self.alarm_audio = None
     # player
     self.player = None
+    self.player_active = False
     self.player_show = ui.widgets.PlayerShow((15,1), self._index_mapper, self.lcd.play_char)
     self.widgets.append(self.player_show)
     # backlight
@@ -58,14 +72,21 @@ class UI:
     # tick update all widgets
     self._tick_widgets(ts, delta)
     # what to show in first line?
-    if self.scroller.is_busy():
+    # alarm?
+    if self.alarm_audio is not None:
+      self.scroller.show(False)
+      self.clock.show(False)
+      self.alarm_group.show(True)
+    elif self.scroller.is_busy():
       # show scroller if its busy
       self.scroller.show(True)
       self.clock.show(False)
+      self.alarm_group.show(False)
     else:
       # if nothing todo then show clock
       self.scroller.show(False)
       self.clock.show(True)
+      self.alarm_group.show(False)
     # perform redraw
     self._redraw_widgets()
 
@@ -166,6 +187,45 @@ class UI:
       ai = self.audio_map[a]
       ai.update()
       self._check_ping(a)
+      self._check_alarm_state(a)
+      if self.alarm_audio == a:
+        self._update_alarm_info(a)
+
+  def _check_alarm_state(self, a):
+    state = a.audio_state
+    idle = state is None or state == 'idle'
+    if self.alarm_audio == a:
+      if idle:
+        self.alarm_audio = None
+    else:
+      if not idle:
+        self.alarm_audio = a
+
+  def _update_alarm_info(self, a):
+      # set room name
+      src = a.audio_listen_src
+      if src is not None:
+        room = src[0]
+      else:
+        room = None
+      self.room_label.set_text(room)
+      # set level/duration
+      level = a.audio_level
+      if level is not None:
+        lvl = level[1]
+        dur = level[2]
+        self.level_fifo.add(self._get_level_char(lvl))
+      else:
+        lvl = ""
+        dur = ""
+        self.level_fifo.clear()
+      self.level_label.set_text(lvl)
+      self.duration_label.set_text(dur)
+
+  def _get_level_char(self, l):
+    if l > 8:
+      l = 8
+    return self.lcd.bar_chars[l]
 
   def _check_ping(self, a):
     if a.ping == "timeout":
@@ -195,8 +255,12 @@ class UI:
     self._p("player_add", p)
     if self._is_my_player(p.name):
       self.player = p
+      self.player_active = p.play_server is not None
       self.player_show.set_player(p)
-      self.backlight.set_active(p.play_server is not None)
+      self.backlight.set_active(self.player_active)
+      # overwrite audio alarm
+      if p.play_server != self.alarm_audio:
+        self.alarm_audio = p.play_server
 
   def player_del(self, p):
     self._p("player_del", p)
@@ -208,5 +272,9 @@ class UI:
   def player_update(self, p, flags):
     self._p("player_update", p, flags)
     if p == self.player:
+      self.player_active = p.play_server is not None
       self.player_show.update()
-      self.backlight.set_active(p.play_server is not None)
+      self.backlight.set_active(self.player_active)
+      # overwrite audio alarm
+      if p.play_server != self.alarm_audio:
+        self.alarm_audio = p.play_server

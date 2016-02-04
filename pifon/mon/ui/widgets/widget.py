@@ -25,7 +25,7 @@ class Widget(object):
   def set_dirty(self):
     self.is_dirty = True
 
-  def get_text(self, yl):
+  def get_text(self):
     """return the text string for the given local y coord starting from 0"""
     pass
 
