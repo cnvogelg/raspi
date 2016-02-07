@@ -23,7 +23,7 @@ class Clock(Widget):
       secs = lt[5]
       mode = secs / 10
       if mode in (0,3):
-        self.txt += time.strftime("%w_%Y ",lt)
+        self.txt += time.strftime("%W_%Y ",lt)
       elif mode in (1,4):
         self.txt += time.strftime("%a %Z",lt)
       else:

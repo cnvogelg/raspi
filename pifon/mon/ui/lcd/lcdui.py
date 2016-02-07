@@ -47,16 +47,26 @@ class UI:
     self.widgets.append(self.player_show)
     # backlight
     self.backlight = backlight.Backlight(self.lcd)
+    # quit
+    self.quit_pending = False
 
   def _setup_lcd(self):
     def_cfg = {
-      'sim' : True,
+      'mode' : 'auto',
       'font_path' : 'font'
     }
     lcd_cfg = self.cfg.get_section('ui_lcd', def_cfg)
     font_path = lcd_cfg['font_path']
-    sim = lcd_cfg['sim']
-    return  lcd.LCD16x2(font_path=font_path, sim=sim)
+    mode = lcd_cfg['mode']
+    if mode == 'auto':
+      sim = lcd.autodetect_sim()
+    elif mode == 'sim':
+      sim = True
+    elif mode == 'hw':
+      sim = False
+    else:
+      raise ValueError("Invalud lcd mode: '%s'" % mode)
+    return lcd.LCD16x2(font_path=font_path, sim=sim)
 
   def _p(self, *args, **kwargs):
     a = ["**UI**"] + list(args)
@@ -67,8 +77,8 @@ class UI:
 
   def on_tick(self, ts, delta):
     """tick timer for ui. called every 0.25s"""
-    if not self._handle_buttons():
-      return False
+    # check buttons
+    self._handle_buttons()
     # tick update all widgets
     self._tick_widgets(ts, delta)
     # what to show in first line?
@@ -87,12 +97,19 @@ class UI:
       self.scroller.show(False)
       self.clock.show(True)
       self.alarm_group.show(False)
+      # is a quit pending? -> quit now
+      if self.quit_pending:
+        return False
     # perform redraw
     self._redraw_widgets()
 
   def on_start(self, nick):
     self.nick = nick
     self.scroller.add_message(nick)
+
+  def on_stop(self, nick):
+    # disable lcd
+    self.lcd.backlight(self.lcd.OFF)
 
   def on_connect(self):
     self.scroller.add_message("Connected!")
@@ -127,9 +144,9 @@ class UI:
     if b is not None:
       self._p("buttons:", b)
       # quit bot?
-      if 'q' in b:
-        return False
-    return True
+      if b == 'q' or b == 'rl':
+        self.scroller.add_message("shutting down!!")
+        self.quit_pending = True
 
   def _read_buttons(self):
     """return either string with pressed buttons or None if no button

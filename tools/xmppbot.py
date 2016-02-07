@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -8,6 +8,8 @@
   stdout of process is received and print as messages
 """
 
+from __future__ import print_function
+
 import sys
 import os
 import logging
@@ -16,7 +18,10 @@ import time
 
 import sleekxmpp
 import threading
-import queue
+try:
+  import queue
+except ImportError:
+  import Queue as queue
 import subprocess
 import select
 

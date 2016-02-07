@@ -20,6 +20,7 @@ class InfoMod(BotMod):
       PeerModListEvent(self.on_peer_modlist),
       TickEvent(self.on_tick),
       StartEvent(self.on_start),
+      StopEvent(self.on_stop),
       # custom events
       BotEvent("audio", "level", arg_types=(int,int,int), callee=self.event_audio_level),
       BotEvent("audio", "state", arg_types=(str,), callee=self.event_audio_state),
@@ -56,6 +57,9 @@ class InfoMod(BotMod):
 
   def on_start(self):
     self._call('on_start', self.nick)
+
+  def on_stop(self):
+    self._call('on_stop', self.nick)
 
   def on_connect(self):
     self._call('on_connect')
