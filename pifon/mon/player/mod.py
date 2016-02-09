@@ -26,8 +26,8 @@ class PlayerMod(BotMod):
       BotEvent("audio","listen_src",callee=self.on_player_listen_src,arg_types=(str,str)),
     ]
 
-  def setup(self, reply, log, cfg, botopts):
-    BotMod.setup(self, reply, log, cfg, botopts)
+  def setup(self, send, log, cfg, botopts):
+    BotMod.setup(self, send, log, cfg, botopts)
 
     def_cfg = {
       'name' : 'dummy',
@@ -41,7 +41,7 @@ class PlayerMod(BotMod):
     player_cfg = cfg.get_section('player', def_cfg)
 
     self.player = create.create_player(**player_cfg)
-    self.control = control.Control(self.player, self.reply)
+    self.control = control.Control(self.player, self.send_event)
 
   def get_commands(self):
     return self.cmds
@@ -71,7 +71,7 @@ class PlayerMod(BotMod):
     self._report_chime([sender])
 
   def _report_chime(self, to):
-    self.reply(['chime',self.player.get_allow_chimes()],to)
+    self.send_event(['chime',self.player.get_allow_chimes()],to)
 
   # --- events ---
 

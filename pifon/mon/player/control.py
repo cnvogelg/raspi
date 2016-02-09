@@ -22,9 +22,9 @@ class Control:
 
   mode_names = ('monitor', 'mute', 'listen')
 
-  def __init__(self, player, reply=None):
+  def __init__(self, player, send_event=None):
     self.player = player
-    self.reply = reply
+    self.send_event = send_event
     self.state = self.MODE_MONITOR
     self.play_srv = None
     self.url_map = {}
@@ -78,8 +78,8 @@ class Control:
 
   def _report_new_state(self, state, to=None):
     # report new state
-    if self.reply is not None:
-      self.reply(['mode',self.mode_names[self.state],self.play_srv],to=None)
+    if self.send_event is not None:
+      self.send_event(['mode',self.mode_names[self.state],self.play_srv],to=None)
 
   def _play_active(self):
     # is some server active? then play it
@@ -95,15 +95,15 @@ class Control:
         if self.player.play(url):
           self.play_srv = server
           # report
-          if self.reply is not None:
-            self.reply(['play', server, url])
+          if self.send_event is not None:
+            self.send_event(['play', server, url])
           return True
     return False
 
   def _stop(self):
     if self.player.stop():
-      if self.reply is not None:
-        self.reply(['stop', self.play_srv])
+      if self.send_event is not None:
+        self.send_event(['stop', self.play_srv])
       self.play_srv = None
       return True
     return False

@@ -93,11 +93,11 @@ class PingerMod(BotMod):
       self._report_peer_status(sender, status)
 
   def _send_ping(self, to):
-    self.reply(["bot","ping"], to=[to], main=True)
+    self.send_command(["bot","ping"], to=[to])
 
   def _report_peer_status(self, peer, status, to=None):
     name = status.get_state_name()
-    self.reply(["check", peer, name], to=to)
+    self.send_event(["check", peer, name], to=to)
     self.log("check", peer, name)
 
   def cmd_query(self, sender, args):

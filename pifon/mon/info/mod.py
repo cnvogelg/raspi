@@ -96,14 +96,14 @@ class InfoMod(BotMod):
       self.log("added audio from", peer)
       self._call('audio_add', a)
       # request state
-      self.reply(['audio','query_state'],to=[peer],main=True)
-      self.reply(['audio','query_active'],to=[peer],main=True)
+      self.send_command(['audio','query_state'],to=[peer])
+      self.send_command(['audio','query_active'],to=[peer])
     elif mod_name == 'player':
       p = self._create_player(peer)
       self.log("added player from",peer)
       self._call('player_add', p)
       # request mode
-      self.reply(['player','query_mode'],to=[peer],main=True)
+      self.send_command(['player','query_mode'],to=[peer])
 
   def on_tick(self, ts, delta):
     # forward to listener

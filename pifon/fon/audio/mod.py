@@ -23,27 +23,27 @@ import simulator
 
 
 class DetectorEventHandler:
-  def __init__(self, reply, botopts):
-    self.reply = reply
+  def __init__(self, send_event, botopts):
+    self.send_event = send_event
     self.botopts = botopts
     self.first = True
 
   def state(self, state):
     # write audio_state
-    self.reply(["state", state])
+    self.send_event(["state", state])
 
   def active(self, active):
     # send source info before attack
     if active or self.first:
       name = self.botopts.get_value('src_name')
       url = self.botopts.get_value('listen_url')
-      self.reply(["listen_src",name,url])
+      self.send_event(["listen_src",name,url])
       self.first = False
     # write active state
-    self.reply(["active", active])
+    self.send_event(["active", active])
 
   def level(self, max_level, cur_level, duration):
-    self.reply(["level", max_level, cur_level, duration])
+    self.send_event(["level", max_level, cur_level, duration])
 
 
 class AudioMod(BotMod):
@@ -74,11 +74,11 @@ class AudioMod(BotMod):
       TickEvent(self.on_tick)
     ]
 
-  def setup(self, reply, log, cfg, botopts):
-    BotMod.setup(self, reply, log, cfg, botopts)
+  def setup(self, send, log, cfg, botopts):
+    BotMod.setup(self, send, log, cfg, botopts)
     self._get_vumeter_cfg(cfg)
 
-    self.ev = DetectorEventHandler(self.reply, self.botopts)
+    self.ev = DetectorEventHandler(self.send_event, self.botopts)
     self.d = detector.Detector(self.botopts)
     self.rec = recorder.Recorder(self.sample_rate, self.interval, self.channels,
                                  self.rec, self.dev, self.tool, self.zero_range, self.sox_filter)
@@ -121,13 +121,13 @@ class AudioMod(BotMod):
   # ----- commands -----
 
   def cmd_ping(self, sender):
-    self.reply(["pong"], to=[sender])
+    self.send_event(["pong"], to=[sender])
 
   def cmd_query_state(self, sender):
-    self.reply(["state", self.d.get_state_name()], to=[sender])
+    self.send_event(["state", self.d.get_state_name()], to=[sender])
 
   def cmd_query_active(self, sender):
-    self.reply(["active", self.d.is_active()], to=[sender])
+    self.send_event(["active", self.d.is_active()], to=[sender])
 
   def get_commands(self):
     return self.cmds

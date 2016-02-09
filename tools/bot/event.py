@@ -23,7 +23,7 @@ class BotEvent(BotCmd):
 
   def __init__(self, mod_name, name, arg_types=None, callee=None):
     BotCmd.__init__(self, name, arg_types, callee)
-    self.mod_name = mod_name
+    self.mod_name = mod_name + ".event"
 
   def handle_event(self, args, sender):
     if len(args) < 2:

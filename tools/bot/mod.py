@@ -6,7 +6,7 @@ class BotMod(object):
   """base class for bot modules"""
   def __init__(self, name):
     self.name = name
-    self.reply = None
+    self.send = None
     self.log = None
     self.cfg = None
     self.botopts = None
@@ -18,12 +18,21 @@ class BotMod(object):
     """return name of bot"""
     return self.name
 
-  def setup(self, reply, log, cfg, botopts=None):
+  def setup(self, send, log, cfg, botopts=None):
     """bot sets up the module and reports environment"""
-    self.reply = reply
+    self.send = send
     self.log = log
     self.cfg = cfg
     self.botopts = botopts
+
+  def send_command(self, args, to=None):
+    self.send(args, to=to)
+    self.log("send_command", args, "to=", to)
+
+  def send_event(self, args, to=None):
+    a = [self.name + ".event"] + args
+    self.send(a, to=to)
+    self.log("send_event", a, "to=", to)
 
   def get_version(self):
     """return a version string"""
@@ -73,10 +82,10 @@ if __name__ == '__main__':
       ]
 
     def cmd_hello(self, sender):
-      self.reply(["answer"], to=[sender])
+      self.send_event(["answer"], to=[sender])
 
     def event_foo_bar(self, sender):
-      self.reply(['yuck!'])
+      self.send_event(['yuck!'])
 
     def get_commands(self):
       return self.cmds

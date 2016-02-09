@@ -52,15 +52,11 @@ class Bot:
 
   def _gen_funcs(self, name, other_mod):
     # set reply function for module
-    def reply(args, to=None, main=False):
-      if main:
-        a = list(args)
-      else:
-        a = [name] + list(args)
-      self.bio.write_args(a, receivers=to)
+    def send(args, to=None):
+      self.bio.write_args(args, receivers=to)
       # internal loop back
       if to is None or self.nick in to:
-        a = map(str, a)
+        a = map(str, args)
         msg = BotIOMsg(" ".join(a), self.nick, to, False)
         msg.split_args()
         self._handle_msg(msg, other_mod)
@@ -70,7 +66,7 @@ class Bot:
       a = [name + ":"] + list(args)
       self._log(*a)
 
-    return reply, log
+    return send, log
 
   def _auto_add_modules(self):
     """auto add modules from config"""
@@ -113,7 +109,7 @@ class Bot:
         if m2 != m:
           other_mod.append(m2)
 
-      reply, log = self._gen_funcs(name, other_mod)
+      send, log = self._gen_funcs(name, other_mod)
 
       # get bot config
       cfg = self.bio.get_cfg()
@@ -122,8 +118,13 @@ class Bot:
       opts = m.get_opts()
       bo = None
       if opts is not None:
+
+        def send_mod(args, to=None):
+          a = [name] + args
+          send(a, to=to)
+
         cfg_name = m.get_opts_name()
-        bo = BotOpts(reply, opts, cfg=cfg, cfg_name=cfg_name)
+        bo = BotOpts(send_mod, opts, cfg=cfg, cfg_name=cfg_name)
 
         def field_handler(field):
           self._trigger_internal_event(BotEvent.UPDATE_FIELD, [field], m)
@@ -134,7 +135,7 @@ class Bot:
       # setup bot
       m.nick = self.nick
       m.bot = self
-      m.setup(reply, log, cfg, bo)
+      m.setup(send, log, cfg, bo)
 
       # get tick (after setup of bot)
       tick = m.get_tick_interval()
@@ -158,11 +159,11 @@ class Bot:
   def _cmd_lsmod(self, sender):
     self._log("cmd: lsmod")
     for a in self.modules:
-      self._reply(["bot", "module", a.get_name(), a.get_version()], to=[sender])
-    self._reply(["bot", "end_module"], to=[sender])
+      self._reply(["bot.event", "module", a.get_name(), a.get_version()], to=[sender])
+    self._reply(["bot.event", "end_module"], to=[sender])
 
   def _cmd_ping(self, sender):
-    self._reply(["bot", "pong"], to=[sender])
+    self._reply(["bot.event", "pong"], to=[sender])
 
   def _get_mod_set(self, sender):
     if sender in self.rem_mods:
@@ -357,7 +358,7 @@ class Bot:
       events = mod.get_events()
       if events is not None:
         for ev in events:
-          if ev.mod_name == BotEvent.INTERNAL and ev.name == name:
+          if ev.mod_name == BotEvent.INTERNAL + ".event" and ev.name == name:
             callee = ev.callee
             if callee is not None:
               if args is None:
