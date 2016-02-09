@@ -34,7 +34,7 @@ class UI:
     # audio - reserve two instances
     a0 = ui.widgets.AudioShow((0,1), 0, self.lcd.bar_chars)
     a1 = ui.widgets.AudioShow((5,1), 1, self.lcd.bar_chars)
-    a2 = ui.widgets.AudioShow((10,1), 1, self.lcd.bar_chars)
+    a2 = ui.widgets.AudioShow((10,1), 2, self.lcd.bar_chars)
     self.widgets += [a0,a1,a2]
     self.audio_list = [a0,a1,a2]
     self.audio_map = {}
