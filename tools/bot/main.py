@@ -204,13 +204,25 @@ class Bot:
     # report start
     self._trigger_internal_event(BotEvent.START)
 
+    tick_delta = int(self.bot_tick_interval * 1000)
+
     self.stay = True
     while self.stay:
       try:
         # handle tick
+        b = time.time()
         self._tick()
+        e = time.time()
+
+        # calc remaining time in interval to wait
+        delta = int((e-b)*1000)
+        wait = tick_delta - delta
+        if wait <= 0:
+          wait = 1
+        wait /= 1000
+
         # handle incoming messages
-        msg = self.bio.read_args(timeout=self.bot_tick_interval)
+        msg = self.bio.read_args(timeout=wait)
         if msg:
           if msg.is_internal:
             if not self._handle_internal_msg(msg):
