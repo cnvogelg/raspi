@@ -9,15 +9,17 @@ class LCD16x2:
   BUTTON_UP               = 8
   BUTTON_LEFT             = 16
 
-  OFF                     = 0x00
-  RED                     = 0x01
-  GREEN                   = 0x02
-  BLUE                    = 0x04
-  YELLOW                  = RED + GREEN
-  TEAL                    = GREEN + BLUE
-  VIOLET                  = RED + BLUE
-  WHITE                   = RED + GREEN + BLUE
-  ON                      = RED + GREEN + BLUE
+  ALL_BUTTONS = (BUTTON_SELECT, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_UP, BUTTON_LEFT)
+
+  OFF                     = (0,0,0)
+  RED                     = (1,0,0)
+  GREEN                   = (0,1,0)
+  BLUE                    = (0,0,1)
+  YELLOW                  = (1,1,0)
+  TEAL                    = (0,1,1)
+  VIOLET                  = (1,0,1)
+  WHITE                   = (1,1,1)
+  ON                      = (1,1,1)
 
   pi_char = chr(0xf7)
 
@@ -53,31 +55,48 @@ class LCD16x2:
     if sim:
       from lcdsim import LCDSim as LCD
       self._lcd = LCD(font_path=font_path)
+      self._sim = True
     else:
-      from adafruit.Adafruit_CharLCDPlate import Adafruit_CharLCDPlate as LCD
-      self._lcd = LCD()
-    self._lcd.begin(16,2)
+      import Adafruit_CharLCD as LCD
+      self._lcd = LCD.Adafruit_CharLCDPlate()
+      self._sim = False
     # load custom chars
     num = 0
     for data in self.custom_chars:
-      self._lcd.createChar(num, list(data))
+      self._lcd.create_char(num, list(data))
       num += 1
+    # button map
+    if not self._sim:
+      self._button_map = {
+        self.BUTTON_SELECT : LCD.SELECT,
+        self.BUTTON_LEFT : LCD.LEFT,
+        self.BUTTON_RIGHT : LCD.RIGHT,
+        self.BUTTON_UP : LCD.UP,
+        self.BUTTON_DOWN : LCD.DOWN
+      }
 
   def off(self):
-    self.backlight(0)
+    self.backlight(self.OFF)
 
   def clear(self):
     self._lcd.clear()
 
   def text(self, cx, cy, txt):
-    self._lcd.setCursor(cx, cy)
+    self._lcd.set_cursor(cx, cy)
     self._lcd.message(txt)
 
   def backlight(self, color):
-    self._lcd.backlight(color)
+    self._lcd.set_color(*color)
 
   def buttonRead(self):
-    return self._lcd.buttonRead()
+    if self._sim:
+      return 0
+    else:
+      result = 0
+      for button in self.ALL_BUTTONS:
+        if self._lcd.is_pressed(self._button_map[button]):
+          result |= button
+      return result
 
 
 def autodetect_sim():
@@ -112,7 +131,8 @@ if __name__ == '__main__':
     lcd.text(off,1,c)
     off += 1
   on = True
-  col = 6
+  col_map = (lcd.RED, lcd.GREEN, lcd.BLUE, lcd.WHITE)
+  col = 0
   try:
     while True:
       but = lcd.buttonRead()
@@ -122,9 +142,9 @@ if __name__ == '__main__':
         if not on:
           on = True
       if on:
-        col = (col + 1) % 8
+        col = (col + 1) % 4
         lcd.text(4,1,"%d" % col)
-        lcd.backlight(col)
+        lcd.backlight(col_map[col])
         on = False
       lcd.text(0,1,"%02x" % but)
       time.sleep(0.25)
