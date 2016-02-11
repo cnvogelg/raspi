@@ -10,6 +10,7 @@ class PingStatus:
   REQUESTED = 1
   ALIVE = 2
   TIMEOUT = 3
+  OFF = 4
 
   NAMES = (
     "init",
@@ -20,7 +21,7 @@ class PingStatus:
 
   def __init__(self, ts):
     self.ts = ts
-    self.state = self.INIT
+    self.state = self.OFF
 
   def set(self, ts, state):
     self.ts = ts
@@ -43,6 +44,7 @@ class PingerMod(BotMod):
       BotEvent("bot","pong",callee=self.event_pong),
       PeerConnectEvent(self.on_peer_connect),
       PeerDisconnectEvent(self.on_peer_disconnect),
+      PeerModListEvent(self.on_peer_modlist),
       TickEvent(self.on_tick)
     ]
     self.ping_map = {}
@@ -52,6 +54,15 @@ class PingerMod(BotMod):
     # add peer to ping map
     ts = time.time()
     self.ping_map[peer] = PingStatus(ts)
+
+  def on_peer_modlist(self, peer, modlist):
+    # we start pinging if the modlist was received
+    # so we know for sure the peer is a bot and not a human
+    self.log("on_peer_modlist", peer, modlist)
+    if peer in self.ping_map:
+      ps = self.ping_map[peer]
+      ts = time.time()
+      ps.set(ts, PingStatus.INIT)
 
   def on_peer_disconnect(self, peer):
     self.log("on_peer_disconnect",peer)
@@ -65,7 +76,9 @@ class PingerMod(BotMod):
     for peer in self.ping_map:
       status = self.ping_map[peer]
       state = status.state
-      if state == PingStatus.INIT:
+      if state == PingStatus.OFF:
+        pass
+      elif state == PingStatus.INIT:
         # send initial ping
         self._send_ping(peer)
         status.set(ts, PingStatus.REQUESTED)
