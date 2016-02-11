@@ -12,15 +12,14 @@ class LCDSim:
   BUTTON_UP               = 8
   BUTTON_LEFT             = 16
 
-  OFF                     = 0x00
-  RED                     = 0x01
-  GREEN                   = 0x02
-  BLUE                    = 0x04
-  YELLOW                  = RED + GREEN
-  TEAL                    = GREEN + BLUE
-  VIOLET                  = RED + BLUE
-  WHITE                   = RED + GREEN + BLUE
-  ON                      = RED + GREEN + BLUE
+  BLACK                   = (0,0,0)
+  RED                     = (1,0,0)
+  GREEN                   = (0,1,0)
+  BLUE                    = (0,0,1)
+  YELLOW                  = (1,1,0)
+  TEAL                    = (1,0,1)
+  VIOLET                  = (0,1,1)
+  WHITE                   = (1,1,1)
 
   key_map = {
     pygame.K_RETURN : BUTTON_SELECT,
@@ -32,7 +31,7 @@ class LCDSim:
   }
 
   fg_col_map = {
-    OFF : (50,50,50),
+    BLACK : (50,50,50),
     RED : (255,0,0),
     GREEN : (0,255,0),
     BLUE : (0,0,255),
@@ -43,7 +42,7 @@ class LCDSim:
   }
 
   bg_col_map = {
-    OFF : (0,0,0),
+    BLACK : (0,0,0),
     RED : (64,0,0),
     GREEN : (0,64,0),
     BLUE : (0,0,64),
@@ -80,10 +79,12 @@ class LCDSim:
     pygame.display.set_caption("LCDsim")
     # state
     self.button_state = 0
-    self.begin(16, 2)
+    self.width = size[0]
+    self.height = size[1]
     self.cx = 0
     self.cy = 0
-    self.bg_col = self.WHITE
+    self.bg_col = None
+    self.fg_col = None
     # custom chars
     self.custom_chars = [None] * 8
     self.palette = None
@@ -93,14 +94,10 @@ class LCDSim:
       data = self.extra_char_codes[ec]
       self.extra_chars[ec] = self._create_char_bitmap(data)
     # first redraw
-    self._redraw()
-
-  def begin(self, width, height):
-    self.width = width
-    self.height = height
     self.clear()
+    self.set_color(*self.BLACK)
 
-  def createChar(self, num, data):
+  def create_char(self, num, data):
     self.custom_chars[num] = self._create_char_bitmap(data)
 
   def _create_char_bitmap(self, data):
@@ -128,7 +125,7 @@ class LCDSim:
       ba[:] = " " * self.width
       self.data.append(ba)
 
-  def setCursor(self, cx, cy):
+  def set_cursor(self, cx, cy):
     if cx < self.width:
       self.cx = cx
     else:
@@ -147,9 +144,15 @@ class LCDSim:
     self.data[self.cy][self.cx:self.cx+n] = txt
     self._redraw()
 
-  def backlight(self, color):
-    self.bg_col = color
-    self._redraw()
+  def set_color(self, r, g, b):
+    tup = (r,g,b)
+    for c in self.fg_col_map:
+      if c == tup:
+        self.bg_col = self.bg_col_map[c]
+        self.fg_col = self.fg_col_map[c]
+        self._redraw()
+        return
+    raise ValueError("set_color: invalid color: " + str(color))
 
   def _sane_line(self, txt):
     """remove custom chars"""
@@ -162,8 +165,8 @@ class LCDSim:
     return line
 
   def _redraw(self):
-    fg_col = self.fg_col_map[self.bg_col]
-    bg_col = self.bg_col_map[self.bg_col]
+    fg_col = self.fg_col
+    bg_col = self.bg_col
     self.surface.fill(bg_col)
     yp = self.of_y
     for y in xrange(self.height):

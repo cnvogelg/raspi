@@ -90,7 +90,7 @@ class LCD16x2:
 
   def buttonRead(self):
     if self._sim:
-      return 0
+      return self._lcd.buttonRead()
     else:
       result = 0
       for button in self.ALL_BUTTONS:
