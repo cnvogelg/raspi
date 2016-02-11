@@ -184,6 +184,7 @@ def parse_args():
   parser.add_argument('-v', '--verbose', action='store_true', default=False, help="be more verbos")
   parser.add_argument('-d', '--debug', action='store_true', default=False, help="show debug output")
   parser.add_argument('-c', '--config-file', action='store', default=None, help="name of config file")
+  parser.add_argument('-C', '--config-name', action='store', default=None, help="name of program used for configuration")
   parser.add_argument('-f', '--no-filter', action='store_false', default=True, help="disable nick name filter")
   # overwrite config options
   parser.add_argument('-n', '--nick', default=None, help="set nick name")
@@ -227,9 +228,13 @@ if __name__ == '__main__':
   args = parse_args()
   cmd = args.cmd
 
-  # load config for parameters
   cmd_name = get_cmd_name(cmd[0])
-  bot_cfg = bot.cfg.BotCfg(cmd_name, force_cfg_file=args.config_file)
+
+  # load config for parameters
+  cfg_name = args.config_name
+  if cfg_name is None:
+    cfg_name = cmd_name
+  bot_cfg = bot.cfg.BotCfg(cfg_name, force_cfg_file=args.config_file)
   path = bot_cfg.load()
   if path is not None:
     print("xmppbot config loaded from:",path,file=sys.stderr)

@@ -1,5 +1,13 @@
-# pifon2
-## the next generation baby monitor for your Raspis
+# pifon
+## the next generation baby monitor for Raspberry Pis
+
+### Features
+
+* **Version 2.0**: 14.02.2016
+  - multi fon support. observe one, two or more rooms with one mon
+  - redesigned LCD UI
+  - completely rewritten XMPP bot framework with modules
+
 
 ## 1. Introduction
 
@@ -664,11 +672,175 @@ crw-rw---- 1 root i2c 89, 0 Feb  9 11:00 /dev/i2c-0
   - Press Up and Down simultaneously to quit demo
 
 
-## 6. Installing the pifon Bots
+## 6. Setting up the pifon Bots
 
-### 6.1 Autostart Bots
+In the previous chapters the environment for the pifon bot instances was
+prepared and we are now ready to run the main components
 
-#### fon
+### 6.1 Configuring pifon
+
+#### Config File Location
+
+* The pifon fon part resides in the directory ``raspi/pifon/fon``, the mon
+  part in ``raspi/pifon/mon``.
+
+* The fon part is configured with the file ``pifon_fon.cfg``there and
+  mon in ``pifon_mon.cfg``.
+
+* Note: You need to adjust this file to your needs otherwise the bot will not
+  work!
+
+* You can either edit the config file directly in place but this may collide
+  with changes if you update your pifon source. Another option is to copy the
+  config file to ``~/.pifon_fon.cfg`` and ``~/.pifon_mon.cfg`` and edit it
+  there. If this file exists it will be loaded from there.
+
+#### Common XMPP Options
+
+* Both fon and mon bots share some options:
+```
+[xmppbot]
+jid=fon@coin.local
+password=fon
+room=pifon@muc.coin.local
+nick=fon
+```
+  * **jid** is the login setup in prosody so that the bot is allowed to enter
+    the chat room. All fons can share a single login.
+  * **password** as set in prosody.
+  * **room** is the room name that will be created and joined by the bots.
+    Pattern is **room@muc.server**. Room name can be arbitrary but must be
+    the same for both fon and mon clients.
+  * **nick** is the name of the bot in the chat room. It will be automatically
+    extended by the hostname so you can distinguish instances on different
+    hosts.
+
+#### fon Config
+
+* Config options for fon include the **audio** module:
+```
+[audio]
+sim=False
+trace=False
+src_name=Maja+Willi
+listen_url=http://pifon.local:8000/pifon
+alevel=1
+slevel=0
+attack=0
+sustain=5
+respite=10
+update=5
+```
+  * **sim**: set to **True** will enable an audio simulator: It creates audio
+    events without recording from the microphone. Use this to test your mon
+    setup without the need of generating noise all the time :)
+  * **trace**: set to **True** will enable more output on the console so you
+    can watch all the audio levels that are detected.
+  * **src_name**: the room name of the microphone. It will be displayed in
+    mon when an audio event is detected there.
+  * **listen_url**: this url is broadcasted to the mon player so it knows how
+    to reach the audio stream
+
+* The following options control the audio detector. It has one of the following
+states:
+  * **idle**: no audio activity detected
+  * **attack**: level is above a limit for a certain amount of time. this
+    begins the activity.
+  * **busy**: level is still high. activity is detected.
+  * **sustain**: audio level drops below a given level for a certain amount
+    of time. activity will end.
+  * **respite**: after an activity interval enforce a time of inactivity no
+    matter what audio level is recorded. After that a new cycle may begin
+    with **attack** or **idle** is entered.
+
+* The corresponding config options are:
+  * **alevel**: the level that must be reached to enter **attack** state
+  * **attack**: the duration in seconds the attack level must be reached to
+    enter **attack** state
+  * **slevel**: the level that must be reached to enter **sustain** state
+  * **sustain**: the duration in seconds the sustain level must be held to
+    enter **sustain** state
+  * **respite**: the silence period in seconds after **sustain**
+  * **update**: if the audio level is reported give a new value every n *
+    100ms
+
+* Sound level detection can be controlled in **vumeter** module:
+```
+[vumeter]
+recorder=rec
+sample_rate=0
+channels=0
+interval=250
+device=mixin
+zero_range=0
+sox_filter=highpass 500
+tool=tools/vumeter
+```
+
+  * **recorder**: select the recording program for capturing. currently only
+    SoX' rec tool is supported
+  * **sample_rate**: use this sample rate for recording. 0 means auto detect
+    sample rate
+  * **channels**: setup the channels for recording. Typically use only one
+    channel but sometimes devices can only run stereo. 0 means auto detect.
+  * **interval**: derive a loudness value every n ms. Smaller intervals give
+    faster reaction time but need more CPU power.
+  * **device**: the ALSA audio device we use for recording
+  * **zero_range**: all recorded sample values below this range are set to
+    zero. Use this to do some kind of simple noise cancelling.
+  * **sox_filter**: run a filter after recording. We use a high pass here to
+    remove power humming
+  * **tool**: the external script that records the audio signal and outputs
+    the loudness values to stdout.
+
+#### mon Config
+
+* The monitor has the following options:
+```
+[ui]
+name=lcd
+```
+
+  * **ui** lets you select the UI module that is used. Supported values are:
+    * **lcd**: Adafruit 16x2 LCD driver
+    * **dummy**: A simple dummy output on the console only
+
+* The LCD UI has some special options:
+```
+[ui_lcd]
+mode=auto
+```
+
+  * **mode**: **sim** will use the LCD simulator running on PyGame on all
+    machines, **hw** will use the real Adafruit LCD and **auto** tries to
+    automatically detect if the HW is available and if yes it will use it.
+
+### 6.2 Test Drive
+
+With the configuration in place we can try to manually run the fon and mon
+bots.
+
+#### Running fon
+
+* Enter the pifon fon directory ``raspi/pifon/fon``
+* Run ``./pifon_fon``
+* It will connect to the chat room, start recording and show you all audio
+  events
+* Abort the program with Ctrl+C
+
+#### Running mon
+
+* Enter the pifon mon directory ``raspi/pifon/mon``
+* Run ``./pifon_mon``
+* It will start displaying the UI and show all incoming events
+* Abort the program with Ctrl+C
+
+### 6.3 Setting up Autostart for the Bots
+
+Now that the bots run manually in test drive mode it is time to run them
+automatically when your Pis start.
+
+#### Autostart fon
 
 * as root edit ``/etc/rc.local`` and add before ``exit 0``:
 ```
@@ -691,11 +863,18 @@ leave the tmux session with Ctrl+B and d
 > $HOME/raspi/pifon/fon/rc.pifon_fon stop
 ```
 
-#### mon
+#### Autostart mon
 
 * same as for **fon** but use script in **mon** folder
 ```
 su -l chris -c '/home/chris/raspi/pifon/mon/rc.pifon_mon start'
 ```
+
+
+## 7. User's Guide
+
+### 7.1 LCD User Interface
+
+
 
 EOF

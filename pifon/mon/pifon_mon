@@ -1,4 +1,4 @@
 #!/bin/sh
 MY_DIR="`dirname \"$0\"`"
 TOOLS_DIR=$MY_DIR/../../tools
-$TOOLS_DIR/xmppbot.py -c pifon_mon.cfg $TOOLS_DIR/runbot.py $MY_DIR
+$TOOLS_DIR/xmppbot.py -C pifon_mon $TOOLS_DIR/runbot.py $MY_DIR

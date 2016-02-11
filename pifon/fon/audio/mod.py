@@ -54,7 +54,7 @@ class AudioMod(BotMod):
       BotCmd("query_state",callee=self.cmd_query_state),
       BotCmd("query_active",callee=self.cmd_query_active)
     ]
-    listen_url = 'http://your_server.com:8000/pifon.m3u'
+    listen_url = 'http://your_server.com:8000/pifon'
     src_name = 'Maja+Willi'
     self.opts = [
       BotOptField('sim', bool, False, desc='enable level simulator'),
