@@ -9,6 +9,7 @@ from __future__ import print_function
 
 import time
 import threading
+import socket
 try:
   import queue
 except ImportError:
@@ -26,19 +27,12 @@ class DetectorEventHandler:
   def __init__(self, send_event, botopts):
     self.send_event = send_event
     self.botopts = botopts
-    self.first = True
 
   def state(self, state):
     # write audio_state
     self.send_event(["state", state])
 
   def active(self, active):
-    # send source info before attack
-    if active or self.first:
-      name = self.botopts.get_value('src_name')
-      url = self.botopts.get_value('listen_url')
-      self.send_event(["listen_src",name,url])
-      self.first = False
     # write active state
     self.send_event(["active", active])
 
@@ -52,15 +46,17 @@ class AudioMod(BotMod):
     self.cmds = [
       BotCmd("ping",callee=self.cmd_ping),
       BotCmd("query_state",callee=self.cmd_query_state),
-      BotCmd("query_active",callee=self.cmd_query_active)
+      BotCmd("query_active",callee=self.cmd_query_active),
+      BotCmd("query_location",callee=self.cmd_query_location),
+      BotCmd("query_listen_url",callee=self.cmd_query_listen_url)
     ]
-    listen_url = 'http://your_server.com:8000/pifon'
-    src_name = 'Maja+Willi'
+    listen_url = 'http://%H:8000/pifon'
+    location_name = '%h'
     self.opts = [
       BotOptField('sim', bool, False, desc='enable level simulator'),
       BotOptField('trace', bool, False, desc='enable level tracing'),
       BotOptField('listen_url', str, listen_url, desc='url of audio stream'),
-      BotOptField('src_name', str, src_name, desc='name of audio source'),
+      BotOptField('location', str, location_name, desc='location of audio source'),
       BotOptField('alevel', int, 1, val_range=[1,100], desc='audio level to reach in attack phase [1-100]'),
       BotOptField('slevel', int, 1, val_range=[1,100], desc='audio level to stay below in sustain phase [1-100]'),
       BotOptField('attack', int, 0, val_range=[1,10], desc='period [1s] of loudness required to start playback'),
@@ -73,6 +69,7 @@ class AudioMod(BotMod):
       DisconnectEvent(self.on_disconnected),
       TickEvent(self.on_tick)
     ]
+    self._setup_tags()
 
   def setup(self, send, log, cfg, botopts):
     BotMod.setup(self, send, log, cfg, botopts)
@@ -128,6 +125,31 @@ class AudioMod(BotMod):
 
   def cmd_query_active(self, sender):
     self.send_event(["active", self.d.is_active()], to=[sender])
+
+  def cmd_query_location(self, sender):
+    location = self.botopts.get_value('location')
+    location = self._replace_tags(location)
+    self.send_event(["location", location], to=[sender])
+
+  def cmd_query_listen_url(self, sender):
+    listen_url = self.botopts.get_value('listen_url')
+    listen_url = self._replace_tags(listen_url)
+    self.send_event(["listen_url", listen_url], to=[sender])
+
+  def _setup_tags(self):
+    host = socket.gethostname()
+    pos = host.find('.')
+    if pos != -1:
+      short = host[0:pos]
+    else:
+      short = host
+    self.host_name = host
+    self.host_name_short = short
+
+  def _replace_tags(self, txt):
+    txt = txt.replace("%h", self.host_name_short)
+    txt = txt.replace("%H", self.host_name)
+    return txt
 
   def get_commands(self):
     return self.cmds
