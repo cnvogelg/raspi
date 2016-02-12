@@ -24,8 +24,8 @@ except ImportError:
   import Queue as queue
 import subprocess
 import select
-
 import socket
+import traceback
 
 import bot.cfg
 
@@ -234,10 +234,15 @@ if __name__ == '__main__':
   cfg_name = args.config_name
   if cfg_name is None:
     cfg_name = cmd_name
-  bot_cfg = bot.cfg.BotCfg(cfg_name, force_cfg_file=args.config_file)
-  path = bot_cfg.load()
-  if path is not None:
-    print("xmppbot config loaded from:",path,file=sys.stderr)
+  force_cfg_file = args.config_file
+  bot_cfg = bot.cfg.BotCfg(cfg_name, force_cfg_file=force_cfg_file)
+  cfg_paths = bot_cfg.load()
+  if cfg_paths is None:
+    print("xmppbot: FATAL: no config found!")
+    sys.exit(1)
+  print("xmppbot config loaded from:",cfg_paths,file=sys.stderr)
+
+  # extract bot config
   cfg = bot_cfg.get_section("xmppbot", def_cfg)
 
   # overwrite config with arguments
@@ -294,7 +299,7 @@ if __name__ == '__main__':
       pr.set_output(bot)
 
       # send init
-      bot.send_internal("init " + cmd_name + " " + path)
+      bot.send_internal("init " + cmd_name + " " + cfg_name + " " + str(force_cfg_file))
       pr.process()
 
       # connect bot
@@ -328,6 +333,8 @@ if __name__ == '__main__':
       break
     except Exception as e:
       print("ERROR:",e,file=sys.stderr)
+      traceback.print_exc(file=sys.stderr)
+      break
     finally:
       logging.info("bot: disconnect")
       bot.disconnect()

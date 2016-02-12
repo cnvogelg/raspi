@@ -17,7 +17,8 @@ class Bot:
     self.bio = None
     self.nick = None
     self.cmd_name = None
-    self.cfg_path = None
+    self.cfg_name = None
+    self.cfg_paths = None
     self.verbose = verbose
     self.connected = False
     self.rem_mods = {}
@@ -46,9 +47,10 @@ class Bot:
     self.bio = BotIO(verbose=False)
     self.nick = self.bio.get_nick()
     self.cmd_name = self.bio.get_cmd_name()
-    self.cfg_path = self.bio.get_cfg_path()
-    self._log("bot: got nick='%s' cmd_name='%s' cfg_path='%s'" % \
-      (self.nick, self.cmd_name, self.cfg_path))
+    self.cfg_name = self.bio.get_cfg_name()
+    self.cfg_paths = self.bio.get_cfg_paths()
+    self._log("bot: got nick='%s' cmd_name='%s' cfg_name='%s' cfg_paths=%s" % \
+      (self.nick, self.cmd_name, self.cfg_name, self.cfg_paths))
 
   def _gen_funcs(self, name, other_mod):
     # set reply function for module

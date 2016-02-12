@@ -20,24 +20,25 @@ class BotCfg:
     return "[BotCfg:read=%s,write=%s,%s]" % \
       (self.get_read_file(), self.get_write_file(), self.cfg.sections())
 
-  def get_read_file(self):
+  def _get_read_files(self):
+    files = []
+    # check current working dir
+    if os.access(self.cwd_cfg_file, os.R_OK):
+      files.append(self.cwd_cfg_file)
+    # check user's home dir
+    if os.access(self.home_cfg_file, os.R_OK):
+      files.append(self.home_cfg_file)
+    # a forced config file?
     if self.force_cfg_file is not None:
       # force file is readble
       if os.access(self.force_cfg_file, os.R_OK):
-        return self.force_cfg_file
-      else:
-        return None
+        files.append(self.force_cfg_file)
+    if len(files) == 0:
+      return None
     else:
-      # default: prefer home
-      if os.access(self.home_cfg_file, os.R_OK):
-        return self.home_cfg_file
-      # then current work dir
-      elif os.access(self.cwd_cfg_file, os.R_OK):
-        return self.cwd_cfg_file
-      else:
-        return None
+      return files
 
-  def get_write_file(self):
+  def _get_write_file(self):
     if self.force_cfg_file is not None:
       # force file needs to be writable
       return self.force_cfg_file
@@ -48,13 +49,13 @@ class BotCfg:
     """load config from file
        returns the config file or None
     """
-    cfg_file = self.get_read_file()
-    if cfg_file is None:
+    cfg_files = self._get_read_files()
+    if cfg_files is None:
       return None
     # parse config
     try:
-      self.cfg.read([cfg_file])
-      return cfg_file
+      self.cfg.read(cfg_files)
+      return cfg_files
     except Error:
       return None
     except IOError:
@@ -63,7 +64,7 @@ class BotCfg:
   def save(self):
     """save config to file
        return the config file or None"""
-    cfg_file = self.get_write_file()
+    cfg_file = self._get_write_file()
     if cfg_file is None:
       return None
     try:
@@ -152,10 +153,10 @@ if __name__ == '__main__':
   print(my_sect)
   cfg.set_section("my",my_sect)
   name = cfg.save()
-  print(name)
+  print("save to", name)
   # new cfg
   cfg2 = BotCfg("test")
-  name = cfg2.load()
-  print(name)
+  names = cfg2.load()
+  print("load from", names)
   res = cfg.get_section("my",my_sect)
   print(res)

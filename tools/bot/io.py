@@ -40,27 +40,31 @@ class BotIO:
     if os.isatty(sys.stdin.fileno()):
       self._nick = "fake"
       self._cmd_name = "fake"
-      self._cfg_path = None
+      self._cfg_name = "fake"
+      force_cfg = None
     else:
       self._nick = None
       # wait for init command by bot
       l = sys.stdin.readline()
       line = l.strip()
       msg = self._parse_line(line)
-      if not msg or len(msg.args) != 3:
-        raise ValueError("no init by bot!")
+      if not msg or len(msg.args) != 4:
+        raise ValueError("no init by bot: " + str(msg.args))
       self._nick = msg.sender
       self._cmd_name = msg.args[1]
-      self._cfg_path = msg.args[2]
+      self._cfg_name = msg.args[2]
+      force_cfg = msg.args[3]
+      if force_cfg == 'None':
+        force_cfg = None
     # show nick
     if verbose:
-      print("botio: init: nick='%s' cmd_name='%s' cfg_path='%s'" % \
-        (self._nick, self._cmd_name, self._cfg_path), file=sys.stderr)
+      print("botio: init: nick='%s' cmd_name='%s' cfg_name='%s' force_cfg=%s" % \
+        (self._nick, self._cmd_name, self._cfg_name, force_cfg), file=sys.stderr)
     # init roster
     self._roster = {}
     # setup config
-    self._cfg = bot.cfg.BotCfg(self._cmd_name, self._cfg_path)
-    self._cfg.load()
+    self._cfg = bot.cfg.BotCfg(self._cfg_name, force_cfg)
+    self._cfg_paths = self._cfg.load()
 
   def get_nick(self):
     return self._nick
@@ -68,8 +72,11 @@ class BotIO:
   def get_cmd_name(self):
     return self._cmd_name
 
-  def get_cfg_path(self):
-    return self._cfg_path
+  def get_cfg_name(self):
+    return self._cfg_name
+
+  def get_cfg_paths(self):
+    return self._cfg_paths
 
   def get_cfg(self):
     """return a config object that matches the one of xmppbot"""
@@ -197,8 +204,8 @@ if __name__ == '__main__':
   bio = BotIO()
   nick = bio.get_nick()
   cmd_name = bio.get_cmd_name()
-  cfg_path = bio.get_cfg_path()
-  log("test: got nick='%s' cmd_name='%s' cfg_path='%s'" % \
+  cfg_paths = bio.get_cfg_paths()
+  log("test: got nick='%s' cmd_name='%s' cfg_paths=%s" % \
     (nick, cmd_name, cfg_path))
   while True:
     try:
