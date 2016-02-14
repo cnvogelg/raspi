@@ -1,0 +1,4 @@
+#!/bin/sh
+MY_DIR="`dirname \"$0\"`"
+TOOLS_DIR=$MY_DIR/../../tools
+$TOOLS_DIR/xmppbot.py -C test_info $TOOLS_DIR/runbot.py $MY_DIR
