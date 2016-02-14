@@ -206,8 +206,10 @@ class Worker:
     if self.info_cb is not None:
       self.info_cb(self, context, cmd)
     try:
-      self.proc = subprocess.Popen(cmd)
+      dev_null = open(os.devnull, "w")
+      self.proc = subprocess.Popen(cmd, stdout=dev_null, stderr=dev_null)
       self.proc.wait()
+      dev_null.close()
       ret = self.proc.returncode
       if ret != 0:
         if self.error_cb is not None:
