@@ -28,6 +28,9 @@ class Scroller(Widget):
   def add_message(self, msg):
     self.queue.append(msg)
 
+  def clear_all_messages(self):
+    self.queue = []
+
   def get_text(self):
     r = []
     for b in self.buffer:

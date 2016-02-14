@@ -4,6 +4,7 @@ from __future__ import print_function
 import time
 import sys
 import importlib
+import traceback
 
 from bot.io import BotIO, BotIOMsg
 from bot.cmd import BotCmd
@@ -233,6 +234,10 @@ class Bot:
             self._handle_msg(msg, self.modules)
       except KeyboardInterrupt:
         self._log("bot: Break")
+        break
+      except Exception as e:
+        self._log("bot: ERROR:", str(e))
+        traceback.print_exc(file=sys.stderr)
         break
 
     # report stop

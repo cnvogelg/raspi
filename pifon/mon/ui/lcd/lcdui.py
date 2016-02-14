@@ -88,6 +88,9 @@ class UI:
       self.scroller.show(False)
       self.clock.show(False)
       self.alarm_group.show(True)
+      # during alarm -> exit now
+      if self.quit_pending:
+        return False
     elif self.scroller.is_busy():
       # show scroller if its busy
       self.scroller.show(True)
@@ -146,8 +149,10 @@ class UI:
       self._p("buttons:", b)
       # quit bot?
       if b == 'q' or b == 'rl':
-        self.scroller.add_message("shutting down!!")
-        self.quit_pending = True
+        if not self.quit_pending:
+          self.scroller.clear_all_messages()
+          self.scroller.add_message("QUIT!")
+          self.quit_pending = True
 
   def _read_buttons(self):
     """return either string with pressed buttons or None if no button
@@ -220,25 +225,23 @@ class UI:
         self.alarm_audio = a
 
   def _update_alarm_info(self, a):
-      # set room name
-      src = a.audio_listen_src
-      if src is not None:
-        room = src[0]
-      else:
-        room = None
-      self.room_label.set_text(room)
-      # set level/duration
-      level = a.audio_level
-      if level is not None:
-        lvl = level[1]
-        dur = level[2]
-        self.level_fifo.add(self._get_level_char(lvl))
-      else:
-        lvl = ""
-        dur = ""
-        self.level_fifo.clear()
-      self.level_label.set_text(lvl)
-      self.duration_label.set_text(dur)
+    # set room name
+    room = a.audio_location
+    if room is None:
+      room = a.name
+    self.room_label.set_text(room)
+    # set level/duration
+    level = a.audio_level
+    if level is not None:
+      lvl = level[1]
+      dur = level[2]
+      self.level_fifo.add(self._get_level_char(lvl))
+    else:
+      lvl = ""
+      dur = ""
+      self.level_fifo.clear()
+    self.level_label.set_text(lvl)
+    self.duration_label.set_text(dur)
 
   def _get_level_char(self, l):
     if l > 8:

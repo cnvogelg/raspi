@@ -25,7 +25,8 @@ class InfoMod(BotMod):
       BotEvent("audio", "level", arg_types=(int,int,int), callee=self.event_audio_level),
       BotEvent("audio", "state", arg_types=(str,), callee=self.event_audio_state),
       BotEvent("audio", "active", arg_types=(bool,), callee=self.event_audio_active),
-      BotEvent("audio", "listen_src", arg_types=(str, str), callee=self.event_audio_listen_src),
+      BotEvent("audio", "listen_url", arg_types=(str,), callee=self.event_audio_listen_url),
+      BotEvent("audio", "location", arg_types=(str,), callee=self.event_audio_location),
       BotEvent("pinger", "check", arg_types=(str, str), callee=self.event_pinger_check),
       BotEvent("player", "play", arg_types=(str, str), callee=self.event_player_play),
       BotEvent("player", "stop", arg_types=(str,), callee=self.event_player_stop),
@@ -98,6 +99,8 @@ class InfoMod(BotMod):
       # request state
       self.send_command(['audio','query_state'],to=[peer])
       self.send_command(['audio','query_active'],to=[peer])
+      self.send_command(['audio','query_listen_url'],to=[peer])
+      self.send_command(['audio','query_location'],to=[peer])
     elif mod_name == 'player':
       p = self._create_player(peer)
       self.log("added player from",peer)
@@ -149,11 +152,17 @@ class InfoMod(BotMod):
       a.audio_active = args[0]
       self._call('audio_update', a, AudioInfo.FLAG_AUDIO_ACTIVE)
 
-  def event_audio_listen_src(self, sender, args):
+  def event_audio_listen_url(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
-      a.audio_listen_src = args
-      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LISTEN_SRC)
+      a.audio_listen_url = args[0]
+      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LISTEN_URL)
+
+  def event_audio_location(self, sender, args):
+    a = self._get_audio(sender)
+    if a is not None:
+      a.audio_location = args[0]
+      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LOCATION)
 
   def event_pinger_check(self, sender, args):
     peer = args[0]
