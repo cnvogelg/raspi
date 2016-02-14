@@ -125,17 +125,28 @@ class BotOpts:
   def push_value(self, key, receivers=None, short=True):
     """current value is send via bot"""
     value = self.opts[key]
+    line = []
     if short:
-      line = "value " + value.name + " " + str(value.value)
+      line.append('value')
     else:
-      line = "desc " + str(value)
-    self.reply([line], to=receivers)
+      line.append('desc')
+    line.append(value.name)
+    line.append(value.value)
+    if not short:
+      line.append(value.typ.__name__)
+      line.append(str(value.range))
+      line.append(str(value.desc))
+    self.reply(line, to=receivers)
 
   def push_all(self, receivers=None, short=True):
     """send all values to bot"""
     for key in self.opts:
       self.push_value(key, receivers=receivers, short=short)
-    self.reply(["end_values"], to=receivers)
+    if short:
+      result = 'end_values'
+    else:
+      result = 'end_descs'
+    self.reply([result], to=receivers)
 
   # ----- parse bot command -----
 
@@ -151,7 +162,7 @@ class BotOpts:
     ]
 
   def _cmd_query_all(self, sender):
-    self.push_all(receivers=[sender])
+    self.push_all(receivers=[sender], short=False)
 
   def _cmd_query(self, sender, args):
     key = args[0]
@@ -202,12 +213,12 @@ class BotOpts:
   def _error(self, txt, to=None):
     if type(to) is str:
       to = [to]
-    self.reply(["error " + txt], to=to)
+    self.reply(["error",txt], to=to)
 
   def _status(self, txt, to=None):
     if type(to) is str:
       to = [to]
-    self.reply(["status " + txt], to=to)
+    self.reply(["status",txt], to=to)
 
 # ----- Test -----
 if __name__ == '__main__':

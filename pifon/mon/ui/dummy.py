@@ -21,6 +21,9 @@ class UI:
     """
     self._p("on_tick", delta)
 
+  def print_cmd(self, sender, txt):
+    self._p("PRINT", sender, " ->", txt)
+
   # audio calls
 
   def audio_add(self, a):

@@ -76,6 +76,9 @@ class UI:
   def get_tick_interval(self):
     return 0.25
 
+  def print_cmd(self, sender, txt):
+    self.scroller.add_message(txt)
+
   def on_tick(self, ts, delta):
     """tick timer for ui. called every 0.25s"""
     # check buttons

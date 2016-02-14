@@ -1,9 +1,14 @@
 import info
 import importlib
 
+from bot import BotCmd
+
 class UIMod(info.InfoMod):
   def __init__(self):
     super(UIMod, self).__init__("ui")
+    self.cmds = [
+      BotCmd("print",callee=self.cmd_print,arg_types=(str,))
+    ]
 
   def setup(self, reply, log, cfg, botopts):
     super(UIMod, self).setup(reply, log, cfg, botopts)
@@ -13,6 +18,12 @@ class UIMod(info.InfoMod):
     # fetch tick interval from ui
     self.tick = self.ui.get_tick_interval()
     self.listener = self.ui
+
+  def get_commands(self):
+    return self.cmds
+
+  def cmd_print(self, sender, args):
+    self.ui.print_cmd(sender, args[0])
 
   def _get_ui_cfg(self, cfg):
     def_cfg = {

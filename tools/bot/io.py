@@ -22,7 +22,41 @@ class BotIOMsg:
     self.ts = None
 
   def split_args(self):
-    self.args = self.line.split()
+    args = []
+    cur = None
+    in_str = False
+    quote = False
+    for c in self.line:
+      # string handling
+      if in_str:
+        if quote:
+          cur += c
+          quote = False
+        else:
+          if c == '\\':
+            quote = True
+          elif c == '"':
+            in_str = False
+          else:
+            cur += c
+      # no string
+      elif c not in (" ","\t"):
+        if cur is None:
+          cur = ""
+        if c == '"':
+          in_str = True
+        else:
+          cur += c
+      # white space
+      else:
+        # append last string
+        if cur is not None:
+          args.append(cur)
+          cur = None
+    # append last
+    if cur is not None:
+      args.append(cur)
+    self.args = args
 
   def __str__(self):
     if self.receivers is None:
@@ -189,8 +223,30 @@ class BotIO:
     sys.stdout.flush()
 
   def write_args(self, args, receivers=None):
-    a = map(str, args)
-    self.write_line(" ".join(a), receivers)
+    result = []
+    for a in args:
+      # convert to string
+      a = str(a)
+      # does it contain quotable chars
+      if '"' in a or ' ' in a or '\\' in a:
+        a = self._quote(a)
+      result.append(a)
+    self.write_line(" ".join(result), receivers)
+
+  def _quote(self, txt):
+    result = []
+    result.append('"')
+    for c in txt:
+      if c == '"':
+        result.append('\\')
+        result.append('"')
+      elif c == '\\':
+        result.append('\\')
+        result.append('\\')
+      else:
+        result.append(c)
+    result.append('"')
+    return "".join(result)
 
 
 # ----- test -----
@@ -206,7 +262,7 @@ if __name__ == '__main__':
   cmd_name = bio.get_cmd_name()
   cfg_paths = bio.get_cfg_paths()
   log("test: got nick='%s' cmd_name='%s' cfg_paths=%s" % \
-    (nick, cmd_name, cfg_path))
+    (nick, cmd_name, cfg_paths))
   while True:
     try:
       msg = bio.read_args(timeout=1)
@@ -218,11 +274,12 @@ if __name__ == '__main__':
           log("test: internal: cmd=%s nick=%s" % (msg.int_cmd, msg.int_nick))
           log("test: roster=", bio.get_roster())
         else:
-          log("test: reply to: line=%s, sender=%s, receivers=%s" %
-                (msg.line, msg.sender, msg.receivers))
+          log("test: reply to: line=%s, args=%s, sender=%s, receivers=%s" %
+                (msg.line, msg.args, msg.sender, msg.receivers))
           if msg.receivers is not None:
-            log("test: do echo!")
-            bio.write_line('echo ' + ' '.join(msg.args), receivers=[msg.sender])
+            args = ['echo'] + msg.args[:]
+            log("test: do echo:", args)
+            bio.write_args(args, receivers=[msg.sender])
     except KeyboardInterrupt:
       log("test: Break")
       break
