@@ -41,7 +41,7 @@ class BotOpts:
     """internal get value"""
     return self.opts[name].get()
 
-  def set_value(self, name, value, do_notify=True, do_reply=False):
+  def set_value(self, name, value, do_notify=True, do_reply=True, sender=None):
     """internal set value"""
     if name not in self.opts:
       return False
@@ -57,8 +57,8 @@ class BotOpts:
       return True
     # ignore same value
     elif ok is None:
-      if do_reply:
-        self._status("same " + name)
+      if do_reply and sender is not None:
+        self.push_value(name, receivers=[sender])
       return True
     else:
       return False
@@ -122,16 +122,19 @@ class BotOpts:
 
   # ----- push value to change other bot's options -----
 
-  def push_value(self, key, receivers=None):
+  def push_value(self, key, receivers=None, short=True):
     """current value is send via bot"""
     value = self.opts[key]
-    line = "value " + str(value)
+    if short:
+      line = "value " + value.name + " " + str(value.value)
+    else:
+      line = "desc " + str(value)
     self.reply([line], to=receivers)
 
-  def push_all(self, receivers=None):
+  def push_all(self, receivers=None, short=True):
     """send all values to bot"""
     for key in self.opts:
-      self.push_value(key, receivers=receivers)
+      self.push_value(key, receivers=receivers, short=short)
     self.reply(["end_values"], to=receivers)
 
   # ----- parse bot command -----
@@ -155,7 +158,7 @@ class BotOpts:
     if key not in self.opts:
       self._error("key? " + key, sender)
     elif key in self.opts:
-      self.push_value(key, receivers=[sender])
+      self.push_value(key, receivers=[sender], short=False)
     else:
       self._error("query? " + key, sender)
 
@@ -164,7 +167,7 @@ class BotOpts:
     val = args[1]
     if key not in self.opts:
       self._error("key? " + key, sender)
-    elif not self.set_value(key, val):
+    elif not self.set_value(key, val, sender=sender):
       self._error("set? " + key + " " + args[2], sender)
 
   def _cmd_load(self, sender):
@@ -197,9 +200,13 @@ class BotOpts:
     return None
 
   def _error(self, txt, to=None):
+    if type(to) is str:
+      to = [to]
     self.reply(["error " + txt], to=to)
 
   def _status(self, txt, to=None):
+    if type(to) is str:
+      to = [to]
     self.reply(["status " + txt], to=to)
 
 # ----- Test -----

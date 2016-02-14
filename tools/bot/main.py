@@ -121,15 +121,15 @@ class Bot:
       bo = None
       if opts is not None:
 
-        def send_mod(args, to=None):
-          a = [name] + args
+        def send_mod_event(args, to=None):
+          a = [name + ".event"] + args
           send(a, to=to)
 
         cfg_name = m.get_opts_name()
-        bo = BotOpts(send_mod, opts, cfg=cfg, cfg_name=cfg_name)
+        bo = BotOpts(send_mod_event, opts, cfg=cfg, cfg_name=cfg_name)
 
         def field_handler(field):
-          self._trigger_internal_event(BotEvent.UPDATE_FIELD, [field], m)
+          self._trigger_internal_event(BotEvent.UPDATE_FIELD, [field], mods=[m])
 
         bo.set_notifier(field_handler)
         self._log("bot: module",name,"opts:", bo.get_values())
@@ -259,7 +259,7 @@ class Bot:
     self.bio.write_args(args, receivers=to)
 
   def _error(self, msg, to):
-    self._reply(["error", msg], [to])
+    self._reply(["bot.event", "error", msg], [to])
 
   def _handle_internal_msg(self, msg):
     """handle internal message"""

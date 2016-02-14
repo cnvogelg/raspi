@@ -5,7 +5,7 @@ from __future__ import print_function
 from bot import Bot, BotCmd, BotOptField, BotMod
 from bot.event import *
 
-import create
+import worker
 import control
 
 class PlayerMod(BotMod):
@@ -20,28 +20,42 @@ class PlayerMod(BotMod):
       BotCmd("query_chime",callee=self.cmd_query_chime)
     ]
     self.events = [
-      PeerConnectEvent(self.on_peer_connected),
+      PeerModListEvent(self.on_peer_modlist),
       PeerDisconnectEvent(self.on_peer_disconnected),
+      StopEvent(self.on_stop),
       BotEvent("audio","active",callee=self.on_player_active,arg_types=(bool,)),
-      BotEvent("audio","listen_src",callee=self.on_player_listen_src,arg_types=(str,str)),
+      BotEvent("audio","listen_url",callee=self.on_player_listen_url,arg_types=(str,)),
     ]
+    self.audio_peers = []
 
   def setup(self, send, log, cfg, botopts):
     BotMod.setup(self, send, log, cfg, botopts)
 
     def_cfg = {
-      'name' : 'dummy',
-      'mpc' : '/usr/bin/mpc',
-      'host' : 'localhost',
-      'mpv' : '/usr/bin/mpv',
-      'chime_start' : 'sounds/prompt.wav',
-      'chime_stop' : 'sounds/finish.wav'
+      'chime_start_sound' : 'sounds/prompt.wav',
+      'chime_stop_sound' : 'sounds/finish.wav',
+      'chime_start_cmd' : 'mpv %s',
+      'chime_stop_cmd' : 'mpv %s',
+      'start_stream_cmd' : 'mpv %s',
+      'stop_stream_cmd' : '',
+      'play_chimes' : True
     }
-    self.log("player_cfg:", def_cfg)
-    player_cfg = cfg.get_section('player', def_cfg)
+    cfg = cfg.get_section('player', def_cfg)
+    self.log("player_cfg:", cfg)
 
-    self.player = create.create_player(**player_cfg)
-    self.control = control.Control(self.player, self.send_event)
+    self.worker = worker.Worker()
+    self.worker.set_chime_sound('start', cfg['chime_start_sound'])
+    self.worker.set_chime_sound('stop', cfg['chime_stop_sound'])
+    self.worker.set_command('chime_start', cfg['chime_start_cmd'])
+    self.worker.set_command('chime_stop', cfg['chime_start_cmd'])
+    self.worker.set_command('start_stream', cfg['start_stream_cmd'])
+    self.worker.set_command('stop_stream', cfg['stop_stream_cmd'])
+    self.worker.set_play_chimes(cfg['play_chimes'])
+    self.worker.set_callback('state', self._state_cb)
+    self.worker.set_callback('error', self._error_cb)
+    self.worker.set_callback('info', self._info_cb)
+
+    self.control = control.Control(self, self.send_event)
 
   def get_commands(self):
     return self.cmds
@@ -61,7 +75,7 @@ class PlayerMod(BotMod):
     self.control.listen(args[0])
 
   def cmd_chime(self, sender, args):
-    self.player.set_allow_chimes(args[0])
+    self.worker.set_play_chimes(args[0])
     self._report_chime(None)
 
   def cmd_query_mode(self, sender):
@@ -71,24 +85,54 @@ class PlayerMod(BotMod):
     self._report_chime([sender])
 
   def _report_chime(self, to):
-    self.send_event(['chime',self.player.get_allow_chimes()],to)
+    self.send_event(['chime',self.worker.get_play_chimes()],to)
 
   # --- events ---
 
-  def on_peer_connected(self, peer):
-    if peer.startswith('audio@'):
+  def on_stop(self):
+    self.log("shutting down worker")
+    self.worker.shutdown()
+    self.log("done")
+
+  def on_peer_modlist(self, peer, modlist):
+    self.log("on_peer_modlist", peer, modlist)
+    if 'audio' in modlist:
+      self.audio_peers.append(peer)
       self.log("CONNECT", peer)
       self.control.audio_connect(peer)
+      self.send_command(['audio', 'query_listen_url'], to=[peer])
 
   def on_peer_disconnected(self, peer):
-    if peer.startswith('audio@'):
+    if peer in self.audio_peers:
       self.log("DISCONNECT", peer)
       self.control.audio_disconnect(peer)
+      self.audio_peers.remove(peer)
 
-  def on_player_listen_src(self, sender, args):
-    self.log("player_listen_src", args)
-    self.control.audio_src(sender, args[1])
+  def on_player_listen_url(self, sender, args):
+    self.log("got player_listen_url", args)
+    self.control.audio_src(sender, args[0])
 
   def on_player_active(self, sender, args):
-    self.log("player_active", sender, args)
+    self.log("got player_active", sender, args)
     self.control.audio_active(sender, args[0])
+
+  # --- callbacks from worker ---
+
+  def _state_cb(self, worker, state):
+    self.log("worker state:", self.worker.STATE_NAMES[state])
+
+  def _error_cb(self, worker, context, cmd, error):
+    self.log("ERROR: calling", context, "cmd=", cmd, "->", error)
+
+  def _info_cb(self, worker, context, cmd):
+    self.log("calling", context, "cmd=", cmd)
+
+  def play(self, url):
+    self.log("play stream", url)
+    self.worker.play(url)
+    return True
+
+  def stop(self):
+    self.log("stop stream")
+    self.worker.stop()
+    return True

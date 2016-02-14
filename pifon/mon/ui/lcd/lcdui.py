@@ -16,7 +16,6 @@ class UI:
     self.widgets.append(self.clock)
     # scroller
     self.scroller = ui.widgets.Scroller((0,0),16)
-    self.scroller.add_message("pifon2")
     self.scroller.show(False)
     self.widgets.append(self.scroller)
     # alarm group
@@ -49,6 +48,8 @@ class UI:
     self.backlight = backlight.Backlight(self.lcd)
     # quit
     self.quit_pending = False
+    # init message
+    self.scroller.add_message("pifon")
 
   def _setup_lcd(self):
     def_cfg = {
