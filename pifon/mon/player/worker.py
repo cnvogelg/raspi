@@ -131,7 +131,7 @@ class Worker:
 
       if not self.stop_ev.is_set():
         # play a start chime?
-        if self.chime_start_sound is not None:
+        if self.chime_start_sound is not None and self.play_chimes:
           self._run('chime_start', self.chime_start_cmd, self.chime_start_sound)
 
       if not self.stop_ev.is_set():
@@ -156,7 +156,7 @@ class Worker:
 
       # play a stop chime?
       if not self.start_ev.is_set():
-        if self.chime_stop_sound is not None:
+        if self.chime_stop_sound is not None and self.play_chimes:
           self._run('chime_stop', self.chime_stop_cmd, self.chime_stop_sound)
 
     # report shutdown
