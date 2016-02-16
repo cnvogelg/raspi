@@ -155,6 +155,17 @@ class UI:
           self.scroller.clear_all_messages()
           self.scroller.add_message("QUIT!")
           self.quit_pending = True
+      # player controls
+      if self.player is not None:
+        # right: toggle mute
+        if b == 'r':
+          self.play_ctl.toggle_mute(self.player)
+        # left: toggle chime
+        elif b == 'l':
+          self.play_ctl.toggle_chime(self.player)
+        # up: toggle listen
+        elif b == 'u':
+          self.play_ctl.toggle_listen(self.player, self.audio_map.keys())
 
   def _read_buttons(self):
     """return either string with pressed buttons or None if no button

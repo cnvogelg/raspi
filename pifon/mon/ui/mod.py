@@ -2,6 +2,7 @@ import info
 import importlib
 
 from bot import BotCmd
+from playctl import PlayerControl
 
 class UIMod(info.InfoMod):
   def __init__(self):
@@ -15,6 +16,7 @@ class UIMod(info.InfoMod):
     # now create ui
     ui_cfg = self._get_ui_cfg(cfg)
     self.ui = self._create_ui(ui_cfg, cfg)
+    self.ui.play_ctl = PlayerControl(self.send_command, self.log)
     # fetch tick interval from ui
     self.tick = self.ui.get_tick_interval()
     self.listener = self.ui

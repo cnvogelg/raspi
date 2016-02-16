@@ -136,3 +136,6 @@ class PlayerMod(BotMod):
     self.log("stop stream")
     self.worker.stop()
     return True
+
+  def is_playing(self):
+    return self.worker.is_playing()

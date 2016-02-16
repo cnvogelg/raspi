@@ -54,7 +54,8 @@ class Control:
     """
     # nothing to do as its the same state
     if self.state == new_state:
-      return False
+      if self.state != self.MODE_LISTEN or listen_srv == self.play_srv:
+        return False
     # try to prepare state
     if new_state == self.MODE_MONITOR:
       ok = self._enter_monitor()
