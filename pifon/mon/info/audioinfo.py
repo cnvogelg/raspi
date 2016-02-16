@@ -20,8 +20,14 @@ class AudioInfo:
     self.audio_location = None
     self.is_playing = False
 
+  def is_ready(self):
+    return self.audio_state is not None and \
+           self.audio_active is not None and \
+           self.audio_location is not None and \
+           self.audio_listen_url is not None
+
   def __repr__(self):
-    return "[%s:ping=%s,audio=(%s,%s,%s,%s,%s)],play=%s" % (self.name,
+    return "[%s:ping=%s,audio=(level=%s,state=%s,active=%s,listen_url=%s,location=%s)],play=%s" % (self.name,
       self.ping,
       self.audio_level, self.audio_state, self.audio_active,
       self.audio_listen_url, self.audio_location,

@@ -30,10 +30,13 @@ class InfoMod(BotMod):
       BotEvent("pinger", "check", arg_types=(str, str), callee=self.event_pinger_check),
       BotEvent("player", "play", arg_types=(str, str), callee=self.event_player_play),
       BotEvent("player", "stop", arg_types=(str,), callee=self.event_player_stop),
-      BotEvent("player", "mode", arg_types=(str,str), callee=self.event_player_mode)
+      BotEvent("player", "mode", arg_types=(str,str), callee=self.event_player_mode),
+      BotEvent("player", "chime", arg_types=(bool,), callee=self.event_player_chime)
     ]
     self.audios = {}
+    self.pending_audios = {}
     self.players = {}
+    self.pending_players = {}
     self.listener = listener
     self.tick = tick
 
@@ -93,20 +96,19 @@ class InfoMod(BotMod):
 
   def _add_mod(self, mod_name, peer):
     if mod_name == 'audio':
-      a = self._create_audio(peer)
+      a = self._create_pending_audio(peer)
       self.log("added audio from", peer)
-      self._call('audio_add', a)
       # request state
       self.send_command(['audio','query_state'],to=[peer])
       self.send_command(['audio','query_active'],to=[peer])
       self.send_command(['audio','query_listen_url'],to=[peer])
       self.send_command(['audio','query_location'],to=[peer])
     elif mod_name == 'player':
-      p = self._create_player(peer)
+      p = self._create_pending_player(peer)
       self.log("added player from",peer)
-      self._call('player_add', p)
       # request mode
       self.send_command(['player','query_mode'],to=[peer])
+      self.send_command(['player','query_chime'],to=[peer])
 
   def on_tick(self, ts, delta):
     # forward to listener
@@ -118,14 +120,28 @@ class InfoMod(BotMod):
 
   # audio events
 
-  def _create_audio(self, sender):
+  def _create_pending_audio(self, sender):
     a = AudioInfo(sender)
-    self.audios[sender] = a
+    self.pending_audios[sender] = a
     return a
+
+  def _make_audio_live(self, a):
+    if a.is_ready():
+      sender = a.name
+      if sender in self.pending_audios:
+        del self.pending_audios[sender]
+        self.audios[sender] = a
+        self.log("audio going -- LIVE --",sender)
+        self._call('audio_add', a)
+        return True
+      else:
+        return False
 
   def _get_audio(self, sender):
     if sender in self.audios:
       return self.audios[sender]
+    elif sender in self.pending_audios:
+      return self.pending_audios[sender]
     else:
       return None
 
@@ -144,25 +160,29 @@ class InfoMod(BotMod):
       if state == 'idle':
         a.audio_level = None
         flags |= AudioInfo.FLAG_AUDIO_LEVEL
-      self._call('audio_update', a, flags)
+      if not self._make_audio_live(a):
+        self._call('audio_update', a, flags)
 
   def event_audio_active(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
       a.audio_active = args[0]
-      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_ACTIVE)
+      if not self._make_audio_live(a):
+        self._call('audio_update', a, AudioInfo.FLAG_AUDIO_ACTIVE)
 
   def event_audio_listen_url(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
       a.audio_listen_url = args[0]
-      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LISTEN_URL)
+      if not self._make_audio_live(a):
+        self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LISTEN_URL)
 
   def event_audio_location(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
       a.audio_location = args[0]
-      self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LOCATION)
+      if not self._make_audio_live(a):
+        self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LOCATION)
 
   def event_pinger_check(self, sender, args):
     peer = args[0]
@@ -173,14 +193,27 @@ class InfoMod(BotMod):
 
   # player events
 
-  def _create_player(self, sender):
+  def _create_pending_player(self, sender):
     p = PlayerInfo(sender)
-    self.players[sender] = p
+    self.pending_players[sender] = p
     return p
+
+  def _make_player_live(self, p):
+    if p.is_ready():
+      sender = p.name
+      if sender in self.pending_players:
+        del self.pending_players[sender]
+        self.players[sender] = p
+        self.log("player going -- LIVE --",sender)
+        self._call('player_add', p)
+        return True
+    return False
 
   def _get_player(self, sender):
     if sender in self.players:
       return self.players[sender]
+    elif sender in self.pending_players:
+      return self.pending_players[sender]
     else:
       return None
 
@@ -210,4 +243,12 @@ class InfoMod(BotMod):
     p = self._get_player(sender)
     if p is not None:
       p.mode = args[0]
-      self._call('player_update', p, PlayerInfo.FLAG_MODE)
+      if not self._make_player_live(p):
+        self._call('player_update', p, PlayerInfo.FLAG_MODE)
+
+  def event_player_chime(self, sender, args):
+    p = self._get_player(sender)
+    if p is not None:
+      p.chime = args[0]
+      if not self._make_player_live(p):
+        self._call('player_update', p, PlayerInfo.FLAG_CHIME)

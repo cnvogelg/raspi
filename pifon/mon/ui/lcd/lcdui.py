@@ -31,9 +31,9 @@ class UI:
     self.alarm_group.show(False)
     self.widgets.append(self.alarm_group)
     # audio - reserve two instances
-    a0 = ui.widgets.AudioShow((0,1), 0, self.lcd.bar_chars)
-    a1 = ui.widgets.AudioShow((5,1), 1, self.lcd.bar_chars)
-    a2 = ui.widgets.AudioShow((10,1), 2, self.lcd.bar_chars)
+    a0 = ui.widgets.AudioShow((0,1), 1, self.lcd.bar_chars)
+    a1 = ui.widgets.AudioShow((5,1), 2, self.lcd.bar_chars)
+    a2 = ui.widgets.AudioShow((10,1), 3, self.lcd.bar_chars)
     self.widgets += [a0,a1,a2]
     self.audio_list = [a0,a1,a2]
     self.audio_map = {}
@@ -188,7 +188,7 @@ class UI:
         ai.set_audio(a)
         idx = ai.idx
         self.audio_map[a] = ai
-        self.scroller.add_message("add %d:%s" % (idx, a.name))
+        self.scroller.add_message("add %d:%s(%s)" % (idx, a.audio_location, a.name))
         self._check_ping(a)
         return
     # no slot free
@@ -201,7 +201,7 @@ class UI:
       idx = ai.idx
       del self.audio_map[a]
       ai.set_audio(None)
-      self.scroller.add_message("rem %d:%s" % (idx, a.name))
+      self.scroller.add_message("rem %d:%s(%s)" % (idx, a.audio_location, a.name))
       self._remove_ping(a)
       return
     # no slot assigned

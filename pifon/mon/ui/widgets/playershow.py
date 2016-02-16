@@ -29,13 +29,18 @@ class PlayerShow(Widget):
       if ps is not None:
         return self.play_char
       else:
-        return "m"
+        c = "m"
     elif m == 'mute':
-      return "u"
+      c = "u"
     elif m == 'listen':
-      return "L"
+      c = "l"
     else:
       return "_"
+    # chime on shows uppercase
+    if self.player.chime:
+      return c.upper()
+    else:
+      return c
 
   def get_text(self):
     return self.text
