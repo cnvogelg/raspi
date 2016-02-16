@@ -39,6 +39,7 @@ class InfoMod(BotMod):
     self.pending_players = {}
     self.listener = listener
     self.tick = tick
+    self.ping_lost = set()
 
   def get_events(self):
     return self.events
@@ -80,6 +81,7 @@ class InfoMod(BotMod):
       a = self.audios[peer]
       self._call("audio_del",a)
       del self.audios[peer]
+      self._remove_ping(a)
     if peer in self.players:
       p = self.players[peer]
       self._call("player_del",p)
@@ -133,6 +135,7 @@ class InfoMod(BotMod):
         self.audios[sender] = a
         self.log("audio going -- LIVE --",sender)
         self._call('audio_add', a)
+        self._check_ping(a)
         return True
       else:
         return False
@@ -144,6 +147,28 @@ class InfoMod(BotMod):
       return self.pending_audios[sender]
     else:
       return None
+
+  def _update_audio(self, a, flags):
+    if not self._make_audio_live(a):
+      self._call('audio_update', a, flags)
+    if flags & AudioInfo.FLAG_PING:
+      self._check_ping(a)
+
+  def _check_ping(self, a):
+    if a.ping == "timeout":
+      self.ping_lost.add(a)
+      change = True
+    elif a.ping == "alive" and a in self.ping_lost:
+      self.ping_lost.remove(a)
+      change = True
+    else:
+      change = False
+    if change:
+      self._call('ping_lost_update', self.ping_lost)
+
+  def _remove_ping(self, a):
+    if a in self.ping_lost:
+      self.ping_lost.remove(a)
 
   def event_audio_level(self, sender, args):
     a = self._get_audio(sender)
@@ -160,36 +185,32 @@ class InfoMod(BotMod):
       if state == 'idle':
         a.audio_level = None
         flags |= AudioInfo.FLAG_AUDIO_LEVEL
-      if not self._make_audio_live(a):
-        self._call('audio_update', a, flags)
+      self._update_audio(a, flags)
 
   def event_audio_active(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
       a.audio_active = args[0]
-      if not self._make_audio_live(a):
-        self._call('audio_update', a, AudioInfo.FLAG_AUDIO_ACTIVE)
+      self._update_audio(a, AudioInfo.FLAG_AUDIO_ACTIVE)
 
   def event_audio_listen_url(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
       a.audio_listen_url = args[0]
-      if not self._make_audio_live(a):
-        self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LISTEN_URL)
+      self._update_audio(a, AudioInfo.FLAG_AUDIO_LISTEN_URL)
 
   def event_audio_location(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
       a.audio_location = args[0]
-      if not self._make_audio_live(a):
-        self._call('audio_update', a, AudioInfo.FLAG_AUDIO_LOCATION)
+      self._update_audio(a, AudioInfo.FLAG_AUDIO_LOCATION)
 
   def event_pinger_check(self, sender, args):
     peer = args[0]
     a = self._get_audio(peer)
     if a is not None:
       a.ping = args[1]
-      self._call('audio_update', a, AudioInfo.FLAG_PING)
+      self._update_audio(a, AudioInfo.FLAG_PING)
 
   # player events
 

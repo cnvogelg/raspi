@@ -37,7 +37,6 @@ class UI:
     self.widgets += [a0,a1,a2]
     self.audio_list = [a0,a1,a2]
     self.audio_map = {}
-    self.ping_lost = set()
     self.alarm_audio = None
     # player
     self.player = None
@@ -189,7 +188,6 @@ class UI:
         idx = ai.idx
         self.audio_map[a] = ai
         self.scroller.add_message("add %d:%s(%s)" % (idx, a.audio_location, a.name))
-        self._check_ping(a)
         return
     # no slot free
     self.scroller.add_message("skip: " + a.name)
@@ -202,7 +200,6 @@ class UI:
       del self.audio_map[a]
       ai.set_audio(None)
       self.scroller.add_message("rem %d:%s(%s)" % (idx, a.audio_location, a.name))
-      self._remove_ping(a)
       return
     # no slot assigned
     self.scroller.add_message("lost: " + a.name)
@@ -212,10 +209,12 @@ class UI:
     if a in self.audio_map:
       ai = self.audio_map[a]
       ai.update()
-      self._check_ping(a)
       self._check_alarm_state(a)
       if self.alarm_audio == a:
         self._update_alarm_info(a)
+
+  def ping_lost_update(self, ping_lost):
+    self.backlight.set_ping_lost(len(ping_lost)>0)
 
   def _check_alarm_state(self, a):
     state = a.audio_state
@@ -250,17 +249,6 @@ class UI:
     if l > 8:
       l = 8
     return self.lcd.bar_chars[l]
-
-  def _check_ping(self, a):
-    if a.ping == "timeout":
-      self.ping_lost.add(a)
-    elif a in self.ping_lost:
-      self.ping_lost.remove(a)
-    self.backlight.set_ping_lost(len(self.ping_lost)>0)
-
-  def _remove_ping(self, a):
-    if a in self.ping_lost:
-      self.ping_lost.remove(a)
 
   # player calls
 
