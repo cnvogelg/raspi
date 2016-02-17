@@ -39,7 +39,9 @@ class InfoMod(BotMod):
     self.pending_players = {}
     self.listener = listener
     self.tick = tick
-    self.ping_lost = set()
+    self.ping_lost = []
+    self.non_idle_audios = []
+    self.primary_non_idle_audio = None
 
   def get_events(self):
     return self.events
@@ -82,6 +84,7 @@ class InfoMod(BotMod):
       self._call("audio_del",a)
       del self.audios[peer]
       self._remove_ping(a)
+      self._remove_non_idle(a)
     if peer in self.players:
       p = self.players[peer]
       self._call("player_del",p)
@@ -136,6 +139,8 @@ class InfoMod(BotMod):
         self.log("audio going -- LIVE --",sender)
         self._call('audio_add', a)
         self._check_ping(a)
+        if a.audio_state != 'idle':
+          self._add_non_idle(a)
         return True
       else:
         return False
@@ -156,7 +161,7 @@ class InfoMod(BotMod):
 
   def _check_ping(self, a):
     if a.ping == "timeout":
-      self.ping_lost.add(a)
+      self.ping_lost.append(a)
       change = True
     elif a.ping == "alive" and a in self.ping_lost:
       self.ping_lost.remove(a)
@@ -169,6 +174,23 @@ class InfoMod(BotMod):
   def _remove_ping(self, a):
     if a in self.ping_lost:
       self.ping_lost.remove(a)
+
+  def _add_non_idle(self, a):
+    if a not in self.non_idle_audios:
+      self.non_idle_audios.append(a)
+      if len(self.non_idle_audios) == 1:
+        self.primary_non_idle_audio = a
+      self._call('non_idle_audio_update', self.non_idle_audios, self.primary_non_idle_audio)
+
+  def _remove_non_idle(self, a):
+    if a in self.non_idle_audios:
+      self.non_idle_audios.remove(a)
+      if a == self.primary_non_idle_audio:
+        if len(self.non_idle_audios) > 0:
+          self.primary_non_idle_audio = self.non_idle_audios[0]
+        else:
+          self.primary_non_idle_audio = None
+      self._call('non_idle_audio_update', self.non_idle_audios, self.primary_non_idle_audio)
 
   def event_audio_level(self, sender, args):
     a = self._get_audio(sender)
@@ -185,6 +207,9 @@ class InfoMod(BotMod):
       if state == 'idle':
         a.audio_level = None
         flags |= AudioInfo.FLAG_AUDIO_LEVEL
+        self._remove_non_idle(a)
+      else:
+        self._add_non_idle(a)
       self._update_audio(a, flags)
 
   def event_audio_active(self, sender, args):

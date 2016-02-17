@@ -22,8 +22,8 @@ class UI:
     self.alarm_group = ui.widgets.Group((0,0),16)
     self.room_label = ui.widgets.Label((0,0),8)
     self.duration_label = ui.widgets.Label((8,0),2,align=ui.widgets.Label.ALIGN_RIGHT)
-    self.level_label = ui.widgets.Label((14,0),2,align=ui.widgets.Label.ALIGN_RIGHT)
-    self.level_fifo = ui.widgets.Fifo((10,0),4)
+    self.level_label = ui.widgets.Label((15,0),1,align=ui.widgets.Label.ALIGN_RIGHT)
+    self.level_fifo = ui.widgets.Fifo((10,0),5)
     self.alarm_group.add_widget(self.room_label)
     self.alarm_group.add_widget(self.duration_label)
     self.alarm_group.add_widget(self.level_label)
@@ -220,22 +220,17 @@ class UI:
     if a in self.audio_map:
       ai = self.audio_map[a]
       ai.update()
-      self._check_alarm_state(a)
       if self.alarm_audio == a:
         self._update_alarm_info(a)
 
   def ping_lost_update(self, ping_lost):
     self.backlight.set_ping_lost(len(ping_lost)>0)
 
-  def _check_alarm_state(self, a):
-    state = a.audio_state
-    idle = state is None or state == 'idle'
-    if self.alarm_audio == a:
-      if idle:
-        self.alarm_audio = None
-    else:
-      if not idle:
-        self.alarm_audio = a
+  def non_idle_audio_update(self, non_idle_list, primary_non_idle):
+    self.alarm_audio = primary_non_idle
+    self._p("----- non_idle", self.alarm_audio)
+    if self.alarm_audio is not None:
+      self._update_alarm_info(self.alarm_audio)
 
   def _update_alarm_info(self, a):
     # set room name
@@ -247,7 +242,11 @@ class UI:
     level = a.audio_level
     if level is not None:
       lvl = level[1]
+      if lvl > 9:
+        lvl = chr(0x7e) # show arrow
       dur = level[2]
+      if dur > 99:
+        dur = "^^"
       self.level_fifo.add(self._get_level_char(lvl))
     else:
       lvl = ""
@@ -281,9 +280,6 @@ class UI:
       self.player_active = p.play_server is not None
       self.player_show.set_player(p)
       self.backlight.set_active(self.player_active)
-      # overwrite audio alarm
-      if p.play_server != self.alarm_audio:
-        self.alarm_audio = p.play_server
 
   def player_del(self, p):
     self._p("player_del", p)
@@ -298,6 +294,3 @@ class UI:
       self.player_active = p.play_server is not None
       self.player_show.update()
       self.backlight.set_active(self.player_active)
-      # overwrite audio alarm
-      if p.play_server != self.alarm_audio:
-        self.alarm_audio = p.play_server
