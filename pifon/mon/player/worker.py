@@ -2,13 +2,15 @@ import threading
 import subprocess
 import os
 
+import Queue
+
 class Worker:
 
-  STATE_IDLE = 0
-  STATE_PLAYING = 1
-  STATE_SHUTDOWN = 2
+  CMD_PLAY = 0
+  CMD_STOP = 1
+  CMD_EXIT = 2
 
-  STATE_NAMES = ( 'idle', 'playing', 'shutdown' )
+  CMD_NAMES = ("play", "stop", "exit")
 
   def __init__(self):
     """setup idle player without chime sounds set"""
@@ -24,20 +26,18 @@ class Worker:
     self.stop_stream_cmd = None
     # threading
     self.thread = threading.Thread(target=self._loop)
-    self.start_ev = threading.Event()
-    self.stop_ev = threading.Event()
+    self.cmd_queue = Queue.Queue()
     # state
-    self.state = self.STATE_IDLE
+    self.last_cmd = self.CMD_STOP
     self.play_chimes = True
-    self.play_url = None
     self.proc = None
     # go!
     self.thread.start()
 
   def shutdown(self):
-    self.state = self.STATE_SHUTDOWN
-    self.start_ev.set()
-    self.stop_ev.set()
+    self.cmd_queue.put((self.CMD_EXIT,None))
+    self.last_cmd = self.CMD_EXIT
+    # kill a running process
     if self.proc is not None:
       self.proc.terminate()
     # wait for thread
@@ -86,27 +86,24 @@ class Worker:
     """is playing chimes enabled?"""
     return self.play_chimes
 
-  def get_state(self):
-    """return current player state"""
-    return self.state
-
   def is_playing(self):
     """is the current state playing?"""
-    return self.state == self.STATE_PLAYING
+    return self.last_cmd == self.CMD_PLAY
 
   def play(self, url):
     """start playing a stream with the given url"""
-    if self.state == self.STATE_IDLE:
-      self.play_url = url
-      self.start_ev.set()
+    if self.last_cmd == self.CMD_STOP:
+      self.cmd_queue.put((self.CMD_PLAY,url))
+      self.last_cmd = self.CMD_PLAY
       return True
     else:
       return False
 
   def stop(self):
     """stop playing"""
-    if self.state == self.STATE_PLAYING:
-      self.stop_ev.set()
+    if self.last_cmd == self.CMD_PLAY:
+      self.cmd_queue.put((self.CMD_STOP,None))
+      self.last_cmd = self.CMD_STOP
       # kill a running process
       if self.proc is not None:
         self.proc.terminate()
@@ -116,54 +113,33 @@ class Worker:
 
   def _loop(self):
     """threading work loop"""
-    while self.state != self.STATE_SHUTDOWN:
-      # wait for play event
-      self.start_ev.wait()
-      self.start_ev.clear()
-      # leave?
-      if self.state == self.STATE_SHUTDOWN:
+    while True:
+      # get next cmd
+      cmd, url = self.cmd_queue.get()
+
+      # report current command
+      if self.state_cb is not None:
+        self.state_cb(self, self.CMD_NAMES[cmd])
+
+      # exit thread
+      if cmd == self.CMD_EXIT:
         break
 
-      # enter play state
-      self.state = self.STATE_PLAYING
-      if self.state_cb is not None:
-        self.state_cb(self, self.state)
-
-      if not self.stop_ev.is_set():
+      # start playing
+      elif cmd == self.CMD_PLAY:
         # play a start chime?
         if self.chime_start_sound is not None and self.play_chimes:
           self._run('chime_start', self.chime_start_cmd, self.chime_start_sound)
-
-      if not self.stop_ev.is_set():
         # start streaming
-        self._run('start_stream', self.start_stream_cmd, self.play_url)
+        self._run('start_stream', self.start_stream_cmd, url)
 
-      # now wait for stop
-      self.stop_ev.wait()
-      self.stop_ev.clear()
-      # leave?
-      if self.state == self.STATE_SHUTDOWN:
-        break
-
-      # enter idle state
-      self.state = self.STATE_IDLE
-      if self.state_cb is not None:
-        self.state_cb(self, self.state)
-
-      if not self.start_ev.is_set():
+      # stop playing
+      elif cmd == self.CMD_STOP:
         # stop streaming
-        self._run('stop_stream', self.stop_stream_cmd, self.play_url)
-
-      # play a stop chime?
-      if not self.start_ev.is_set():
+        self._run('stop_stream', self.stop_stream_cmd, url)
+        # play a stop chime?
         if self.chime_stop_sound is not None and self.play_chimes:
           self._run('chime_stop', self.chime_stop_cmd, self.chime_stop_sound)
-
-    # report shutdown
-    if self.state_cb is not None:
-      self.state_cb(self, self.state)
-
-    # worker done!
 
   def _find_bin(self, exe):
     def is_exe(fpath):
@@ -229,7 +205,7 @@ if __name__ == '__main__':
   w.set_command('start_stream', 'sleep 10')
   w.set_chime_sound('start', 'start.wav')
   w.set_chime_sound('stop', 'stop.wav')
-  w.start('my.url')
+  w.play('my.url')
   time.sleep(1)
   w.stop()
   time.sleep(1)

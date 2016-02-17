@@ -66,16 +66,22 @@ class PlayerMod(BotMod):
   # --- commands ---
 
   def cmd_mute(self, sender):
+    self.log("cmd_mute")
     self.control.mute()
 
   def cmd_monitor(self, sender):
+    self.log("cmd_monitor")
     self.control.monitor()
 
   def cmd_listen(self, sender, args):
-    self.control.listen(args[0])
+    url = args[0]
+    self.log("cmd_listen", url)
+    self.control.listen(url)
 
   def cmd_chime(self, sender, args):
-    self.worker.set_play_chimes(args[0])
+    on = args[0]
+    self.log("cmd_chime", on)
+    self.worker.set_play_chimes(on)
     self._report_chime(None)
 
   def cmd_query_mode(self, sender):
@@ -101,6 +107,7 @@ class PlayerMod(BotMod):
       self.log("CONNECT", peer)
       self.control.audio_connect(peer)
       self.send_command(['audio', 'query_listen_url'], to=[peer])
+      self.send_command(['audio', 'query_active'], to=[peer])
 
   def on_peer_disconnected(self, peer):
     if peer in self.audio_peers:
@@ -119,13 +126,15 @@ class PlayerMod(BotMod):
   # --- callbacks from worker ---
 
   def _state_cb(self, worker, state):
-    self.log("worker state:", self.worker.STATE_NAMES[state])
+    self.log("worker state:", state)
 
   def _error_cb(self, worker, context, cmd, error):
     self.log("ERROR: calling", context, "cmd=", cmd, "->", error)
 
   def _info_cb(self, worker, context, cmd):
     self.log("calling", context, "cmd=", cmd)
+
+  # --- callbacks from control ---
 
   def play(self, url):
     self.log("play stream", url)
@@ -138,4 +147,6 @@ class PlayerMod(BotMod):
     return True
 
   def is_playing(self):
-    return self.worker.is_playing()
+    isp = self.worker.is_playing()
+    self.log("is_playing", isp)
+    return isp

@@ -129,7 +129,6 @@ class Control:
       # service is inactive -> so stop it
       else:
         self._stop()
-
     return self._play_active()
 
   def _enter_mute(self):
@@ -198,7 +197,7 @@ class Control:
     """find a server that is still in an active state"""
     for server in self.active_map:
       active = self.active_map[server]
-      if server in self.url_map:
+      if active and server in self.url_map:
         url = self.url_map[server]
         if active and url is not None:
           return server
