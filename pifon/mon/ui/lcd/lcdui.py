@@ -176,6 +176,9 @@ class UI:
         # down: toggle blank
         elif b == 'd':
           self._toggle_blanking()
+        # select: show info
+        elif b == 's':
+          self._show_info()
 
   def _read_buttons(self):
     """return either string with pressed buttons or None if no button
@@ -197,6 +200,9 @@ class UI:
     if but & self.lcd.BUTTON_DOWN == self.lcd.BUTTON_DOWN:
       res += "d"
     return res
+
+  def _show_info(self):
+    self._audio_info()
 
   def _toggle_blanking(self):
     if self.botopts.get_value('blank'):
@@ -230,6 +236,13 @@ class UI:
               self.backlight.set_blank(True)
 
   # audio calls
+
+  def _audio_info(self):
+    for ai in self.audio_list:
+      a = ai.get_audio()
+      if a is not None:
+        idx = ai.idx
+        self.scroller.add_message("%d:%s(%s)" % (idx, a.audio_location, a.name))
 
   def audio_add(self, a):
     self._p("audio_add", a)
