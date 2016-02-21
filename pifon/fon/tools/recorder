@@ -1,0 +1,84 @@
+#!/bin/sh
+#
+# recorder
+#
+# record audio data in sox format to stdout
+# auto detects sample rate and channels
+
+DEVICE="mixin"
+SAMPLE_RATE=0
+CHANNELS=0
+SOX_FILTER="highpass 500"
+TYPE='sox'
+BUFFER_SIZE=4096
+VERBOSE=0
+
+# get options
+args=`getopt d:s:c:f:t:b:v $*`
+if [ $? != 0 ] ; then
+  echo 'Usage:'
+  echo ' -d  recording device  (mixin)'
+  echo ' -s  sample rate       (auto)'
+  echo ' -c  channels          (auto)'
+  echo ' -f  SoX filter        (highpass 500)'
+  echo ' -t  output type       (wav)'
+  echo ' -b  buffer size       (4096'
+  echo ' -v  be verbose'
+  exit 2
+fi
+set -- $args
+for i do
+  case "$i" in
+    -d)
+      DEVICE="$2"; shift;
+      shift;;
+    -s)
+      SAMPLE_RATE="$2"; shift;
+      shift;;
+    -c)
+      CHANNELS="$2"; shift;
+      shift;;
+    -f)
+      SOX_FILTER="$2"; shift;
+      shift;;
+    -t)
+      TYPE="$2"; shift;
+      shift;;
+    -b)
+      BUFFER_SIZE="$2"; shift;
+      shift;;
+    -v)
+      VERBOSE=1;
+      shift;;
+    --)
+      shift;
+      break;;
+  esac
+done
+
+SYSTEM=`uname -s`
+
+# auto detect sample rate
+if [ "$SAMPLE_RATE" = "0" ]; then
+  if [ "$SYSTEM" = "Linux" ]; then
+    SAMPLE_RATE=`arecord --dump-hw-params -D $DEVICE 2>&1 | grep RATE: | sed -e 's/RATE: //g'`
+  else
+    echo "Can't autodetect sample_rate on $SYSTEM... using 44100" 1>&2
+    SAMPLE_RATE=44100
+  fi
+fi
+
+# auto detect channels
+if [ "$CHANNELS" = "0" ]; then
+  if [ "$SYSTEM" = "Linux" ]; then
+    CHANNELS=`arecord --dump-hw-params -D $DEVICE 2>&1 | grep CHANNELS: | sed -e 's/CHANNELS: //g'`
+  else
+    echo "Can't autodetect channels on $SYSTEM... using 2" 1>&2
+    CHANNELS=2
+  fi
+fi
+
+# call SoX
+exec sox -q --buffer $BUFFER_SIZE \
+  -b 16 -c $CHANNELS -r $SAMPLE_RATE -t alsa $DEVICE \
+  -t $TYPE - $SOX_FILTER

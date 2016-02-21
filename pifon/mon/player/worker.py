@@ -20,6 +20,8 @@ class Worker:
     self.error_cb = None
     self.info_cb = None
     # commands
+    self.play_start_cmd = None
+    self.play_stop_cmd = None
     self.chime_start_cmd = None
     self.chime_stop_cmd = None
     self.start_stream_cmd = None
@@ -55,6 +57,10 @@ class Worker:
       self.start_stream_cmd = cmd
     elif who == 'stop_stream':
       self.stop_stream_cmd = cmd
+    elif who == 'play_start':
+      self.play_start_cmd = cmd
+    elif who == 'play_stop':
+      self.play_stop_cmd = cmd
     else:
       raise ValueError("invalid who: " + who)
 
@@ -127,6 +133,8 @@ class Worker:
 
       # start playing
       elif cmd == self.CMD_PLAY:
+        # play start
+        self._run('play_start', self.play_start_cmd, None)
         # play a start chime?
         if self.chime_start_sound is not None and self.play_chimes:
           self._run('chime_start', self.chime_start_cmd, self.chime_start_sound)
@@ -140,6 +148,8 @@ class Worker:
         # play a stop chime?
         if self.chime_stop_sound is not None and self.play_chimes:
           self._run('chime_stop', self.chime_stop_cmd, self.chime_stop_sound)
+        # stop playing
+        self._run('play_stop', self.play_stop_cmd, None)
 
   def _find_bin(self, exe):
     def is_exe(fpath):
@@ -176,6 +186,8 @@ class Worker:
 
   def _run(self, context, in_cmd, arg):
     # build command line
+    if in_cmd is None:
+      return
     cmd = self._get_cmd(in_cmd, arg)
     if cmd is None:
       return

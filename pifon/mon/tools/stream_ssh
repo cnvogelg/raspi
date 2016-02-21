@@ -1,0 +1,5 @@
+#!/bin/sh
+#
+# stream audio data via ssh pipe
+#
+exec ssh "$1" raspi/pifon/fon/tools/recorder | play -

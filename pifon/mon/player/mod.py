@@ -34,9 +34,11 @@ class PlayerMod(BotMod):
     def_cfg = {
       'chime_start_sound' : 'sounds/prompt.wav',
       'chime_stop_sound' : 'sounds/finish.wav',
-      'chime_start_cmd' : 'mpv %s',
-      'chime_stop_cmd' : 'mpv %s',
-      'start_stream_cmd' : 'mpv %s',
+      'play_start_cmd' : '',
+      'play_stop_cmd' : '',
+      'chime_start_cmd' : 'play %s',
+      'chime_stop_cmd' : 'play %s',
+      'start_stream_cmd' : 'tools/stream_ssh %h',
       'stop_stream_cmd' : '',
       'play_chimes' : True
     }
@@ -46,8 +48,10 @@ class PlayerMod(BotMod):
     self.worker = worker.Worker()
     self.worker.set_chime_sound('start', cfg['chime_start_sound'])
     self.worker.set_chime_sound('stop', cfg['chime_stop_sound'])
+    self.worker.set_command('play_start', cfg['play_start_cmd'])
+    self.worker.set_command('play_stop', cfg['play_stop_cmd'])
     self.worker.set_command('chime_start', cfg['chime_start_cmd'])
-    self.worker.set_command('chime_stop', cfg['chime_start_cmd'])
+    self.worker.set_command('chime_stop', cfg['chime_stop_cmd'])
     self.worker.set_command('start_stream', cfg['start_stream_cmd'])
     self.worker.set_command('stop_stream', cfg['stop_stream_cmd'])
     self.worker.set_play_chimes(cfg['play_chimes'])
