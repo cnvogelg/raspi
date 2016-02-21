@@ -47,6 +47,8 @@ class UI:
     self.backlight = backlight.Backlight(self.lcd)
     # quit
     self.quit_pending = False
+    self.idle_start = None
+    self.is_blank = False
     # init message
     self.scroller.add_message("pifon")
 
@@ -93,11 +95,13 @@ class UI:
       # during alarm -> exit now
       if self.quit_pending:
         return False
+      busy = True
     elif self.scroller.is_busy():
       # show scroller if its busy
       self.scroller.show(True)
       self.clock.show(False)
       self.alarm_group.show(False)
+      busy = True
     else:
       # if nothing todo then show clock
       self.scroller.show(False)
@@ -106,8 +110,11 @@ class UI:
       # is a quit pending? -> quit now
       if self.quit_pending:
         return False
+      busy = False
     # perform redraw
     self._redraw_widgets()
+    # handle blanking
+    self._handle_blanking(ts, busy)
 
   def on_start(self, nick):
     self.nick = nick
@@ -166,6 +173,9 @@ class UI:
         # up: toggle listen
         elif b == 'u':
           self.play_ctl.toggle_listen(self.player, self.audio_map.keys())
+        # down: toggle blank
+        elif b == 'd':
+          self._toggle_blanking()
 
   def _read_buttons(self):
     """return either string with pressed buttons or None if no button
@@ -187,6 +197,37 @@ class UI:
     if but & self.lcd.BUTTON_DOWN == self.lcd.BUTTON_DOWN:
       res += "d"
     return res
+
+  def _toggle_blanking(self):
+    if self.botopts.get_value('blank'):
+      self.scroller.add_message("Blanking: off")
+      self.botopts.set_value('blank', False)
+    else:
+      self.scroller.add_message("Blanking: on")
+      self.botopts.set_value('blank', True)
+
+  def _handle_blanking(self, ts, busy):
+    blank = False
+    blank_on = self.botopts.get_value('blank')
+    if busy or not blank_on:
+      self.idle_start = None
+      if self.is_blank:
+        self._p("blank: off")
+        self.is_blank = False
+        self.backlight.set_blank(False)
+    else:
+      if not self.is_blank:
+        s = self.idle_start
+        if s is None:
+          self.idle_start = ts
+        else:
+          delta = ts - s
+          if blank_on:
+            min_delta = self.botopts.get_value('blank_time')
+            if delta > min_delta:
+              self._p("blank: on")
+              self.is_blank = True
+              self.backlight.set_blank(True)
 
   # audio calls
 

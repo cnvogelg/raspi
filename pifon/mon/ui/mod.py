@@ -1,7 +1,7 @@
 import info
 import importlib
 
-from bot import BotCmd
+from bot import BotCmd, BotOptField
 from playctl import PlayerControl
 
 class UIMod(info.InfoMod):
@@ -10,6 +10,10 @@ class UIMod(info.InfoMod):
     self.cmds = [
       BotCmd("print",callee=self.cmd_print,arg_types=(str,))
     ]
+    self.opts = [
+      BotOptField('blank', bool, False, desc='blank screen if idle'),
+      BotOptField('blank_time', int, 5, desc='if idle for given time then blank')
+    ]
 
   def setup(self, reply, log, cfg, botopts):
     super(UIMod, self).setup(reply, log, cfg, botopts)
@@ -17,12 +21,16 @@ class UIMod(info.InfoMod):
     ui_cfg = self._get_ui_cfg(cfg)
     self.ui = self._create_ui(ui_cfg, cfg)
     self.ui.play_ctl = PlayerControl(self.send_command, self.log)
+    self.ui.botopts = botopts
     # fetch tick interval from ui
     self.tick = self.ui.get_tick_interval()
     self.listener = self.ui
 
   def get_commands(self):
     return self.cmds
+
+  def get_opts(self):
+    return self.opts
 
   def cmd_print(self, sender, args):
     self.ui.print_cmd(sender, args[0])
