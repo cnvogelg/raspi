@@ -134,7 +134,7 @@ class Worker:
       # start playing
       elif cmd == self.CMD_PLAY:
         # play start
-        self._run('play_start', self.play_start_cmd, None)
+        self._run('play_start', self.play_start_cmd, url)
         # play a start chime?
         if self.chime_start_sound is not None and self.play_chimes:
           self._run('chime_start', self.chime_start_cmd, self.chime_start_sound)
@@ -149,7 +149,7 @@ class Worker:
         if self.chime_stop_sound is not None and self.play_chimes:
           self._run('chime_stop', self.chime_stop_cmd, self.chime_stop_sound)
         # stop playing
-        self._run('play_stop', self.play_stop_cmd, None)
+        self._run('play_stop', self.play_stop_cmd, url)
 
   def _find_bin(self, exe):
     def is_exe(fpath):

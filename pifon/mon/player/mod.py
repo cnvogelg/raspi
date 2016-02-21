@@ -38,7 +38,7 @@ class PlayerMod(BotMod):
       'play_stop_cmd' : '',
       'chime_start_cmd' : 'play %s',
       'chime_stop_cmd' : 'play %s',
-      'start_stream_cmd' : 'tools/stream_ssh %h',
+      'start_stream_cmd' : 'tools/stream_ssh %s',
       'stop_stream_cmd' : '',
       'play_chimes' : True
     }
