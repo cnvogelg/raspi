@@ -221,7 +221,7 @@ class Worker:
         self.proc = proc
       proc.wait()
       dev_null.close()
-      ret = self.proc.returncode
+      ret = proc.returncode
       if ret != 0:
         if self.error_cb is not None:
           self.error_cb(self, context, cmd, "returncode: %d" % ret)

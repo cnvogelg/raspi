@@ -2,4 +2,7 @@
 #
 # stream audio data via ssh pipe
 #
-exec ssh "$1" raspi/pifon/fon/tools/recorder | play -
+HOST="$1"
+shift
+echo "$@"
+exec ssh "$HOST" raspi/pifon/fon/tools/recorder "$@" | play -

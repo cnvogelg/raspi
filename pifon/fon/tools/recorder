@@ -12,9 +12,10 @@ SOX_FILTER="highpass 500"
 TYPE='sox'
 BUFFER_SIZE=4096
 VERBOSE=0
+OUT_RATE=0
 
 # get options
-args=`getopt d:s:c:f:t:b:v $*`
+args=`getopt d:s:c:f:t:b:r:v $*`
 if [ $? != 0 ] ; then
   echo 'Usage:'
   echo ' -d  recording device  (mixin)'
@@ -23,6 +24,7 @@ if [ $? != 0 ] ; then
   echo ' -f  SoX filter        (highpass 500)'
   echo ' -t  output type       (wav)'
   echo ' -b  buffer size       (4096'
+  echo ' -r  output rate       (half sample)'
   echo ' -v  be verbose'
   exit 2
 fi
@@ -46,6 +48,9 @@ for i do
       shift;;
     -b)
       BUFFER_SIZE="$2"; shift;
+      shift;;
+    -s)
+      OUT_RATE="$2"; shift;
       shift;;
     -v)
       VERBOSE=1;
@@ -78,7 +83,12 @@ if [ "$CHANNELS" = "0" ]; then
   fi
 fi
 
+# calc output rate
+if [ "$OUT_RATE" = "0" ]; then
+  OUT_RATE=$(( $SAMPLE_RATE / 2 ))
+fi
+
 # call SoX
 exec sox -q --buffer $BUFFER_SIZE \
   -b 16 -c $CHANNELS -r $SAMPLE_RATE -t alsa $DEVICE \
-  -t $TYPE - $SOX_FILTER
+  -r $OUT_RATE -c 1 -t $TYPE - $SOX_FILTER
