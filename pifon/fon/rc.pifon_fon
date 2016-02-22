@@ -10,8 +10,6 @@
 # su -l <user> -c '/path/to/here/rc.pifon_fon start'
 #
 
-DARKICE=/usr/bin/darkice
-
 # find this directory
 SCRIPT_DIR=$(dirname $0)
 TOOLS_DIR=../../tools
@@ -27,11 +25,6 @@ ACTION="$1"
 
 # enter directory
 cd $SCRIPT_DIR
-
-# run darkice
-if [ -x $DARKICE ]; then
-  $TMUX_RUN darkice $ACTION "$LOOPER $DARKICE"
-fi
 
 # run pifon_fon
 $TMUX_RUN fon $ACTION "$LOOPER ./pifon_fon"
