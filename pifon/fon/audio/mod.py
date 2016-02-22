@@ -59,8 +59,8 @@ class AudioMod(BotMod):
       BotOptField('location', str, location_name, desc='location of audio source'),
       BotOptField('alevel', int, 1, val_range=[1,100], desc='audio level to reach in attack phase [1-100]'),
       BotOptField('slevel', int, 1, val_range=[1,100], desc='audio level to stay below in sustain phase [1-100]'),
-      BotOptField('attack', int, 0, val_range=[1,10], desc='period [1s] of loudness required to start playback'),
-      BotOptField('sustain', int, 5, val_range=[0,60], desc='period [1s] of silence required to stop playback'),
+      BotOptField('attack', int, 3, val_range=[1,10], desc='period [1s] of loudness required to start playback'),
+      BotOptField('sustain', int, 10, val_range=[0,60], desc='period [1s] of silence required to stop playback'),
       BotOptField('respite', int, 10, val_range=[0,60], desc='delay [1s] after playback to wait for next'),
       BotOptField('update', int, 5, val_range=[1,60], desc='update interval of current peak level [100ms]')
     ]

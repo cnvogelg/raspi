@@ -286,6 +286,9 @@ class UI:
     if self.alarm_audio is not None:
       self._update_alarm_info(self.alarm_audio)
 
+  def active_audio_update(self, active_list, primary_active):
+    self.backlight.set_active(len(active_list)>0)
+
   def _update_alarm_info(self, a):
     # set room name
     room = a.audio_location
@@ -331,20 +334,15 @@ class UI:
     self._p("player_add", p)
     if self._is_my_player(p.name):
       self.player = p
-      self.player_active = p.play_server is not None
       self.player_show.set_player(p)
-      self.backlight.set_active(self.player_active)
 
   def player_del(self, p):
     self._p("player_del", p)
     if p == self.player:
       self.player = None
       self.player_show.set_player(None)
-      self.backlight.set_active(False)
 
   def player_update(self, p, flags):
     self._p("player_update", p, flags)
     if p == self.player:
-      self.player_active = p.play_server is not None
       self.player_show.update()
-      self.backlight.set_active(self.player_active)

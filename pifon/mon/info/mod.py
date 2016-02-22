@@ -9,6 +9,9 @@ from audioinfo import AudioInfo
 from playerinfo import PlayerInfo
 
 class InfoMod(BotMod):
+
+  active_states = ('busy', 'sustain')
+
   def __init__(self, name="info", listener=None, tick=1):
     BotMod.__init__(self, name)
     self.events = [
@@ -42,6 +45,8 @@ class InfoMod(BotMod):
     self.ping_lost = []
     self.non_idle_audios = []
     self.primary_non_idle_audio = None
+    self.active_audios = []
+    self.primary_active_audio = None
 
   def get_events(self):
     return self.events
@@ -141,6 +146,8 @@ class InfoMod(BotMod):
         self._check_ping(a)
         if a.audio_state != 'idle':
           self._add_non_idle(a)
+        if a.audio_state in self.active_states:
+          self._add_active(a)
         return True
       else:
         return False
@@ -192,6 +199,23 @@ class InfoMod(BotMod):
           self.primary_non_idle_audio = None
       self._call('non_idle_audio_update', self.non_idle_audios, self.primary_non_idle_audio)
 
+  def _add_active(self, a):
+    if a not in self.active_audios:
+      self.active_audios.append(a)
+      if len(self.active_audios) == 1:
+        self.primary_active_audio = a
+      self._call('active_audio_update', self.active_audios, self.primary_active_audio)
+
+  def _remove_active(self, a):
+    if a in self.active_audios:
+      self.active_audios.remove(a)
+      if a == self.primary_active_audio:
+        if len(self.active_audios) > 0:
+          self.primary_active_audio = self.active_audios[0]
+        else:
+          self.primary_active_audio = None
+      self._call('active_audio_update', self.active_audios, self.primary_active_audio)
+
   def event_audio_level(self, sender, args):
     a = self._get_audio(sender)
     if a is not None:
@@ -210,6 +234,12 @@ class InfoMod(BotMod):
         self._remove_non_idle(a)
       else:
         self._add_non_idle(a)
+      # handle active
+      if state in self.active_states:
+        self._add_active(a)
+      else:
+        self._remove_active(a)
+      # push update
       self._update_audio(a, flags)
 
   def event_audio_active(self, sender, args):
