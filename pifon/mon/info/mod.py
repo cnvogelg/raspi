@@ -9,9 +9,6 @@ from audioinfo import AudioInfo
 from playerinfo import PlayerInfo
 
 class InfoMod(BotMod):
-
-  active_states = ('busy', 'sustain')
-
   def __init__(self, name="info", listener=None, tick=1):
     BotMod.__init__(self, name)
     self.events = [
@@ -146,7 +143,7 @@ class InfoMod(BotMod):
         self._check_ping(a)
         if a.audio_state != 'idle':
           self._add_non_idle(a)
-        if a.audio_state in self.active_states:
+        if a.audio_active:
           self._add_active(a)
         return True
       else:
@@ -235,7 +232,7 @@ class InfoMod(BotMod):
       else:
         self._add_non_idle(a)
       # handle active
-      if state in self.active_states:
+      if a.audio_active:
         self._add_active(a)
       else:
         self._remove_active(a)
