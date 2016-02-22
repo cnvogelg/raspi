@@ -1,6 +1,9 @@
+from __future__ import print_function
+
 import threading
 import subprocess
 import os
+import signal
 
 import Queue
 
@@ -33,15 +36,17 @@ class Worker:
     self.last_cmd = self.CMD_STOP
     self.play_chimes = True
     self.proc = None
+    self.quit = False
     # go!
     self.thread.start()
 
   def shutdown(self):
-    self.cmd_queue.put((self.CMD_EXIT,None))
-    self.last_cmd = self.CMD_EXIT
     # kill a running process
     if self.proc is not None:
-      self.proc.terminate()
+      self._kill(self.proc)
+    self.quit = True
+    self.cmd_queue.put((self.CMD_EXIT,None))
+    self.last_cmd = self.CMD_EXIT
     # wait for thread
     self.thread.join()
 
@@ -108,17 +113,18 @@ class Worker:
   def stop(self):
     """stop playing"""
     if self.last_cmd == self.CMD_PLAY:
-      self.cmd_queue.put((self.CMD_STOP,None))
-      self.last_cmd = self.CMD_STOP
       # kill a running process
       if self.proc is not None:
-        self.proc.terminate()
+        self._kill(self.proc)
+      self.cmd_queue.put((self.CMD_STOP,None))
+      self.last_cmd = self.CMD_STOP
       return True
     else:
       return False
 
   def _loop(self):
     """threading work loop"""
+    playing = False
     while True:
       # get next cmd
       cmd, url = self.cmd_queue.get()
@@ -129,27 +135,37 @@ class Worker:
 
       # exit thread
       if cmd == self.CMD_EXIT:
+        if playing:
+          self._do_stop(url, False)
         break
 
       # start playing
       elif cmd == self.CMD_PLAY:
-        # play start
-        self._run('play_start', self.play_start_cmd, url)
-        # play a start chime?
-        if self.chime_start_sound is not None and self.play_chimes:
-          self._run('chime_start', self.chime_start_cmd, self.chime_start_sound)
-        # start streaming
-        self._run('start_stream', self.start_stream_cmd, url)
+        self._do_play(url)
+        playing = True
 
       # stop playing
       elif cmd == self.CMD_STOP:
-        # stop streaming
-        self._run('stop_stream', self.stop_stream_cmd, url)
-        # play a stop chime?
-        if self.chime_stop_sound is not None and self.play_chimes:
-          self._run('chime_stop', self.chime_stop_cmd, self.chime_stop_sound)
-        # stop playing
-        self._run('play_stop', self.play_stop_cmd, url)
+        self._do_stop(url)
+        playing = False
+
+  def _do_play(self, url):
+    # play start
+    self._run('play_start', self.play_start_cmd, url)
+    # play a start chime?
+    if self.chime_start_sound is not None and self.play_chimes:
+      self._run('chime_start', self.chime_start_cmd, self.chime_start_sound)
+    # start streaming
+    self._run('start_stream', self.start_stream_cmd, url, True)
+
+  def _do_stop(self, url, allow_chime=True):
+    # stop streaming
+    self._run('stop_stream', self.stop_stream_cmd, url)
+    # play a stop chime?
+    if self.chime_stop_sound is not None and self.play_chimes and allow_chime:
+      self._run('chime_stop', self.chime_stop_cmd, self.chime_stop_sound)
+    # stop playing
+    self._run('play_stop', self.play_stop_cmd, url)
 
   def _find_bin(self, exe):
     def is_exe(fpath):
@@ -184,7 +200,10 @@ class Worker:
       cmd.append(c)
     return cmd
 
-  def _run(self, context, in_cmd, arg):
+  def _run(self, context, in_cmd, arg, stream_proc=False):
+    # shutting down?
+    if self.quit:
+      return
     # build command line
     if in_cmd is None:
       return
@@ -195,8 +214,12 @@ class Worker:
       self.info_cb(self, context, cmd)
     try:
       dev_null = open(os.devnull, "w")
-      self.proc = subprocess.Popen(cmd, stdout=dev_null, stderr=dev_null)
-      self.proc.wait()
+      proc = subprocess.Popen(cmd, stdout=dev_null, stderr=dev_null,
+                              preexec_fn=os.setsid)
+      # store proc globally so we can kill it on demand
+      if stream_proc:
+        self.proc = proc
+      proc.wait()
       dev_null.close()
       ret = self.proc.returncode
       if ret != 0:
@@ -207,20 +230,29 @@ class Worker:
         self.error_cb(self, context, cmd, str(e))
     self.proc = None
 
+  def _kill(self, proc):
+    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+
 
 # ----- test -----
 if __name__ == '__main__':
   import time
   w = Worker()
-  w.set_command('chime_start', 'echo chime_start %s')
-  w.set_command('chime_stop', 'echo chime stop %s')
-  w.set_command('start_stream', 'sleep 10')
-  w.set_chime_sound('start', 'start.wav')
-  w.set_chime_sound('stop', 'stop.wav')
+  w.set_command('chime_start', 'play %s')
+  w.set_command('chime_stop', 'play %s')
+  w.set_command('start_stream', '../tools/stream_ssh fozzie')
+  w.set_command('stop_stream', 'echo stop_stream')
+  w.set_chime_sound('start', '../sounds/prompt.wav')
+  w.set_chime_sound('stop', '../sounds/finish.wav')
+  print("play")
   w.play('my.url')
-  time.sleep(1)
+  print("wait")
+  time.sleep(5)
+  print("stop")
   w.stop()
+  print("wait")
   time.sleep(1)
+  print("shutdown")
   w.shutdown()
 
 
