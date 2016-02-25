@@ -265,6 +265,10 @@ class Bot:
       ema = int(self.extra_range[1] * 1000)
       self._log("dispatch delta:", dmi, dma, " extra:", emi, ema)
       self.show_ts = ts
+      # reset ranges
+      tick_delta = self.bot_tick_interval
+      self.delta_range = [tick_delta, -tick_delta]
+      self.extra_range = [tick_delta, -tick_delta]
 
   def _read_dispatch_msgs(self, timeout):
     start = time.time()
