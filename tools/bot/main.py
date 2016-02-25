@@ -207,9 +207,14 @@ class Bot:
     # report start
     self._trigger_internal_event(BotEvent.START)
 
-    tick_delta = int(self.bot_tick_interval * 1000)
+    tick_delta = self.bot_tick_interval
+
+    self.delta_range = [tick_delta, -tick_delta]
+    self.extra_range = [tick_delta, -tick_delta]
+    self.show_ts = time.time()
 
     self.stay = True
+    extra = 0
     while self.stay:
       try:
         # handle tick
@@ -218,20 +223,18 @@ class Bot:
         e = time.time()
 
         # calc remaining time in interval to wait
-        delta = int((e-b)*1000)
-        wait = tick_delta - delta
-        if wait <= 0:
-          wait = 1
-        wait /= 1000
+        delta = e - b
+        wait = tick_delta - delta - extra
+        if wait <= 0.01:
+          wait = 0.01
 
         # handle incoming messages
-        msg = self.bio.read_args(timeout=wait)
-        if msg:
-          if msg.is_internal:
-            if not self._handle_internal_msg(msg):
-              break
-          else:
-            self._handle_msg(msg, self.modules)
+        real_wait = self._read_dispatch_msgs(wait)
+        extra = real_wait - wait
+
+        # internal (debug) accounting
+        self._account_delta(b, delta, extra)
+
       except KeyboardInterrupt:
         self._log("bot: Break")
         break
@@ -242,6 +245,45 @@ class Bot:
 
     # report stop
     self._trigger_internal_event(BotEvent.STOP)
+
+  def _account_delta(self, ts, delta, extra):
+    if delta < self.delta_range[0]:
+      self.delta_range[0] = delta
+    if delta > self.delta_range[1]:
+      self.delta_range[1] = delta
+
+    if extra < self.extra_range[0]:
+      self.extra_range[0] = extra
+    if extra > self.extra_range[1]:
+      self.extra_range[1] = extra
+
+    show_delta = ts - self.show_ts
+    if show_delta > 10:
+      dmi = int(self.delta_range[0] * 1000)
+      dma = int(self.delta_range[1] * 1000)
+      emi = int(self.extra_range[0] * 1000)
+      ema = int(self.extra_range[1] * 1000)
+      self._log("dispatch delta:", dmi, dma, " extra:", emi, ema)
+      self.show_ts = ts
+
+  def _read_dispatch_msgs(self, timeout):
+    start = time.time()
+    end = start + timeout
+    t = start
+    while t < end:
+      msg = self.bio.read_args(timeout=timeout)
+      if msg:
+        if msg.is_internal:
+          self._handle_internal_msg(msg)
+        else:
+          self._handle_msg(msg, self.modules)
+      tn = time.time()
+      delta = tn - t
+      t = tn
+      timeout -= delta
+      if timeout <= 0:
+        break
+    return t - start
 
   def _init_tick(self):
     ts = time.time()
