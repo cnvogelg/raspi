@@ -40,7 +40,8 @@ class PlayerMod(BotMod):
       'chime_stop_cmd' : 'play %s',
       'start_stream_cmd' : 'tools/stream_ssh %s',
       'stop_stream_cmd' : '',
-      'play_chimes' : True
+      'play_chimes' : True,
+      'start_muted' : False
     }
     cfg = cfg.get_section('player', def_cfg)
     self.log("player_cfg:", cfg)
@@ -59,7 +60,8 @@ class PlayerMod(BotMod):
     self.worker.set_callback('error', self._error_cb)
     self.worker.set_callback('info', self._info_cb)
 
-    self.control = control.Control(self, self.send_event)
+    start_muted = cfg['start_muted']
+    self.control = control.Control(self, self.send_event, start_muted)
 
   def get_commands(self):
     return self.cmds

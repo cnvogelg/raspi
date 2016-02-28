@@ -22,10 +22,13 @@ class Control:
 
   mode_names = ('monitor', 'mute', 'listen')
 
-  def __init__(self, player, send_event=None):
+  def __init__(self, player, send_event=None, start_muted=False):
     self.player = player
     self.send_event = send_event
-    self.state = self.MODE_MONITOR
+    if start_muted:
+      self.state = self.MODE_MUTE
+    else:
+      self.state = self.MODE_MONITOR
     self.play_srv = None
     self.url_map = {}
     self.active_map = {}
