@@ -1,9 +1,15 @@
 from __future__ import print_function
 
 import threading
-import subprocess
 import os
+import sys
 import signal
+
+# use subprocess32 on python 2.7 as otherwise threading does not work!
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess
+else:
+    import subprocess
 
 import Queue
 
