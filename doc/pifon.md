@@ -3,9 +3,11 @@
 
 ### Features
 
-* **Version 2.0**: 14.02.2016
+* **Version 2.0**: 28.02.2016
   - multi fon support. observe one, two or more rooms with one mon
-  - redesigned LCD UI
+  - fully customizable audio streaming
+  - use audio ssh stream for low-latency playback
+  - redesigned LCD UI with graphical audio level display
   - completely rewritten XMPP bot framework with modules
 
 
@@ -26,27 +28,25 @@ stream from the baby's room until the audio level returns to silence again.
 
 ### 1.2 System Design
 
-pifon uses available technlogies whenever possible. Therefore the
-communication between fon and mon uses then chat protocol XMPP (aka Jabber).
+pifon uses available technologies whenever possible. Therefore the
+communication between fon and mon uses the chat protocol XMPP (aka Jabber).
 So both fon and mon are implemented as chat bots that simply talk their
 events to a chat room and listen out for events there. Nice side effect here
 is that you can use a chat client to monitor the events and even inject your
-own by simply chatting with the bots.
+own ones by simply chatting with the bots.
 
 We use the [prosody][1] XMPP server in a local installation. The bots are
 implemented in Python 2.7 and use the [sleekxmpp][2] library.
 
-Audio streaming also relies on well established techniques: The fon server
-runs an [Icecast2][3] audio streaming server that locally feeds in the recorded
-microphone stream with the [darkice][4] server. On the mon/client side the
-[Music Player Daemon][5] is used.
+Audio streaming is done by recording an audio stream with [SoX][3] and stream
+it via an SSH link to the mon where it is play back with SoX again.
 
-The mon uses a small [16x2 character LCD display from Adafruit][6] to display
+The mon uses a small [16x2 character LCD display from Adafruit][4] to display
 all events and status information. Furthermore, the display hardware offers a
 set of five buttons that allow you to control the behavior of the mon. If you
 do not have a LCD then you can run the mon with a LCD simulator. It renders
 the LCD display with PyGame library on any SDL supported display. Use this to
-run mon on your desktop PC.
+run mon e.g. on your desktop PC/Mac.
 
 However, the system is very flexible, i.e. you can easily replace the way the
 audio is played back or streamed or you can even write your own UI that uses
@@ -54,10 +54,8 @@ another way of displaying the audio events.
 
 [1]: http://prosody.im
 [2]: http://sleekxmpp.com
-[3]: http://icecast.org
-[4]: http://www.darkice.org
-[5]: http://www.musicpd.org
-[6]: https://learn.adafruit.com/adafruit-16x2-character-lcd-plus-keypad-for-raspberry-pi/overview
+[3]: http://sox.sourceforge.net
+[4]: https://learn.adafruit.com/adafruit-16x2-character-lcd-plus-keypad-for-raspberry-pi/overview
 
 ### 1.3 System Diagram
 
@@ -66,20 +64,19 @@ another way of displaying the audio events.
 
                   +----> event detector -----> XMPP bot ------> prosody
 Mic               |                                             chat room
-*=== --> audio ---+
+*=== --> audio ---+ mixin interface in ALSA to share input
          record   |
-                  +----> darkice ------------> Icecast2 <------ incoming
-                         record/encode         stream           connect
-                         stream                server           from mon
+                  +----> SoX ALSA recording <---- SSH connect from mon
+                         record
+                         stream
 
 ---------- mon ----------
 
 prosody ---------> XMPP bot ----+---------> show events in UI/LCD
 chat room                       |
-                                v control player
-connect <--------------------- MPD -------> play to speaker
-to fon
-Icecast2
+                                +---------> connect fon via SSH
+                                            |
+                                            +-> play stream back with SoX
 ```
 
 
@@ -89,7 +86,7 @@ Icecast2
 
 * Two Raspberry Pis
   - I use classic Model B, but newer ones like B+ or B2 should work, too
-  - Model B is recommended since networking is required
+  - Model B/B+/B2 is recommended since networking is required
 * A Microphone
   - Either a USB Webcam with a microphone
   - Or a USB Soundcard with microphone input
@@ -109,7 +106,8 @@ Icecast2
     regular edition
 
   - Some extra pacakges are required on both Pis:
-
+    - Tmux is used for conveniently running the fon/mon bots
+    - git is used to get the pifon source code
 ```
 # apt-get install tmux git
 ```
@@ -124,7 +122,7 @@ Icecast2
 ### 2.3 Running on Mac OS X
 
 * I use my Mac to test the components locally and run the **mon** with the
-  LCD simulator there
+  LCD simulator there. Even **fon** runs here for quick local audio testing.
 
 * In order to do so, you have to install some extra components
   - I use [MacPorts][1] to manage my packets
@@ -145,7 +143,7 @@ Icecast2
 ### 2.4 Runnnin on Ubuntu
 
 * If you want to run the components on your PC with Ubuntu then install the
-  following
+  following packages:
 
 ```
 # apt-get install python-pygame tmux python-pip
@@ -272,7 +270,7 @@ SleepXMPP can be easily setup with PIP (be sure to run it as root):
 
 To test the library launch your Python 2.7 and try to import the lib:
 
-```
+```python
 > python
 import sleekxmpp
 exit()
@@ -294,7 +292,7 @@ cd tools
 ./test_xmppbot
 ```
 
-Please note that the test bot reads the configuration file called **sample.cfg**
+Please **note** that the test bot reads the configuration file called **sample.cfg**
 in the same directory. There you have to adjust the user/password and domain
 name if you use a different setup:
 
@@ -341,11 +339,10 @@ chat room.
 
 In this section we will setup and configure audio processing on both clients.
 
-The **fon** Raspi will use its microphone to capture audio and we install an
-audio streaming server there.
+The **fon** Raspi will use its microphone to capture audio and we install the
+recording tools there.
 
-The **mon** Raspi will setup its audio playback and the MPD for music play
-back.
+The **mon** Raspi will setup its audio playback.
 
 ### 4.1 Mic Setup on fon Raspi
 
@@ -438,110 +435,7 @@ alarm has to be triggered.
 * Ok, audio is now setup for pifon use!
 
 
-### 4.2 Setup Stream Server on fon Raspi
-
-For a working audio streaming server that records local mic audio we need
-two ingredients: First the darkice tool that records the live audio from the
-mic and creates a compressed audio stream and then a streaming server that
-provides these streams to external players.
-
-#### Darkice Installation
-
-* Install darkice package
-```
-# apt-get install darkice
-```
-
-* Find the default sample rate of your device
-```
-# arecord --dump-hw-params -D mixin 2>&1 | grep RATE
-RATE: 480000
-```
-
-* Configure DarkIce and create ``/etc/darkice.cfg``:
-```
-[general]
-duration        = 0        # duration of encoding, in seconds. 0 means forever
-bufferSecs      = 1        # size of internal slip buffer, in seconds
-reconnect       = yes      # reconnect to the server(s) if disconnected
-
-[input]
-device          = mixin     # use my ALSA device
-sampleRate      = 48000     # use sample rate determined above
-bitsPerSample   = 16        # bits per sample. try 16
-channel         = 1         # channels. 1 = mono, 2 = stereo
-
-[icecast2-0]
-bitrateMode     = vbr
-format          = mp3
-quality         = 0.6
-server          = localhost
-port            = 8000
-password        = hackme
-mountPoint      = pifon
-name            = baby@pifon
-description     = The live stream from baby's room
-url             = http://pifon.local:80/
-genre           = baby
-public          = no
-highpass        = 500
-```
-  - adjust ``format = vorbis`` if using the OGG darkice
-  - adjust ``url`` to match your pi's host name. This URL is only for
-    advertising your audio stream and not required for normal operation.
-
-* You can test drive darkice manually with:
-```
-> sudo darkice
-```
-  - It will start without errors and wait for stream requests
-
-#### Icecast2 Installation
-
-* Install Icecast2 package
-```
-# apt-get install icecast2
-Config? -> Yes
-Hostname? -> your hostname
-Set passwords
-```
-
-* You can tune icecast by omitting the audio burst at the begin of a stream
-  to speed up connection time:
-
-  - edit ``/etc/icecast2/icecast.xml`` set burst on connect to 0 and comment
-    out burst size:
-```
-<burst-on-connect>0</burst-on-connect>
-<!-- <burst-size>65535</burst-size> -->
-```
-  - restart service
-```
-service icecast2 start
-```
-
-#### Test Stream Server with PC
-
-* First run darkice manually on your fon Raspi:
-```
-> sudo darkice
-```
-* Icecast2 should be already running on fon Raspi.
-
-* With a web browser on your PC access the Icecast page: ``http://fozzie.local:8000``.
-  - Note: ``fozzie``is the hostname of the fon Raspi
-  - You should see a web page announcing our darkice **pifon** mount point
-  - If you click on the **M3U** icon your media-enabled browser should start
-    streaming the audio from the fon Pi.
-
-* Now use a streaming capable media player on your PC to connect to the stream.
-  - It uses directly the stream URL: ``http://fozzie.local:8000/pifon``
-  - I use [VLC][1] and pick "Open/Network..." to set the URL
-
-[1]: http://www.videolan.org
-
-
-### 4.3 Audio Playback Setup on mon Raspi
+### 4.2 Audio Playback Setup on mon Raspi
 
 #### Speaker Setup
 
@@ -562,41 +456,58 @@ service icecast2 start
 > aplay /usr/share/sounds/alsa/Noise.wav
 ```
 
-* Install some nice sounds for chiming in pifon
+
+### 4.3 Setup Audio Streaming
+
+For audio streaming we need a working ssh setup without passwords, SoX setup
+for both parts and the recorder tool installed at the right place.
+
+### SSH Setup
+
+The **mon** raspi must be able to log into the **fon** raspi without password
+by using authorized keys.
+
+You can test your setup by running:
+
 ```
-# apt-get install sound-icons
+chris@mon $ ssh fon    # log in as chris on fon
 ```
 
-#### Music Player Daemon Setup
+If you can connect the fon server without password everything is fine.
 
-* Install package
-```
-# apt-get install mpd mpc
-```
+If it does not work for you then set it up like this:
 
-* Copy the sound-icons to mpd's music dir and update its index
+On **mon** do a:
 ```
-# cp /usr/share/sounds/sound-icons/* /var/lib/mpd/music/
-> mpc update
-> mpc ls
+chris@mon $ ssh-keygen
+chris@mon $ ssh-copy-id fon
 ```
 
-* Test simple playback by playing a sound icon
+### Test streaming
+
+Audio streaming is done by running a script called **stream_ssh** on **mon**.
+The script resides in the folder **raspi/pifon/mon/tools**. It connects to
+**fon** via ssh and runs a recorder there called
+**raspi/pifon/fon/tools/recorder**. To make this work ensure that the
+project's code is available at **raspi** in your home folder on **fon**.
+
+First we need to install SoX on **mon**, too:
+
 ```
-> mpc clear
-> mpc add prompt.wav
-> mpc play
+# apt-get install sox
 ```
 
-* Test streaming from fon's audio server
-  - Use the URL we created in the server setup on fon part (see above)
+A quick streaming test can be launched manually on **mon**:
+
 ```
-> mpc clear
-> mpc add http://fozzie.local:8000/pifon
-> mpc play
-... listen a bit
-> mpc stop
+chris@mon $ cd ~/raspi/pifon/mon
+chris@mon $ tools/stream_ssh fon
 ```
+
+Give the name of the **fon** raspi as single argument. This will stream the
+audio from **fon** until you stop it by pressing ``Ctrl+C``.
+
+If this works you are ready to run the bots on **mon** and **fon**!
 
 
 ## 5. Monitor User Interface Setup
@@ -625,7 +536,15 @@ Advanced Options -> I2C
   - This will report the LCD at address **0x20**
   - Note: On new Raspis (B+ and B2) use bus 1 instead of 0!
 
-* You should find a device for your bus:
+* Your display is attached to address **0x20**:
+```
+     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+00:          -- -- -- -- -- -- -- -- -- -- -- -- --
+10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+20: 20 -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+```
+
+* Also the i2c bus devices should be available:
 ```
 > ls -la /dev/i2c*
 crw-rw---- 1 root i2c 89, 0 Feb  9 11:00 /dev/i2c-0
@@ -636,7 +555,7 @@ crw-rw---- 1 root i2c 89, 0 Feb  9 11:00 /dev/i2c-0
 # usermod -a -G i2c chris
 ```
 
-* Now re-test bus scan as user
+* Re-login to activate new group and now re-test bus scan as user
 ```
 > i2cdetect 0
 ```
@@ -677,7 +596,7 @@ crw-rw---- 1 root i2c 89, 0 Feb  9 11:00 /dev/i2c-0
 In the previous chapters the environment for the pifon bot instances was
 prepared and we are now ready to run the main components
 
-### 6.1 Configuring pifon
+### 6.1 Common setup options for both fon and mon
 
 #### Config File Location
 
@@ -694,6 +613,11 @@ prepared and we are now ready to run the main components
   with changes if you update your pifon source. Another option is to copy the
   config file to ``~/.pifon_fon.cfg`` and ``~/.pifon_mon.cfg`` and edit it
   there. If this file exists it will be loaded from there.
+
+* Actually the files in your home are loaded first and then the local files
+  are overlayed. Therefore, it makes sense to only add the options you change
+  to your config in the home directory. All other options are then fetched
+  from the shipped files in the source tree.
 
 #### Common XMPP Options
 
@@ -715,15 +639,16 @@ nick=fon
     extended by the hostname so you can distinguish instances on different
     hosts.
 
-#### fon Config
+
+### 6.2 fon Config
 
 * Config options for fon include the **audio** module:
 ```
 [audio]
 sim=False
 trace=False
-src_name=Maja+Willi
-listen_url=http://pifon.local:8000/pifon
+location=%%h
+listen_url=%%H
 alevel=1
 slevel=0
 attack=0
@@ -731,15 +656,23 @@ sustain=5
 respite=10
 update=5
 ```
+
+#### General Audio Options
+
   * **sim**: set to **True** will enable an audio simulator: It creates audio
     events without recording from the microphone. Use this to test your mon
     setup without the need of generating noise all the time :)
   * **trace**: set to **True** will enable more output on the console so you
     can watch all the audio levels that are detected.
-  * **src_name**: the room name of the microphone. It will be displayed in
-    mon when an audio event is detected there.
+  * **location**: the room name of the microphone. It will be displayed in
+    mon when an audio event is detected there. Use ``%%h`` as a placeholder
+    for the hostname and ``%%H``for the full qualified host name.
   * **listen_url**: this url is broadcasted to the mon player so it knows how
-    to reach the audio stream
+    to reach the audio stream. This url will be passed to the player commands
+    on the mon so that they can reach this audio source. Typically its the
+    host name of the machine. ``%%h`` and ``%%H``work here, too.
+
+#### Audio Detector Config
 
 * The following options control the audio detector. It has one of the following
 states:
@@ -763,6 +696,8 @@ states:
   * **respite**: the silence period in seconds after **sustain**
   * **update**: if the audio level is reported give a new value every n *
     100ms
+
+#### VUMeter Config
 
 * Sound level detection can be controlled in **vumeter** module:
 ```
@@ -793,9 +728,57 @@ tool=tools/vumeter
   * **tool**: the external script that records the audio signal and outputs
     the loudness values to stdout.
 
-#### mon Config
 
-* The monitor has the following options:
+### 6.3 mon Config
+
+The mon raspi has two config sections, one for the audio player and the other
+one configuring the user interface (UI).
+
+#### Audio Player Config
+
+* The monitor has this player options:
+```
+[player]
+chime_start_sound=sounds/prompt.wav
+chime_stop_sound=sounds/finish.wav
+chime_start_cmd=play %%s
+chime_stop_cmd=play %%s
+start_stream_cmd=tools/stream_ssh %%s
+stop_stream_cmd=
+play_chimes=True
+start_muted=False
+```
+  * **chime_start_sound** and **chime_stop_sound** give the filename of the
+    sound file that will be played when audio activity starts or ends. The
+    default are some shipped sounds but you can give your own files here.
+    Either give a full path or copy your sounds into **sound** folder.
+  * **chime_start_cmd** and **chime_stop_cmd** define the external player
+    commands that will be executed. Note that ``%%s`` is a placeholder for
+    the audio file that will be played (see options before). By default
+    we use the player from SoX called **play**.
+  * **start_stream_cmd** is called when the audio stream has to start. The
+    placeholder ``%%s`` gives the audio listen_url emitted by the **fon**.
+    (See **listen_url** in **fon** section). The start stream command can
+    either be a short running command that starts streaming in an external
+    process or is a long running command that runs as long as the stream is
+    needed. We use the latter option and a custom script called **stream_ssh**
+    that streams the audio from **fon** via ssh. The mon will kill this
+    command when playing has to stop.
+  * **stop_stream_cmd** is typically used if you only have a short running
+    start command and tells the external player to stop streaming. By default
+    we left the field blank and this does no stop operation.
+  * **play_chimes** is a bool field that defines if chime sounds are to be
+    played before and after the streamed audio. Note that this is the preset
+    and you can alter this value via UI later on. Default is true.
+  * **start_muted** is a bool field that defines if the player starts muted,
+    i.e. it does not play an audio stream if a **fon** client is active.
+    Note that this is the preset and you can alter this value via UI later
+    on. Default is false.
+
+
+#### User Interface Config
+
+* The monitor has the following UI options:
 ```
 [ui]
 name=lcd
@@ -815,30 +798,40 @@ mode=auto
     machines, **hw** will use the real Adafruit LCD and **auto** tries to
     automatically detect if the HW is available and if yes it will use it.
 
-### 6.2 Test Drive
+
+### 6.4 A First Test Drive
 
 With the configuration in place we can try to manually run the fon and mon
 bots.
 
 #### Running fon
 
+* Prepare config for ``pifon_fon.cfg`` as described above
 * Enter the pifon fon directory ``raspi/pifon/fon``
 * Run ``./pifon_fon``
 * It will connect to the chat room, start recording and show you all audio
   events
-* Abort the program with Ctrl+C
 
 #### Running mon
 
+* Prepare config for ``pifon_mon.cfg`` as described above
 * Enter the pifon mon directory ``raspi/pifon/mon``
 * Run ``./pifon_mon``
 * It will start displaying the UI and show all incoming events
-* Abort the program with Ctrl+C
 
-### 6.3 Setting up Autostart for the Bots
+#### Test
+
+* **mon** should see the fon client(s) and show their state
+* If the audio level on **fon** increases then **mon** should show it and
+  start streaming data
+* Abort both bots with ``Ctrl+C`` after testing.
+
+
+### 6.5 Setting up Autostart for the Bots
 
 Now that the bots run manually in test drive mode it is time to run them
-automatically when your Pis start.
+automatically when your Pis start. This will be your production setup
+where both bots on power on.
 
 #### Autostart fon
 
@@ -846,14 +839,14 @@ automatically when your Pis start.
 ```
 su -l chris -c '/home/chris/raspi/pifon/fon/rc.pifon_fon start'
 ```
-  - no change **chris** to your user name
+  - note: change **chris** to your user name
 
 * test:
   * reboot and test
   * you can always attach to your running processes with
 ```
 > tmux list-sessions
-> tmux attach -t audio
+> tmux attach -t fon
 leave the tmux session with Ctrl+B and d
 ```
   * you can exit the audio server by pressing Ctrl+C while being attached
@@ -865,7 +858,8 @@ leave the tmux session with Ctrl+B and d
 
 #### Autostart mon
 
-* same as for **fon** but use script in **mon** folder
+* see instruction for **fon** above
+* but use script in **mon** folder in ``/etc/rc.local``:
 ```
 su -l chris -c '/home/chris/raspi/pifon/mon/rc.pifon_mon start'
 ```
@@ -875,6 +869,85 @@ su -l chris -c '/home/chris/raspi/pifon/mon/rc.pifon_mon start'
 
 ### 7.1 LCD User Interface
 
+#### Display Items
 
+The display has 16 chars in two rows and while the first row changes its
+contents depending on the mode the **mon** is in, the second row always
+shows the state of the discovered **fon** clients and the local **player**.
+
+**mon** has the following modes:
+  * **Idle**: none of the attached **fon** clients is active
+  * **Active**: at least one **fon** client is active
+  * **Info**: information messages are available
+
+**Top Row** displays:
+  * In **idle** mode a clock and the date, time zone and calender week
+  * In **active** mode information of the **fon** client that is currently
+    active. The line looks like this
+```
+BabyName00-___-12
+```
+  * Line contents
+    * It displays the location (room name) of the active **fon** client
+    * Then the duration of the active event in seconds
+    * A bar graph of the incoming audio levels (vumeter values)
+    * The current audio level also given as a number
+  * In **info** mode a scolling text containing the information
+
+**Bottom Row** displays:
+  * each **fon** client in a small block:
+```
+1I._
+```
+  * the first number is the number of the fon client. starts with 1.
+  * the letter gives the state of the audio detector on the **fon**
+    client. The following states are used:
+    * **I)dle**: no audio activity on client.
+    * **A)ttack**: audio level is above limit. waiting for activity to start.
+    * **B)usy**: activity has started and audio level is still hight enough.
+    * **S)ustain**: audio level is below limit. Activity will stop soon.
+    * **R)espite**: after sustain enforce a delay
+  * the "liveness" of the **fon** is given with the next character:
+    * **. Dot**: fon client answers pings and is thus considered alive
+    * **! Ping**: a new ping message was just received.
+    * **? Timeout**: fon did not answer ping in time
+    * **p Playing**: local player is playing audio stream of this **fon**
+  * the fourth character is a bar graph that gives the current audio level
+    (vumeter values) received from this fon raspi.
+  * on the right most corner a single letter denotes **local player state**:
+    * if the letter is lowercase then playing chimes is disable. Otherwise
+      chimes are enabled. Note: you can toggle this switch via UI, too.
+    * the following letters/symbols are used:
+      * **m)onitor** watch out for any audio activity coming from a **fon**
+      * **mu)te** disable playback until toggled again via UI
+      * **p)lay** (icon) play an audio source
+      * **l)isten** mode: directly connect to a **fon** and start streaming.
+
+#### Background Color
+
+The LCD has a nice feature and provides a backlight that can be set to
+different RGB colors. We use the backlight to show the state of the monitor
+colored coded. This is very helpful if you mute the player: you can still
+recognize audio events by simply judging the color of the display.
+
+The following colors are displayed:
+  * **Green**: monitor is idle. No **fon** client is active.
+  * **Red**: at least one **fon** client is active.
+  * **Blue**: monitor is not connected to chat bot
+  * **Violet**: at least one **fon** client does not answer regular pings
+
+#### Button Control
+
+The LCD has some buttons attached that allow to create a minimal UI.
+The following buttons are scanned:
+  * **left**: toggle play chimes flag
+  * **right**: toggle mute flag
+  * **up**: start listening to a fon client. call mutltiple times to cycle
+    through available clients and the regular monitor mode.
+  * **down**: toggle screen blanking. it will render the screen black if the
+    monitor is idle for some seconds.
+  * **select**: trigger to show valuable information: who is connected on
+    which port.
+  * **left + right**: press both buttons to quit the bot.
 
 EOF
