@@ -13,7 +13,7 @@ how to setup your new raspi with nice features like:
 * DNS naming for your box
 * NFS work share with autofs
 
-more: [doc/install.txt](raspi/blob/master/doc/install.txt)
+more: [doc/install.txt](doc/install.txt)
 
 pifon - the geeky baby monitor appliance
 ----------------------------------------
@@ -33,11 +33,11 @@ pifon - the geeky baby monitor appliance
 * Listen for audio events on XMPP chat room from server to start/stop audio streaming
 * Stream MP3 from server to monitor baby's activity
 
-more: [doc/pifon.md](raspi/blob/master/doc/pifon.md)
+more: [doc/pifon.md](doc/pifon.md)
 
 pifoto - tethered shooting with iPad and raspi
 ----------------------------------------------
 
 make a WiFi based tethered camera shooting tool uses gphoto2
 
-more: [doc/pifoto.txt](raspi/blob/master/doc/pifoto.txt)
+more: [doc/pifoto.txt](doc/pifoto.txt)
