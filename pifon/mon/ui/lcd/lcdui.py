@@ -165,16 +165,16 @@ class UI:
       # player controls
       if self.player is not None:
         # right: toggle mute
-        if b == 'r':
+        if b == 'd':
           self.play_ctl.toggle_mute(self.player)
         # left: toggle chime
-        elif b == 'l':
+        elif b == 'r':
           self.play_ctl.toggle_chime(self.player)
         # up: toggle listen
         elif b == 'u':
           self.play_ctl.toggle_listen(self.player, self.audio_map.keys())
         # down: toggle blank
-        elif b == 'd':
+        elif b == 'l':
           self._toggle_blanking()
         # select: show info
         elif b == 's':
