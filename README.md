@@ -33,7 +33,7 @@ pifon - the geeky baby monitor appliance
 * Listen for audio events on XMPP chat room from server to start/stop audio streaming
 * Stream MP3 from server to monitor baby's activity
 
-more: [doc/pifon.txt](raspi/blob/master/doc/pifon.txt)
+more: [doc/pifon.md](raspi/blob/master/doc/pifon.md)
 
 pifoto - tethered shooting with iPad and raspi
 ----------------------------------------------
