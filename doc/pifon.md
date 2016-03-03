@@ -814,6 +814,10 @@ bots.
 
 #### Running mon
 
+* You need to install the ``subprocess32`` python module first
+```
+> sudo pip install subprocess32
+```
 * Prepare config for ``pifon_mon.cfg`` as described above
 * Enter the pifon mon directory ``raspi/pifon/mon``
 * Run ``./pifon_mon``
@@ -940,11 +944,11 @@ The following colors are displayed:
 
 The LCD has some buttons attached that allow to create a minimal UI.
 The following buttons are scanned:
-  * **left**: toggle play chimes flag
-  * **right**: toggle mute flag
+  * **right**: toggle play chimes flag
+  * **down**: toggle mute flag
   * **up**: start listening to a fon client. call mutltiple times to cycle
     through available clients and the regular monitor mode.
-  * **down**: toggle screen blanking. it will render the screen black if the
+  * **left**: toggle screen blanking. it will render the screen black if the
     monitor is idle for some seconds.
   * **select**: trigger to show valuable information: who is connected on
     which port.
