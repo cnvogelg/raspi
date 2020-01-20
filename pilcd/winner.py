@@ -25,7 +25,7 @@ def show(mylcd, offset):
     txt = time.strftime("%H:%M:%S",lt)
     mylcd.text(8, 0, txt)
     # calc winner
-    n = lt.tm_yday % 3 + offset
+    n = (lt.tm_yday + offset) % 3
     w = winners[n]
     mylcd.backlight(colors[n])
     mylcd.text(0, 0, "1:" + w[0])
@@ -37,15 +37,15 @@ def main():
     mylcd = lcd.LCD()
     print("using", mylcd.__class__.__name__)
     mylcd.clear()
-    offset = 0
+    offset = 1
     try:
         while True:
             but = mylcd.buttonRead()
             if but is None or but == 0xc:
                 break
-            elif but == lcd.BUTTON_LEFT:
+            elif but == lcd.BUTTON_LEFT | lcd.BUTTON_UP:
                 offset -= 1
-            elif but == lcd. BUTTON_RIGHT:
+            elif but == lcd. BUTTON_RIGHT | lcd.BUTTON_UP:
                 offset += 1
             show(mylcd, offset)
             time.sleep(1)
